@@ -1,0 +1,37 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f5f6fa;
+  color: #333;
+}
+
+.app {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.app-header {
+  text-align: center;
+  padding: 2rem 0 1rem;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: #16213e;
+}
+
+.app-header p {
+  margin: 0.5rem 0 0;
+  color: #666;
+  font-size: 1.1rem;
+}
+
+.app-main {
+  padding-bottom: 3rem;
+}
