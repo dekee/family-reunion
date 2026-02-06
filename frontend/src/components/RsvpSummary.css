@@ -1,0 +1,38 @@
+.summary {
+  margin-bottom: 2rem;
+}
+
+.summary h2 {
+  margin-bottom: 1rem;
+  color: #1a1a2e;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+.summary-card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.25rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.summary-number {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #16213e;
+}
+
+.summary-label {
+  font-size: 0.85rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}

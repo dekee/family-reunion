@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: family-reunion-ingress
+  namespace: family-reunion
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: reunion.home
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
