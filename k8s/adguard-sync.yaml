@@ -12,6 +12,7 @@ spec:
       containers:
         - name: adguardhome-sync
           image: ghcr.io/bakito/adguardhome-sync:latest
+          command: ["/opt/go/adguardhome-sync"]
           args: ["run"]
           env:
             - name: LOG_LEVEL
@@ -79,6 +80,7 @@ spec:
       containers:
         - name: adguardhome-sync
           image: ghcr.io/bakito/adguardhome-sync:latest
+          command: ["/opt/go/adguardhome-sync"]
           args: ["run"]
           env:
             - name: LOG_LEVEL
