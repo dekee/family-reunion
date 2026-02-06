@@ -1,11 +1,14 @@
 import { useState, useRef } from 'react';
+import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
+import HomePage from './components/HomePage';
 import RsvpSummary from './components/RsvpSummary';
 import RsvpForm from './components/RsvpForm';
 import RsvpList from './components/RsvpList';
+import FamilyTree from './components/FamilyTree';
 import type { RsvpResponse } from './types';
 import './App.css';
 
-function App() {
+function RsvpPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [editingRsvp, setEditingRsvp] = useState<RsvpResponse | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
@@ -25,30 +28,48 @@ function App() {
   };
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>Family Reunion RSVP</h1>
-        <p>Let us know your family is coming!</p>
-      </header>
+    <>
+      <RsvpSummary refreshKey={refreshKey} />
 
-      <main className="app-main">
-        <RsvpSummary refreshKey={refreshKey} />
-
-        <div ref={formRef}>
-          <RsvpForm
-            onSaved={handleSaved}
-            editingRsvp={editingRsvp}
-            onCancelEdit={handleCancelEdit}
-          />
-        </div>
-
-        <RsvpList
-          refreshKey={refreshKey}
-          onEdit={handleEdit}
-          onDeleted={refresh}
+      <div ref={formRef}>
+        <RsvpForm
+          onSaved={handleSaved}
+          editingRsvp={editingRsvp}
+          onCancelEdit={handleCancelEdit}
         />
-      </main>
-    </div>
+      </div>
+
+      <RsvpList
+        refreshKey={refreshKey}
+        onEdit={handleEdit}
+        onDeleted={refresh}
+      />
+    </>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <div className="app">
+        <header className="app-header">
+          <h1>Tumblin Family Reunion</h1>
+          <nav className="app-nav">
+            <NavLink to="/" end>Home</NavLink>
+            <NavLink to="/rsvp">RSVP</NavLink>
+            <NavLink to="/family-tree">Family Tree</NavLink>
+          </nav>
+        </header>
+
+        <main className="app-main">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/rsvp" element={<RsvpPage />} />
+            <Route path="/family-tree" element={<FamilyTree />} />
+          </Routes>
+        </main>
+      </div>
+    </BrowserRouter>
   );
 }
 

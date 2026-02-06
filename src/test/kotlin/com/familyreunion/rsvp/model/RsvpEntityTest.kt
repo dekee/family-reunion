@@ -28,47 +28,47 @@ class RsvpEntityTest @Autowired constructor(
     }
 
     @Test
-    fun `should cascade persist FamilyMembers when saving Rsvp`() {
+    fun `should cascade persist Attendees when saving Rsvp`() {
         val rsvp = Rsvp(
             familyName = "Johnson",
             headOfHouseholdName = "Mary Johnson",
             email = "mary@johnson.com"
         )
 
-        val member1 = FamilyMember(name = "Mary Johnson", ageGroup = AgeGroup.ADULT, rsvp = rsvp)
-        val member2 = FamilyMember(name = "Tom Johnson", ageGroup = AgeGroup.CHILD, dietaryNeeds = "nut allergy", rsvp = rsvp)
-        rsvp.familyMembers.addAll(listOf(member1, member2))
+        val attendee1 = Attendee(rsvp = rsvp, guestName = "Mary Johnson", guestAgeGroup = AgeGroup.ADULT)
+        val attendee2 = Attendee(rsvp = rsvp, guestName = "Tom Johnson", guestAgeGroup = AgeGroup.CHILD, dietaryNeeds = "nut allergy")
+        rsvp.attendees.addAll(listOf(attendee1, attendee2))
 
         val saved = entityManager.persistAndFlush(rsvp)
         entityManager.clear()
 
         val found = entityManager.find(Rsvp::class.java, saved.id)
-        assertThat(found.familyMembers).hasSize(2)
-        assertThat(found.familyMembers.map { it.name }).containsExactlyInAnyOrder("Mary Johnson", "Tom Johnson")
+        assertThat(found.attendees).hasSize(2)
+        assertThat(found.attendees.map { it.guestName }).containsExactlyInAnyOrder("Mary Johnson", "Tom Johnson")
     }
 
     @Test
-    fun `should remove orphan FamilyMembers when removed from Rsvp`() {
+    fun `should remove orphan Attendees when removed from Rsvp`() {
         val rsvp = Rsvp(
             familyName = "Williams",
             headOfHouseholdName = "Bob Williams",
             email = "bob@williams.com"
         )
 
-        val member1 = FamilyMember(name = "Bob Williams", ageGroup = AgeGroup.ADULT, rsvp = rsvp)
-        val member2 = FamilyMember(name = "Sue Williams", ageGroup = AgeGroup.ADULT, rsvp = rsvp)
-        rsvp.familyMembers.addAll(listOf(member1, member2))
+        val attendee1 = Attendee(rsvp = rsvp, guestName = "Bob Williams", guestAgeGroup = AgeGroup.ADULT)
+        val attendee2 = Attendee(rsvp = rsvp, guestName = "Sue Williams", guestAgeGroup = AgeGroup.ADULT)
+        rsvp.attendees.addAll(listOf(attendee1, attendee2))
 
         entityManager.persistAndFlush(rsvp)
         entityManager.clear()
 
         val found = entityManager.find(Rsvp::class.java, rsvp.id)
-        found.familyMembers.removeAt(0)
+        found.attendees.removeAt(0)
         entityManager.persistAndFlush(found)
         entityManager.clear()
 
         val updated = entityManager.find(Rsvp::class.java, rsvp.id)
-        assertThat(updated.familyMembers).hasSize(1)
+        assertThat(updated.attendees).hasSize(1)
     }
 
     @Test
@@ -78,13 +78,37 @@ class RsvpEntityTest @Autowired constructor(
             headOfHouseholdName = "Ann Davis",
             email = "ann@davis.com"
         )
-        val member = FamilyMember(name = "Baby Davis", ageGroup = AgeGroup.INFANT, rsvp = rsvp)
-        rsvp.familyMembers.add(member)
+        val attendee = Attendee(rsvp = rsvp, guestName = "Baby Davis", guestAgeGroup = AgeGroup.INFANT)
+        rsvp.attendees.add(attendee)
 
         entityManager.persistAndFlush(rsvp)
         entityManager.clear()
 
         val found = entityManager.find(Rsvp::class.java, rsvp.id)
-        assertThat(found.familyMembers[0].ageGroup).isEqualTo(AgeGroup.INFANT)
+        assertThat(found.attendees[0].guestAgeGroup).isEqualTo(AgeGroup.INFANT)
+    }
+
+    @Test
+    fun `should persist Attendee with family member reference`() {
+        val member = entityManager.persistAndFlush(
+            FamilyMember(name = "Test Member", ageGroup = AgeGroup.ADULT, generation = 0)
+        )
+
+        val rsvp = Rsvp(
+            familyName = "Test",
+            headOfHouseholdName = "Test Member",
+            email = "test@test.com"
+        )
+        val attendee = Attendee(rsvp = rsvp, familyMember = member, dietaryNeeds = "vegan")
+        rsvp.attendees.add(attendee)
+
+        entityManager.persistAndFlush(rsvp)
+        entityManager.clear()
+
+        val found = entityManager.find(Rsvp::class.java, rsvp.id)
+        assertThat(found.attendees).hasSize(1)
+        assertThat(found.attendees[0].familyMember?.name).isEqualTo("Test Member")
+        assertThat(found.attendees[0].dietaryNeeds).isEqualTo("vegan")
+        assertThat(found.attendees[0].guestName).isNull()
     }
 }

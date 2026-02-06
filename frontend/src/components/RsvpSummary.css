@@ -4,7 +4,7 @@
 
 .summary h2 {
   margin-bottom: 1rem;
-  color: #1a1a2e;
+  color: #16213e;
 }
 
 .summary-grid {
@@ -16,7 +16,7 @@
 .summary-card {
   background: #fff;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 1.25rem;
   text-align: center;
   display: flex;
@@ -26,7 +26,7 @@
 
 .summary-number {
   font-size: 2rem;
-  font-weight: 700;
+  font-weight: 800;
   color: #16213e;
 }
 

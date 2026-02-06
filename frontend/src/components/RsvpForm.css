@@ -1,7 +1,7 @@
 .rsvp-form {
   background: #fff;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 1.5rem;
   margin-bottom: 2rem;
 }
@@ -9,22 +9,23 @@
 .rsvp-form h2 {
   margin-top: 0;
   margin-bottom: 1.25rem;
-  color: #1a1a2e;
+  color: #16213e;
 }
 
 .rsvp-form h3 {
   margin-top: 0;
   margin-bottom: 0.75rem;
   font-size: 1rem;
-  color: #333;
+  color: #16213e;
 }
 
 .form-error {
-  background: #ffe0e0;
-  color: #c00;
+  background: #fdecea;
+  color: #b71c1c;
   padding: 0.75rem;
-  border-radius: 4px;
+  border-radius: 8px;
   margin-bottom: 1rem;
+  border: 1px solid #f5c6cb;
 }
 
 .form-section {
@@ -61,7 +62,7 @@
 .rsvp-form textarea {
   padding: 0.5rem 0.75rem;
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 0.95rem;
   font-family: inherit;
 }
@@ -70,53 +71,82 @@
 .rsvp-form select:focus,
 .rsvp-form textarea:focus {
   outline: none;
-  border-color: #4a6fa5;
-  box-shadow: 0 0 0 2px rgba(74, 111, 165, 0.2);
+  border-color: #16213e;
+  box-shadow: 0 0 0 2px rgba(22, 33, 62, 0.15);
 }
 
-.member-row {
-  display: grid;
-  grid-template-columns: 2fr 1fr 2fr auto;
+.attendee-row {
+  display: flex;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
   align-items: center;
+  flex-wrap: wrap;
 }
 
-.member-row input,
-.member-row select {
+.attendee-row input,
+.attendee-row select {
   padding: 0.5rem 0.75rem;
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 0.95rem;
 }
 
+.attendee-select {
+  flex: 2;
+  min-width: 200px;
+}
+
+.attendee-row input[type='text'] {
+  flex: 1;
+  min-width: 120px;
+}
+
+.attendee-type-badge {
+  background: rgba(22, 33, 62, 0.08);
+  color: #16213e;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.attendee-add-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
 .btn-remove {
-  background: #e74c3c;
+  background: #c0392b;
   color: #fff;
   border: none;
   padding: 0.5rem 0.75rem;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 0.85rem;
+  transition: background 0.15s;
 }
 
 .btn-remove:hover {
-  background: #c0392b;
+  background: #a93226;
 }
 
 .btn-add {
   background: none;
-  border: 1px dashed #4a6fa5;
-  color: #4a6fa5;
+  border: 1px dashed #16213e;
+  color: #16213e;
   padding: 0.5rem 1rem;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 0.9rem;
   margin-top: 0.5rem;
+  transition: background 0.15s;
 }
 
 .btn-add:hover {
-  background: #f0f4f8;
+  background: rgba(22, 33, 62, 0.05);
 }
 
 .checkbox-label {
@@ -130,6 +160,7 @@
 .checkbox-label input[type='checkbox'] {
   width: 18px;
   height: 18px;
+  accent-color: #16213e;
 }
 
 .form-actions {
@@ -138,18 +169,19 @@
 }
 
 .btn-submit {
-  background: #4a6fa5;
+  background: #16213e;
   color: #fff;
   border: none;
   padding: 0.75rem 1.5rem;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
+  transition: background 0.15s;
 }
 
 .btn-submit:hover {
-  background: #3a5a8a;
+  background: #2c3e6b;
 }
 
 .btn-submit:disabled {
@@ -162,9 +194,10 @@
   color: #fff;
   border: none;
   padding: 0.75rem 1.5rem;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 1rem;
+  transition: background 0.15s;
 }
 
 .btn-cancel:hover {

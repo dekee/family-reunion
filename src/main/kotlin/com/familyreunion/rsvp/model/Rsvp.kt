@@ -22,7 +22,7 @@ class Rsvp(
     var phone: String? = null,
 
     @OneToMany(mappedBy = "rsvp", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val familyMembers: MutableList<FamilyMember> = mutableListOf(),
+    val attendees: MutableList<Attendee> = mutableListOf(),
 
     @Column(nullable = false)
     var needsLodging: Boolean = false,

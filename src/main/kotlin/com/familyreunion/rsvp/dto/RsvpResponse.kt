@@ -9,7 +9,7 @@ data class RsvpResponse(
     val headOfHouseholdName: String,
     val email: String,
     val phone: String?,
-    val familyMembers: List<FamilyMemberDto>,
+    val attendees: List<AttendeeDto>,
     val needsLodging: Boolean,
     @JsonFormat(pattern = "yyyy-MM-dd") val arrivalDate: LocalDate?,
     @JsonFormat(pattern = "yyyy-MM-dd") val departureDate: LocalDate?,

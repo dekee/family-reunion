@@ -12,7 +12,7 @@ data class RsvpRequest(
     @field:NotBlank val headOfHouseholdName: String = "",
     @field:NotBlank @field:Email val email: String = "",
     val phone: String? = null,
-    @field:NotEmpty @field:Valid val familyMembers: List<FamilyMemberDto> = emptyList(),
+    @field:NotEmpty @field:Valid val attendees: List<AttendeeDto> = emptyList(),
     val needsLodging: Boolean = false,
     @JsonFormat(pattern = "yyyy-MM-dd") val arrivalDate: LocalDate? = null,
     @JsonFormat(pattern = "yyyy-MM-dd") val departureDate: LocalDate? = null,

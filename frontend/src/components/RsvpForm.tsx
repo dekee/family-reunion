@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { createRsvp, updateRsvp } from '../api';
-import type { RsvpRequest, RsvpResponse, AgeGroup, FamilyMemberDto } from '../types';
+import { createRsvp, updateRsvp, fetchFamilyTree } from '../api';
+import type { RsvpRequest, RsvpResponse, AgeGroup, AttendeeDto, FlatFamilyMember, FamilyTreeNode } from '../types';
 import './RsvpForm.css';
 
 interface Props {
@@ -9,75 +9,98 @@ interface Props {
   onCancelEdit: () => void;
 }
 
-const emptyMember = (): FamilyMemberDto => ({
-  name: '',
-  ageGroup: 'ADULT',
+interface AttendeeFormRow {
+  type: 'family' | 'guest';
+  familyMemberId?: number;
+  guestName: string;
+  guestAgeGroup: AgeGroup;
+  dietaryNeeds: string;
+}
+
+const emptyGuest = (): AttendeeFormRow => ({
+  type: 'guest',
+  guestName: '',
+  guestAgeGroup: 'ADULT',
   dietaryNeeds: '',
 });
 
-const emptyForm = (): RsvpRequest => ({
-  familyName: '',
-  headOfHouseholdName: '',
-  email: '',
-  phone: '',
-  familyMembers: [emptyMember()],
-  needsLodging: false,
-  arrivalDate: '',
-  departureDate: '',
-  notes: '',
-});
+function flattenTree(nodes: FamilyTreeNode[], parentName?: string): FlatFamilyMember[] {
+  const result: FlatFamilyMember[] = [];
+  for (const node of nodes) {
+    result.push({ id: node.id, name: node.name, ageGroup: node.ageGroup, parentName });
+    result.push(...flattenTree(node.children, node.name));
+  }
+  return result;
+}
 
 export default function RsvpForm({ onSaved, editingRsvp, onCancelEdit }: Props) {
-  const [form, setForm] = useState<RsvpRequest>(emptyForm());
+  const [familyName, setFamilyName] = useState('');
+  const [headOfHouseholdName, setHeadOfHouseholdName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [needsLodging, setNeedsLodging] = useState(false);
+  const [arrivalDate, setArrivalDate] = useState('');
+  const [departureDate, setDepartureDate] = useState('');
+  const [notes, setNotes] = useState('');
+  const [rows, setRows] = useState<AttendeeFormRow[]>([emptyGuest()]);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [familyMembers, setFamilyMembers] = useState<FlatFamilyMember[]>([]);
+
+  useEffect(() => {
+    fetchFamilyTree()
+      .then((tree) => setFamilyMembers(flattenTree(tree.roots)))
+      .catch(console.error);
+  }, []);
 
   useEffect(() => {
     if (editingRsvp) {
-      setForm({
-        familyName: editingRsvp.familyName,
-        headOfHouseholdName: editingRsvp.headOfHouseholdName,
-        email: editingRsvp.email,
-        phone: editingRsvp.phone || '',
-        familyMembers: editingRsvp.familyMembers.map((m) => ({
-          name: m.name,
-          ageGroup: m.ageGroup,
-          dietaryNeeds: m.dietaryNeeds || '',
-        })),
-        needsLodging: editingRsvp.needsLodging,
-        arrivalDate: editingRsvp.arrivalDate || '',
-        departureDate: editingRsvp.departureDate || '',
-        notes: editingRsvp.notes || '',
-      });
+      setFamilyName(editingRsvp.familyName);
+      setHeadOfHouseholdName(editingRsvp.headOfHouseholdName);
+      setEmail(editingRsvp.email);
+      setPhone(editingRsvp.phone || '');
+      setNeedsLodging(editingRsvp.needsLodging);
+      setArrivalDate(editingRsvp.arrivalDate || '');
+      setDepartureDate(editingRsvp.departureDate || '');
+      setNotes(editingRsvp.notes || '');
+      setRows(
+        editingRsvp.attendees.map((a) =>
+          a.familyMemberId
+            ? { type: 'family' as const, familyMemberId: a.familyMemberId, guestName: '', guestAgeGroup: 'ADULT' as AgeGroup, dietaryNeeds: a.dietaryNeeds || '' }
+            : { type: 'guest' as const, guestName: a.guestName || '', guestAgeGroup: a.guestAgeGroup || 'ADULT', dietaryNeeds: a.dietaryNeeds || '' }
+        )
+      );
     } else {
-      setForm(emptyForm());
+      resetForm();
     }
   }, [editingRsvp]);
 
-  const updateField = (field: keyof RsvpRequest, value: string | boolean) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+  const resetForm = () => {
+    setFamilyName('');
+    setHeadOfHouseholdName('');
+    setEmail('');
+    setPhone('');
+    setNeedsLodging(false);
+    setArrivalDate('');
+    setDepartureDate('');
+    setNotes('');
+    setRows([emptyGuest()]);
   };
 
-  const updateMember = (index: number, field: keyof FamilyMemberDto, value: string) => {
-    setForm((prev) => {
-      const members = [...prev.familyMembers];
-      members[index] = { ...members[index], [field]: value };
-      return { ...prev, familyMembers: members };
-    });
+  const updateRow = (index: number, updates: Partial<AttendeeFormRow>) => {
+    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...updates } : r)));
   };
 
-  const addMember = () => {
-    setForm((prev) => ({
-      ...prev,
-      familyMembers: [...prev.familyMembers, emptyMember()],
-    }));
+  const addFamilyMember = () => {
+    setRows((prev) => [...prev, { type: 'family', familyMemberId: undefined, guestName: '', guestAgeGroup: 'ADULT', dietaryNeeds: '' }]);
   };
 
-  const removeMember = (index: number) => {
-    setForm((prev) => ({
-      ...prev,
-      familyMembers: prev.familyMembers.filter((_, i) => i !== index),
-    }));
+  const addGuest = () => {
+    setRows((prev) => [...prev, emptyGuest()]);
+  };
+
+  const removeRow = (index: number) => {
+    setRows((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,16 +108,22 @@ export default function RsvpForm({ onSaved, editingRsvp, onCancelEdit }: Props) 
     setError('');
     setSubmitting(true);
 
+    const attendees: AttendeeDto[] = rows.map((r) =>
+      r.type === 'family'
+        ? { familyMemberId: r.familyMemberId, dietaryNeeds: r.dietaryNeeds || undefined }
+        : { guestName: r.guestName, guestAgeGroup: r.guestAgeGroup, dietaryNeeds: r.dietaryNeeds || undefined }
+    );
+
     const payload: RsvpRequest = {
-      ...form,
-      phone: form.phone || undefined,
-      arrivalDate: form.arrivalDate || undefined,
-      departureDate: form.departureDate || undefined,
-      notes: form.notes || undefined,
-      familyMembers: form.familyMembers.map((m) => ({
-        ...m,
-        dietaryNeeds: m.dietaryNeeds || undefined,
-      })),
+      familyName,
+      headOfHouseholdName,
+      email,
+      phone: phone || undefined,
+      attendees,
+      needsLodging,
+      arrivalDate: arrivalDate || undefined,
+      departureDate: departureDate || undefined,
+      notes: notes || undefined,
     };
 
     try {
@@ -103,7 +132,7 @@ export default function RsvpForm({ onSaved, editingRsvp, onCancelEdit }: Props) 
       } else {
         await createRsvp(payload);
       }
-      setForm(emptyForm());
+      resetForm();
       onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
@@ -123,79 +152,84 @@ export default function RsvpForm({ onSaved, editingRsvp, onCancelEdit }: Props) 
         <div className="form-row">
           <label>
             Family Name *
-            <input
-              type="text"
-              value={form.familyName}
-              onChange={(e) => updateField('familyName', e.target.value)}
-              required
-            />
+            <input type="text" value={familyName} onChange={(e) => setFamilyName(e.target.value)} required />
           </label>
           <label>
             Head of Household *
-            <input
-              type="text"
-              value={form.headOfHouseholdName}
-              onChange={(e) => updateField('headOfHouseholdName', e.target.value)}
-              required
-            />
+            <input type="text" value={headOfHouseholdName} onChange={(e) => setHeadOfHouseholdName(e.target.value)} required />
           </label>
         </div>
         <div className="form-row">
           <label>
             Email *
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => updateField('email', e.target.value)}
-              required
-            />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </label>
           <label>
             Phone
-            <input
-              type="tel"
-              value={form.phone}
-              onChange={(e) => updateField('phone', e.target.value)}
-            />
+            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </label>
         </div>
       </div>
 
       <div className="form-section">
-        <h3>Family Members</h3>
-        {form.familyMembers.map((member, index) => (
-          <div key={index} className="member-row">
-            <input
-              type="text"
-              placeholder="Name"
-              value={member.name}
-              onChange={(e) => updateMember(index, 'name', e.target.value)}
-              required
-            />
-            <select
-              value={member.ageGroup}
-              onChange={(e) => updateMember(index, 'ageGroup', e.target.value as AgeGroup)}
-            >
-              <option value="ADULT">Adult</option>
-              <option value="CHILD">Child</option>
-              <option value="INFANT">Infant</option>
-            </select>
+        <h3>Who's Attending</h3>
+        {rows.map((row, index) => (
+          <div key={index} className="attendee-row">
+            {row.type === 'family' ? (
+              <select
+                className="attendee-select"
+                value={row.familyMemberId ?? ''}
+                onChange={(e) => updateRow(index, { familyMemberId: Number(e.target.value) || undefined })}
+                required
+              >
+                <option value="">Select family member...</option>
+                {familyMembers.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}{m.parentName ? ` (child of ${m.parentName})` : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <>
+                <input
+                  type="text"
+                  placeholder="Guest name"
+                  value={row.guestName}
+                  onChange={(e) => updateRow(index, { guestName: e.target.value })}
+                  required
+                />
+                <select
+                  value={row.guestAgeGroup}
+                  onChange={(e) => updateRow(index, { guestAgeGroup: e.target.value as AgeGroup })}
+                >
+                  <option value="ADULT">Adult</option>
+                  <option value="CHILD">Child</option>
+                  <option value="INFANT">Infant</option>
+                </select>
+              </>
+            )}
             <input
               type="text"
               placeholder="Dietary needs"
-              value={member.dietaryNeeds || ''}
-              onChange={(e) => updateMember(index, 'dietaryNeeds', e.target.value)}
+              value={row.dietaryNeeds}
+              onChange={(e) => updateRow(index, { dietaryNeeds: e.target.value })}
             />
-            {form.familyMembers.length > 1 && (
-              <button type="button" className="btn-remove" onClick={() => removeMember(index)}>
+            <span className="attendee-type-badge">{row.type === 'family' ? 'Family' : 'Guest'}</span>
+            {rows.length > 1 && (
+              <button type="button" className="btn-remove" onClick={() => removeRow(index)}>
                 Remove
               </button>
             )}
           </div>
         ))}
-        <button type="button" className="btn-add" onClick={addMember}>
-          + Add Family Member
-        </button>
+        <div className="attendee-add-buttons">
+          <button type="button" className="btn-add" onClick={addFamilyMember}>
+            + Add Family Member
+          </button>
+          <button type="button" className="btn-add" onClick={addGuest}>
+            + Add Guest
+          </button>
+        </div>
       </div>
 
       <div className="form-section">
@@ -203,36 +237,20 @@ export default function RsvpForm({ onSaved, editingRsvp, onCancelEdit }: Props) 
         <div className="form-row">
           <label>
             Arrival Date
-            <input
-              type="date"
-              value={form.arrivalDate}
-              onChange={(e) => updateField('arrivalDate', e.target.value)}
-            />
+            <input type="date" value={arrivalDate} onChange={(e) => setArrivalDate(e.target.value)} />
           </label>
           <label>
             Departure Date
-            <input
-              type="date"
-              value={form.departureDate}
-              onChange={(e) => updateField('departureDate', e.target.value)}
-            />
+            <input type="date" value={departureDate} onChange={(e) => setDepartureDate(e.target.value)} />
           </label>
         </div>
         <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={form.needsLodging}
-            onChange={(e) => updateField('needsLodging', e.target.checked)}
-          />
+          <input type="checkbox" checked={needsLodging} onChange={(e) => setNeedsLodging(e.target.checked)} />
           We need lodging
         </label>
         <label>
           Notes
-          <textarea
-            value={form.notes}
-            onChange={(e) => updateField('notes', e.target.value)}
-            rows={3}
-          />
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
         </label>
       </div>
 

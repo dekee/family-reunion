@@ -1,6 +1,6 @@
 .rsvp-list h2 {
   margin-bottom: 1rem;
-  color: #1a1a2e;
+  color: #16213e;
 }
 
 .empty-state {
@@ -19,7 +19,7 @@
 .rsvp-card {
   background: #fff;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 1.25rem;
 }
 
@@ -41,31 +41,34 @@
 }
 
 .btn-edit {
-  background: #f0ad4e;
-  color: #fff;
+  background: #c9a84c;
+  color: #16213e;
   border: none;
   padding: 0.35rem 0.75rem;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 0.85rem;
+  font-weight: 600;
+  transition: background 0.15s;
 }
 
 .btn-edit:hover {
-  background: #ec971f;
+  background: #d4b95e;
 }
 
 .btn-delete {
-  background: #e74c3c;
+  background: #c0392b;
   color: #fff;
   border: none;
   padding: 0.35rem 0.75rem;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 0.85rem;
+  transition: background 0.15s;
 }
 
 .btn-delete:hover {
-  background: #c0392b;
+  background: #a93226;
 }
 
 .card-contact {
@@ -84,18 +87,46 @@
   padding-left: 1.25rem;
 }
 
+.attendee-tree ul {
+  border-left: 2px solid #c9a84c;
+  padding-left: 1rem;
+  margin-left: 0.25rem;
+}
+
 .card-members li {
-  margin-bottom: 0.15rem;
+  margin-bottom: 0.25rem;
+  line-height: 1.6;
+}
+
+.attendee-name {
+  font-weight: 500;
+}
+
+.guests-label {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
 }
 
 .age-badge {
-  background: #e8eef6;
-  color: #4a6fa5;
+  background: rgba(22, 33, 62, 0.08);
+  color: #16213e;
   padding: 0.1rem 0.4rem;
-  border-radius: 3px;
+  border-radius: 4px;
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
+}
+
+.guest-badge {
+  background: rgba(201, 168, 76, 0.15);
+  color: #8a6d1b;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-left: 0.25rem;
 }
 
 .dietary {
@@ -111,7 +142,7 @@
 }
 
 .badge {
-  background: #f0f0f0;
+  background: rgba(22, 33, 62, 0.06);
   color: #555;
   padding: 0.2rem 0.6rem;
   border-radius: 12px;
@@ -119,8 +150,8 @@
 }
 
 .badge.lodging {
-  background: #d4edda;
-  color: #155724;
+  background: rgba(201, 168, 76, 0.15);
+  color: #6b5515;
 }
 
 .card-notes {

@@ -16,9 +16,14 @@ class FamilyMember(
     @Column(nullable = false)
     var ageGroup: AgeGroup = AgeGroup.ADULT,
 
-    var dietaryNeeds: String? = null,
-
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "rsvp_id", nullable = false)
-    var rsvp: Rsvp? = null
+    @JoinColumn(name = "parent_id")
+    var parent: FamilyMember? = null,
+
+    @OneToMany(mappedBy = "parent", cascade = [CascadeType.ALL])
+    val children: MutableList<FamilyMember> = mutableListOf(),
+
+    var generation: Int? = null,
+
+    var isFounder: Boolean = false
 )

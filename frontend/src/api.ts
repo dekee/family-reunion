@@ -1,4 +1,4 @@
-import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse } from './types';
+import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse } from './types';
 
 const BASE_URL = '/api/rsvp';
 
@@ -46,5 +46,10 @@ export async function deleteRsvp(id: number): Promise<void> {
 
 export async function fetchSummary(): Promise<RsvpSummaryResponse> {
   const res = await fetch(`${BASE_URL}/summary`);
+  return handleResponse(res);
+}
+
+export async function fetchFamilyTree(): Promise<FamilyTreeResponse> {
+  const res = await fetch('/api/family-tree');
   return handleResponse(res);
 }
