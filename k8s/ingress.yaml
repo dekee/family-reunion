@@ -3,11 +3,12 @@ kind: Ingress
 metadata:
   name: family-reunion-ingress
   namespace: family-reunion
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
 spec:
   ingressClassName: nginx
   rules:
-    - host: reunion.home
-      http:
+    - http:
         paths:
           - path: /
             pathType: Prefix
