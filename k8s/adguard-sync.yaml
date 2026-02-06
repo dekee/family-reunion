@@ -7,6 +7,7 @@ metadata:
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
 spec:
+  activeDeadlineSeconds: 120
   template:
     spec:
       containers:
@@ -17,6 +18,10 @@ spec:
           env:
             - name: LOG_LEVEL
               value: "info"
+            - name: RUN_ON_START
+              value: "true"
+            - name: API_PORT
+              value: "0"
             - name: ORIGIN_URL
               value: "http://192.168.0.84:3000"
             - name: ORIGIN_USERNAME
@@ -75,6 +80,7 @@ metadata:
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
 spec:
+  activeDeadlineSeconds: 120
   template:
     spec:
       containers:
@@ -85,6 +91,10 @@ spec:
           env:
             - name: LOG_LEVEL
               value: "info"
+            - name: RUN_ON_START
+              value: "true"
+            - name: API_PORT
+              value: "0"
             - name: ORIGIN_URL
               value: "http://192.168.0.186:3000"
             - name: ORIGIN_USERNAME
