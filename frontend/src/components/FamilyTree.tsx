@@ -77,25 +77,45 @@ export default function FamilyTree() {
       .catch((err) => setError(err.message));
   }, []);
 
-  const updateTranslate = useCallback(() => {
-    if (containerRef.current) {
-      const { width } = containerRef.current.getBoundingClientRect();
+  const fitToScreen = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const treeGroup = container.querySelector('.rd3t-g') as SVGGElement | null;
+    if (!treeGroup) {
+      // Tree hasn't rendered yet — just center horizontally
+      const { width } = container.getBoundingClientRect();
       setTranslate({ x: width / 2, y: 40 });
+      return;
     }
+    const bbox = treeGroup.getBBox();
+    const { width: cw, height: ch } = container.getBoundingClientRect();
+    const padding = 40;
+    const zoomX = (cw - padding * 2) / bbox.width;
+    const zoomY = (ch - padding * 2) / bbox.height;
+    const newZoom = Math.min(zoomX, zoomY, 2);
+    const centerX = cw / 2 - (bbox.x + bbox.width / 2) * newZoom;
+    const centerY = padding - bbox.y * newZoom;
+    setZoom(newZoom);
+    setTranslate({ x: centerX, y: centerY });
   }, []);
 
+  // Fit to screen after tree data loads and renders
   useEffect(() => {
-    updateTranslate();
-    window.addEventListener('resize', updateTranslate);
-    return () => window.removeEventListener('resize', updateTranslate);
-  }, [updateTranslate]);
+    if (!treeData) return;
+    // Wait for react-d3-tree to render the SVG
+    const timer = setTimeout(fitToScreen, 300);
+    return () => clearTimeout(timer);
+  }, [treeData, fitToScreen]);
+
+  useEffect(() => {
+    const handleResize = () => fitToScreen();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [fitToScreen]);
 
   const handleZoomIn = () => setZoom((z) => Math.min(z + 0.15, 2));
   const handleZoomOut = () => setZoom((z) => Math.max(z - 0.15, 0.1));
-  const handleZoomReset = () => {
-    setZoom(0.55);
-    updateTranslate();
-  };
+  const handleZoomReset = () => fitToScreen();
 
   if (error) return <div className="family-tree-error">Error loading family tree: {error}</div>;
   if (!treeData) return <div className="family-tree-loading">Loading family tree...</div>;
