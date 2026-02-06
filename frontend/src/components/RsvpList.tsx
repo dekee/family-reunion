@@ -1,12 +1,58 @@
 import { useEffect, useState } from 'react';
 import { fetchAllRsvps, deleteRsvp } from '../api';
-import type { RsvpResponse } from '../types';
+import type { RsvpResponse, AttendeeDto } from '../types';
 import './RsvpList.css';
 
 interface Props {
   refreshKey: number;
   onEdit: (rsvp: RsvpResponse) => void;
   onDeleted: () => void;
+}
+
+interface AttendeeNode {
+  attendee: AttendeeDto;
+  children: AttendeeNode[];
+}
+
+function buildAttendeeTree(attendees: AttendeeDto[]): { roots: AttendeeNode[]; guests: AttendeeDto[] } {
+  const familyAttendees = attendees.filter((a) => a.familyMemberId);
+  const guests = attendees.filter((a) => !a.familyMemberId);
+
+  const nameToNode = new Map<string, AttendeeNode>();
+  for (const a of familyAttendees) {
+    nameToNode.set(a.familyMemberName || '', { attendee: a, children: [] });
+  }
+
+  const roots: AttendeeNode[] = [];
+  for (const a of familyAttendees) {
+    const node = nameToNode.get(a.familyMemberName || '')!;
+    const parentNode = a.familyMemberParentName ? nameToNode.get(a.familyMemberParentName) : undefined;
+    if (parentNode) {
+      parentNode.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  return { roots, guests };
+}
+
+function AttendeeItem({ node }: { node: AttendeeNode }) {
+  const a = node.attendee;
+  return (
+    <li>
+      <span className="attendee-name">{a.familyMemberName}</span>{' '}
+      <span className="age-badge">{a.familyMemberAgeGroup || 'ADULT'}</span>
+      {a.dietaryNeeds && <span className="dietary"> — {a.dietaryNeeds}</span>}
+      {node.children.length > 0 && (
+        <ul>
+          {node.children.map((child) => (
+            <AttendeeItem key={child.attendee.id} node={child} />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
 }
 
 export default function RsvpList({ refreshKey, onEdit, onDeleted }: Props) {
@@ -52,15 +98,34 @@ export default function RsvpList({ refreshKey, onEdit, onDeleted }: Props) {
               {rsvp.phone && <> &middot; {rsvp.phone}</>}
             </p>
             <div className="card-members">
-              <strong>Attending ({rsvp.familyMembers.length}):</strong>
-              <ul>
-                {rsvp.familyMembers.map((m, i) => (
-                  <li key={i}>
-                    {m.name} <span className="age-badge">{m.ageGroup}</span>
-                    {m.dietaryNeeds && <span className="dietary"> — {m.dietaryNeeds}</span>}
-                  </li>
-                ))}
-              </ul>
+              <strong>Attending ({rsvp.attendees.length}):</strong>
+              {(() => {
+                const { roots, guests } = buildAttendeeTree(rsvp.attendees);
+                return (
+                  <>
+                    <ul className="attendee-tree">
+                      {roots.map((node) => (
+                        <AttendeeItem key={node.attendee.id} node={node} />
+                      ))}
+                    </ul>
+                    {guests.length > 0 && (
+                      <>
+                        <strong className="guests-label">Guests:</strong>
+                        <ul>
+                          {guests.map((g, i) => (
+                            <li key={`guest-${i}`}>
+                              <span className="attendee-name">{g.guestName}</span>{' '}
+                              <span className="age-badge">{g.guestAgeGroup || 'ADULT'}</span>
+                              <span className="guest-badge">Guest</span>
+                              {g.dietaryNeeds && <span className="dietary"> — {g.dietaryNeeds}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <div className="card-details">
               {rsvp.needsLodging && <span className="badge lodging">Needs Lodging</span>}

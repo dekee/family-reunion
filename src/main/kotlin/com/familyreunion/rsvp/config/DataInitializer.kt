@@ -1,8 +1,10 @@
 package com.familyreunion.rsvp.config
 
 import com.familyreunion.rsvp.model.AgeGroup
+import com.familyreunion.rsvp.model.Attendee
 import com.familyreunion.rsvp.model.FamilyMember
 import com.familyreunion.rsvp.model.Rsvp
+import com.familyreunion.rsvp.repository.FamilyMemberRepository
 import com.familyreunion.rsvp.repository.RsvpRepository
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
@@ -11,119 +13,208 @@ import org.springframework.stereotype.Component
 
 @Component
 @Profile("!test")
-class DataInitializer(private val rsvpRepository: RsvpRepository) : ApplicationRunner {
+class DataInitializer(
+    private val rsvpRepository: RsvpRepository,
+    private val familyMemberRepository: FamilyMemberRepository
+) : ApplicationRunner {
 
     override fun run(args: ApplicationArguments?) {
-        if (rsvpRepository.count() > 0) return
+        if (familyMemberRepository.count() > 0) return
 
+        // Generation 0: Founders
+        val wesley = familyMemberRepository.save(
+            FamilyMember(name = "Wesley Tumblin", ageGroup = AgeGroup.ADULT, generation = 0, isFounder = true)
+        )
+        familyMemberRepository.save(
+            FamilyMember(name = "Esther Tumblin", ageGroup = AgeGroup.ADULT, generation = 0, isFounder = true)
+        )
+
+        // Each branch: Gen 1 head is child of Wesley, spouse and Gen 2 children linked appropriately
         val families = listOf(
-            family(
-                name = "Gail",
-                head = "Gail Tumblin",
-                email = "gail@tumblin.family",
-                adults = listOf("Alan", "Alana", "Kristy", "Candace"),
-                children = listOf("Aeson", "Anasiya", "Azael", "Alfie", "Kalah", "Darinam", "Oren", "Chad", "Austin")
+            branchDef(
+                name = "Gail", head = "Gail Tumblin", email = "gail@tumblin.family",
+                gen1Children = listOf("Alan", "Alana", "Kristy", "Candace"),
+                gen2Grandchildren = mapOf(
+                    "Alan" to listOf("Aeson", "Anasiya"),
+                    "Alana" to listOf("Azael", "Alfie"),
+                    "Kristy" to listOf("Kalah", "Darinam"),
+                    "Candace" to listOf("Oren", "Chad", "Austin")
+                )
             ),
-            family(
-                name = "Wesley II",
-                head = "Wesley Tumblin II",
-                email = "wesleyii@tumblin.family",
-                adults = listOf("Wesley III", "Thomas", "Justin", "Jessica"),
-                children = listOf("Kierra", "Deontia", "Jalanrique", "Duri", "Brooklyn", "Paloma")
+            branchDef(
+                name = "Wesley II", head = "Wesley Tumblin II", email = "wesleyii@tumblin.family",
+                gen1Children = listOf("Wesley III", "Thomas", "Justin", "Jessica"),
+                gen2Grandchildren = mapOf(
+                    "Wesley III" to listOf("Kierra"),
+                    "Thomas" to listOf("Deontia", "Jalanrique"),
+                    "Justin" to listOf("Duri", "Brooklyn"),
+                    "Jessica" to listOf("Paloma")
+                )
             ),
-            family(
-                name = "Norris",
-                head = "Norris Tumblin",
-                email = "norris@tumblin.family",
-                adults = listOf("Torey", "Michael", "Norris Jr", "Ahmad", "Aishah", "Surah"),
-                children = listOf("Braionna", "Dejia", "Nasir", "Zamia", "Kaetyla", "Malika", "Majir", "Josephine", "Leona", "Malei")
+            branchDef(
+                name = "Norris", head = "Norris Tumblin", email = "norris@tumblin.family",
+                gen1Children = listOf("Torey", "Michael", "Norris Jr", "Ahmad", "Aishah", "Surah"),
+                gen2Grandchildren = mapOf(
+                    "Torey" to listOf("Braionna", "Dejia"),
+                    "Michael" to listOf("Nasir", "Zamia"),
+                    "Norris Jr" to listOf("Kaetyla", "Malika"),
+                    "Ahmad" to listOf("Majir", "Josephine"),
+                    "Aishah" to listOf("Leona", "Malei"),
+                    "Surah" to emptyList()
+                )
             ),
-            family(
-                name = "Michael",
-                head = "Michael Tumblin",
-                email = "michael@tumblin.family",
-                adults = listOf("Michelle"),
-                children = listOf("Niorielle", "Milewisee", "Ely")
+            branchDef(
+                name = "Michael", head = "Michael Tumblin", email = "michael@tumblin.family",
+                gen1Children = listOf("Michelle"),
+                gen2Grandchildren = mapOf(
+                    "Michelle" to listOf("Niorielle", "Milewisee", "Ely")
+                )
             ),
-            family(
-                name = "Cheryl",
-                head = "Cheryl Tumblin",
-                email = "cheryl@tumblin.family",
-                adults = listOf("Kendrick", "Derrick", "Kiera"),
-                children = listOf("Malachi", "Imari", "Izak")
+            branchDef(
+                name = "Cheryl", head = "Cheryl Tumblin", email = "cheryl@tumblin.family",
+                gen1Children = listOf("Kendrick", "Derrick", "Kiera"),
+                gen2Grandchildren = mapOf(
+                    "Kendrick" to emptyList(),
+                    "Derrick" to listOf("Ariel", "Malachi", "Isaiah"),
+                    "Kiera" to listOf("Christian", "Tyler", "Leeah")
+                )
             ),
-            family(
-                name = "Stephen",
-                head = "Stephen Tumblin",
-                email = "stephen@tumblin.family",
-                adults = listOf("Trina", "Tina", "Toriano", "Chris", "Casey", "Cameron", "Kayla"),
-                children = listOf("Patrick", "Preston", "Elijah", "Jose", "Toriano Jr", "Brinae", "Melody", "James", "Dominic")
+            branchDef(
+                name = "Stephen", head = "Stephen Tumblin", email = "stephen@tumblin.family",
+                gen1Children = listOf("Trina", "Tina", "Toriano", "Chris", "Casey", "Cameron", "Kayla"),
+                gen2Grandchildren = mapOf(
+                    "Trina" to listOf("Patrick", "Preston"),
+                    "Tina" to listOf("Elijah", "Jose"),
+                    "Toriano" to listOf("Toriano Jr", "Brinae"),
+                    "Chris" to listOf("Melody"),
+                    "Casey" to listOf("James", "Dominic"),
+                    "Cameron" to emptyList(),
+                    "Kayla" to emptyList()
+                )
             ),
-            family(
-                name = "Kendra",
-                head = "Kendra Tumblin",
-                email = "kendra@tumblin.family",
-                adults = listOf("Byron", "Dinez", "Brandon"),
-                children = listOf("Kajia", "Layza", "Logan", "Ragia", "Ramario")
+            branchDef(
+                name = "Kendra", head = "Kendra Tumblin", email = "kendra@tumblin.family",
+                gen1Children = listOf("Byron", "Dinez", "Brandon"),
+                gen2Grandchildren = mapOf(
+                    "Byron" to listOf("Kajia", "Layza"),
+                    "Dinez" to listOf("Logan", "Ragia"),
+                    "Brandon" to listOf("Ramario")
+                )
             ),
-            family(
-                name = "Wendell",
-                head = "Wendell Tumblin",
-                email = "wendell@tumblin.family",
-                adults = listOf("Wendell Jr", "Wendy", "Tony", "Corea"),
-                children = listOf("Kitan", "Madison", "Allure")
+            branchDef(
+                name = "Wendell", head = "Wendell Tumblin", email = "wendell@tumblin.family",
+                gen1Children = listOf("Wendell Jr", "Wendy", "Tony", "Corea"),
+                gen2Grandchildren = mapOf(
+                    "Wendell Jr" to listOf("Kitan"),
+                    "Wendy" to listOf("Madison"),
+                    "Tony" to listOf("Allure"),
+                    "Corea" to emptyList()
+                )
             ),
-            family(
-                name = "Donald",
-                head = "Donald Tumblin",
-                email = "donald@tumblin.family",
-                adults = listOf("Ashaunta", "Diondra", "Dana"),
-                children = listOf("Avery", "Ada", "Leona", "Bernard", "Benjamin", "Bentley", "Dain", "Emari", "Berkell", "Bailey")
+            branchDef(
+                name = "Donald", head = "Donald Tumblin", email = "donald@tumblin.family",
+                gen1Children = listOf("Ashaunta", "Diondra", "Dana"),
+                gen2Grandchildren = mapOf(
+                    "Ashaunta" to listOf("Avery", "Ada", "Leona"),
+                    "Diondra" to listOf("Bernard", "Benjamin", "Bentley"),
+                    "Dana" to listOf("Dain", "Emari", "Berkell", "Bailey")
+                )
             ),
-            family(
-                name = "Myra",
-                head = "Myra Tumblin",
-                email = "myra@tumblin.family",
-                adults = listOf("Daillyn", "Angelisha"),
-                children = listOf("Jasir", "Jazmyn", "Aiden", "Amartrez")
+            branchDef(
+                name = "Myra", head = "Myra Tumblin", email = "myra@tumblin.family",
+                gen1Children = listOf("Daillyn", "Angelisha"),
+                gen2Grandchildren = mapOf(
+                    "Daillyn" to listOf("Jasir", "Jazmyn"),
+                    "Angelisha" to listOf("Aiden", "Amartrez")
+                )
             ),
-            family(
-                name = "Chantell",
-                head = "Chantell Tumblin",
-                email = "chantell@tumblin.family",
-                adults = listOf("Donald", "Danielle", "Joy"),
-                children = listOf("Rada", "Kaylei", "Syli", "Juvonna", "Jaynai", "Anthony Jr", "Nehemiah", "Kason", "Trinity")
+            branchDef(
+                name = "Chantell", head = "Chantell Tumblin", email = "chantell@tumblin.family",
+                gen1Children = listOf("Donald", "Danielle", "Joy"),
+                gen2Grandchildren = mapOf(
+                    "Donald" to listOf("Rada", "Kaylei", "Syli"),
+                    "Danielle" to listOf("Juvonna", "Jaynai", "Anthony Jr"),
+                    "Joy" to listOf("Nehemiah", "Kason", "Trinity")
+                )
             )
         )
 
-        rsvpRepository.saveAll(families)
+        families.forEach { branch ->
+            val branchMembers = createFamilyTree(branch, wesley)
+            createBranchRsvp(branch, branchMembers)
+        }
     }
 
-    private fun family(
+    private data class BranchDef(
+        val name: String,
+        val head: String,
+        val email: String,
+        val gen1Children: List<String>,
+        val gen2Grandchildren: Map<String, List<String>>
+    )
+
+    private fun branchDef(
         name: String,
         head: String,
         email: String,
-        adults: List<String>,
-        children: List<String>
-    ): Rsvp {
+        gen1Children: List<String>,
+        gen2Grandchildren: Map<String, List<String>>
+    ) = BranchDef(name, head, email, gen1Children, gen2Grandchildren)
+
+    private fun createFamilyTree(branch: BranchDef, founder: FamilyMember): List<FamilyMember> {
+        val members = mutableListOf<FamilyMember>()
+
+        // Branch head is Gen 1, child of founder
+        val headMember = familyMemberRepository.save(
+            FamilyMember(
+                name = branch.head,
+                ageGroup = AgeGroup.ADULT,
+                parent = founder,
+                generation = 1
+            )
+        )
+        members.add(headMember)
+
+        // Gen 1 children and their Gen 2 grandchildren
+        branch.gen1Children.forEach { childName ->
+            val gen1Member = familyMemberRepository.save(
+                FamilyMember(
+                    name = childName,
+                    ageGroup = AgeGroup.ADULT,
+                    parent = headMember,
+                    generation = 1
+                )
+            )
+            members.add(gen1Member)
+
+            val grandchildren = branch.gen2Grandchildren[childName] ?: emptyList()
+            grandchildren.forEach { grandchildName ->
+                val gen2Member = familyMemberRepository.save(
+                    FamilyMember(
+                        name = grandchildName,
+                        ageGroup = AgeGroup.CHILD,
+                        parent = gen1Member,
+                        generation = 2
+                    )
+                )
+                members.add(gen2Member)
+            }
+        }
+
+        return members
+    }
+
+    private fun createBranchRsvp(branch: BranchDef, branchMembers: List<FamilyMember>) {
         val rsvp = Rsvp(
-            familyName = name,
-            headOfHouseholdName = head,
-            email = email
+            familyName = branch.name,
+            headOfHouseholdName = branch.head,
+            email = branch.email
         )
 
-        adults.forEach { memberName ->
-            rsvp.familyMembers.add(
-                FamilyMember(name = memberName, ageGroup = AgeGroup.ADULT, rsvp = rsvp)
-            )
+        branchMembers.forEach { member ->
+            rsvp.attendees.add(Attendee(rsvp = rsvp, familyMember = member))
         }
 
-        children.forEach { memberName ->
-            rsvp.familyMembers.add(
-                FamilyMember(name = memberName, ageGroup = AgeGroup.CHILD, rsvp = rsvp)
-            )
-        }
-
-        return rsvp
+        rsvpRepository.save(rsvp)
     }
 }

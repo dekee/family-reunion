@@ -1,17 +1,18 @@
 package com.familyreunion.rsvp.service
 
-import com.familyreunion.rsvp.dto.FamilyMemberDto
+import com.familyreunion.rsvp.dto.AttendeeDto
 import com.familyreunion.rsvp.dto.RsvpRequest
 import com.familyreunion.rsvp.exception.RsvpNotFoundException
 import com.familyreunion.rsvp.model.AgeGroup
+import com.familyreunion.rsvp.model.Attendee
 import com.familyreunion.rsvp.model.FamilyMember
 import com.familyreunion.rsvp.model.Rsvp
+import com.familyreunion.rsvp.repository.FamilyMemberRepository
 import com.familyreunion.rsvp.repository.RsvpRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import org.mockito.ArgumentCaptor
 import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
@@ -27,6 +28,9 @@ class RsvpServiceTest {
     @Mock
     private lateinit var rsvpRepository: RsvpRepository
 
+    @Mock
+    private lateinit var familyMemberRepository: FamilyMemberRepository
+
     @InjectMocks
     private lateinit var rsvpService: RsvpService
 
@@ -38,9 +42,9 @@ class RsvpServiceTest {
         headOfHouseholdName = "$familyName Head",
         email = "${familyName.lowercase()}@test.com",
         phone = "555-0100",
-        familyMembers = listOf(
-            FamilyMemberDto(name = "Adult Member", ageGroup = AgeGroup.ADULT),
-            FamilyMemberDto(name = "Child Member", ageGroup = AgeGroup.CHILD, dietaryNeeds = "vegetarian")
+        attendees = listOf(
+            AttendeeDto(guestName = "Adult Member", guestAgeGroup = AgeGroup.ADULT),
+            AttendeeDto(guestName = "Child Member", guestAgeGroup = AgeGroup.CHILD, dietaryNeeds = "vegetarian")
         ),
         needsLodging = needsLodging,
         arrivalDate = LocalDate.of(2026, 7, 4),
@@ -60,9 +64,9 @@ class RsvpServiceTest {
             departureDate = LocalDate.of(2026, 7, 6),
             notes = "Looking forward to it!"
         )
-        val member1 = FamilyMember(id = 1L, name = "Adult Member", ageGroup = AgeGroup.ADULT, rsvp = rsvp)
-        val member2 = FamilyMember(id = 2L, name = "Child Member", ageGroup = AgeGroup.CHILD, dietaryNeeds = "vegetarian", rsvp = rsvp)
-        rsvp.familyMembers.addAll(listOf(member1, member2))
+        val attendee1 = Attendee(id = 1L, rsvp = rsvp, guestName = "Adult Member", guestAgeGroup = AgeGroup.ADULT)
+        val attendee2 = Attendee(id = 2L, rsvp = rsvp, guestName = "Child Member", guestAgeGroup = AgeGroup.CHILD, dietaryNeeds = "vegetarian")
+        rsvp.attendees.addAll(listOf(attendee1, attendee2))
         return rsvp
     }
 
@@ -81,14 +85,14 @@ class RsvpServiceTest {
                 arrivalDate = saved.arrivalDate,
                 departureDate = saved.departureDate,
                 notes = saved.notes
-            ).also { it.familyMembers.addAll(saved.familyMembers) }
+            ).also { it.attendees.addAll(saved.attendees) }
         }
 
         val result = rsvpService.createRsvp(request)
 
         assertThat(result.id).isEqualTo(1L)
         assertThat(result.familyName).isEqualTo("Smith")
-        assertThat(result.familyMembers).hasSize(2)
+        assertThat(result.attendees).hasSize(2)
         assertThat(result.email).isEqualTo("smith@test.com")
         verify(rsvpRepository).save(any<Rsvp>())
     }
@@ -113,7 +117,7 @@ class RsvpServiceTest {
         val result = rsvpService.getRsvpById(1L)
 
         assertThat(result.familyName).isEqualTo("Smith")
-        assertThat(result.familyMembers).hasSize(2)
+        assertThat(result.attendees).hasSize(2)
     }
 
     @Test
@@ -135,8 +139,8 @@ class RsvpServiceTest {
             familyName = "Smith-Updated",
             headOfHouseholdName = "Jane Smith",
             email = "jane@smith.com",
-            familyMembers = listOf(
-                FamilyMemberDto(name = "Jane Smith", ageGroup = AgeGroup.ADULT)
+            attendees = listOf(
+                AttendeeDto(guestName = "Jane Smith", guestAgeGroup = AgeGroup.ADULT)
             ),
             needsLodging = true
         )
@@ -145,7 +149,7 @@ class RsvpServiceTest {
 
         assertThat(result.familyName).isEqualTo("Smith-Updated")
         assertThat(result.headOfHouseholdName).isEqualTo("Jane Smith")
-        assertThat(result.familyMembers).hasSize(1)
+        assertThat(result.attendees).hasSize(1)
         assertThat(result.needsLodging).isTrue()
     }
 
@@ -170,17 +174,15 @@ class RsvpServiceTest {
     @Test
     fun `should calculate summary correctly`() {
         val rsvp1 = createEntity(1L, "Smith", needsLodging = true).also {
-            it.familyMembers.clear()
-            val m1 = FamilyMember(name = "Adult1", ageGroup = AgeGroup.ADULT, rsvp = it)
-            val m2 = FamilyMember(name = "Child1", ageGroup = AgeGroup.CHILD, rsvp = it)
-            val m3 = FamilyMember(name = "Infant1", ageGroup = AgeGroup.INFANT, rsvp = it)
-            it.familyMembers.addAll(listOf(m1, m2, m3))
+            it.attendees.clear()
+            it.attendees.add(Attendee(rsvp = it, guestName = "Adult1", guestAgeGroup = AgeGroup.ADULT))
+            it.attendees.add(Attendee(rsvp = it, guestName = "Child1", guestAgeGroup = AgeGroup.CHILD))
+            it.attendees.add(Attendee(rsvp = it, guestName = "Infant1", guestAgeGroup = AgeGroup.INFANT))
         }
         val rsvp2 = createEntity(2L, "Johnson", needsLodging = false).also {
-            it.familyMembers.clear()
-            val m1 = FamilyMember(name = "Adult2", ageGroup = AgeGroup.ADULT, rsvp = it)
-            val m2 = FamilyMember(name = "Adult3", ageGroup = AgeGroup.ADULT, rsvp = it)
-            it.familyMembers.addAll(listOf(m1, m2))
+            it.attendees.clear()
+            it.attendees.add(Attendee(rsvp = it, guestName = "Adult2", guestAgeGroup = AgeGroup.ADULT))
+            it.attendees.add(Attendee(rsvp = it, guestName = "Adult3", guestAgeGroup = AgeGroup.ADULT))
         }
 
         whenever(rsvpRepository.findAll()).thenReturn(listOf(rsvp1, rsvp2))

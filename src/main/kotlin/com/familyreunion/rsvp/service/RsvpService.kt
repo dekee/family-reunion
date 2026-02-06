@@ -1,20 +1,25 @@
 package com.familyreunion.rsvp.service
 
-import com.familyreunion.rsvp.dto.FamilyMemberDto
+import com.familyreunion.rsvp.dto.AttendeeDto
 import com.familyreunion.rsvp.dto.RsvpRequest
 import com.familyreunion.rsvp.dto.RsvpResponse
 import com.familyreunion.rsvp.dto.RsvpSummaryResponse
+import com.familyreunion.rsvp.exception.FamilyMemberNotFoundException
 import com.familyreunion.rsvp.exception.RsvpNotFoundException
 import com.familyreunion.rsvp.model.AgeGroup
-import com.familyreunion.rsvp.model.FamilyMember
+import com.familyreunion.rsvp.model.Attendee
 import com.familyreunion.rsvp.model.Rsvp
+import com.familyreunion.rsvp.repository.FamilyMemberRepository
 import com.familyreunion.rsvp.repository.RsvpRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
 @Transactional
-class RsvpService(private val rsvpRepository: RsvpRepository) {
+class RsvpService(
+    private val rsvpRepository: RsvpRepository,
+    private val familyMemberRepository: FamilyMemberRepository
+) {
 
     fun createRsvp(request: RsvpRequest): RsvpResponse {
         val rsvp = Rsvp(
@@ -27,15 +32,7 @@ class RsvpService(private val rsvpRepository: RsvpRepository) {
             departureDate = request.departureDate,
             notes = request.notes
         )
-        request.familyMembers.forEach { dto ->
-            val member = FamilyMember(
-                name = dto.name,
-                ageGroup = dto.ageGroup,
-                dietaryNeeds = dto.dietaryNeeds,
-                rsvp = rsvp
-            )
-            rsvp.familyMembers.add(member)
-        }
+        addAttendees(rsvp, request.attendees)
         val saved = rsvpRepository.save(rsvp)
         return toResponse(saved)
     }
@@ -65,16 +62,8 @@ class RsvpService(private val rsvpRepository: RsvpRepository) {
         existing.departureDate = request.departureDate
         existing.notes = request.notes
 
-        existing.familyMembers.clear()
-        request.familyMembers.forEach { dto ->
-            val member = FamilyMember(
-                name = dto.name,
-                ageGroup = dto.ageGroup,
-                dietaryNeeds = dto.dietaryNeeds,
-                rsvp = existing
-            )
-            existing.familyMembers.add(member)
-        }
+        existing.attendees.clear()
+        addAttendees(existing, request.attendees)
 
         val saved = rsvpRepository.save(existing)
         return toResponse(saved)
@@ -90,16 +79,38 @@ class RsvpService(private val rsvpRepository: RsvpRepository) {
     @Transactional(readOnly = true)
     fun getSummary(): RsvpSummaryResponse {
         val allRsvps = rsvpRepository.findAll()
-        val allMembers = allRsvps.flatMap { it.familyMembers }
+        val allAttendees = allRsvps.flatMap { it.attendees }
 
         return RsvpSummaryResponse(
             totalFamilies = allRsvps.size,
-            totalHeadcount = allMembers.size,
-            adultCount = allMembers.count { it.ageGroup == AgeGroup.ADULT },
-            childCount = allMembers.count { it.ageGroup == AgeGroup.CHILD },
-            infantCount = allMembers.count { it.ageGroup == AgeGroup.INFANT },
+            totalHeadcount = allAttendees.size,
+            adultCount = allAttendees.count { it.ageGroup == AgeGroup.ADULT },
+            childCount = allAttendees.count { it.ageGroup == AgeGroup.CHILD },
+            infantCount = allAttendees.count { it.ageGroup == AgeGroup.INFANT },
             lodgingCount = allRsvps.count { it.needsLodging }
         )
+    }
+
+    private fun addAttendees(rsvp: Rsvp, attendeeDtos: List<AttendeeDto>) {
+        attendeeDtos.forEach { dto ->
+            val attendee = if (dto.familyMemberId != null) {
+                val member = familyMemberRepository.findById(dto.familyMemberId)
+                    .orElseThrow { FamilyMemberNotFoundException(dto.familyMemberId) }
+                Attendee(
+                    rsvp = rsvp,
+                    familyMember = member,
+                    dietaryNeeds = dto.dietaryNeeds
+                )
+            } else {
+                Attendee(
+                    rsvp = rsvp,
+                    guestName = dto.guestName,
+                    guestAgeGroup = dto.guestAgeGroup,
+                    dietaryNeeds = dto.dietaryNeeds
+                )
+            }
+            rsvp.attendees.add(attendee)
+        }
     }
 
     private fun toResponse(rsvp: Rsvp) = RsvpResponse(
@@ -108,17 +119,21 @@ class RsvpService(private val rsvpRepository: RsvpRepository) {
         headOfHouseholdName = rsvp.headOfHouseholdName,
         email = rsvp.email,
         phone = rsvp.phone,
-        familyMembers = rsvp.familyMembers.map { toMemberDto(it) },
+        attendees = rsvp.attendees.map { toAttendeeDto(it) },
         needsLodging = rsvp.needsLodging,
         arrivalDate = rsvp.arrivalDate,
         departureDate = rsvp.departureDate,
         notes = rsvp.notes
     )
 
-    private fun toMemberDto(member: FamilyMember) = FamilyMemberDto(
-        id = member.id,
-        name = member.name,
-        ageGroup = member.ageGroup,
-        dietaryNeeds = member.dietaryNeeds
+    private fun toAttendeeDto(attendee: Attendee) = AttendeeDto(
+        id = attendee.id,
+        familyMemberId = attendee.familyMember?.id,
+        familyMemberName = attendee.familyMember?.name,
+        familyMemberAgeGroup = attendee.familyMember?.ageGroup,
+        familyMemberParentName = attendee.familyMember?.parent?.name,
+        guestName = attendee.guestName,
+        guestAgeGroup = attendee.guestAgeGroup,
+        dietaryNeeds = attendee.dietaryNeeds
     )
 }

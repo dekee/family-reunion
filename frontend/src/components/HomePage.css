@@ -1,0 +1,314 @@
+/* Hero */
+.hero {
+  text-align: center;
+  padding: 3rem 1rem 2.5rem;
+  background: linear-gradient(135deg, #16213e 0%, #1a1a2e 50%, #2c3e6b 100%);
+  color: #fff;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+}
+
+.hero-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  font-size: 0.85rem;
+  color: #c9a84c;
+  margin: 0 0 0.5rem;
+}
+
+.hero-title {
+  font-size: 2.5rem;
+  margin: 0 0 0.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.hero-subtitle {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  color: #ccc;
+}
+
+.hero-date {
+  display: inline-block;
+  background: rgba(201, 168, 76, 0.2);
+  border: 1px solid #c9a84c;
+  color: #c9a84c;
+  padding: 0.5rem 1.5rem;
+  border-radius: 50px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+/* Section headings */
+.section-heading {
+  text-align: center;
+  color: #16213e;
+  margin: 0 0 1.5rem;
+  font-size: 1.4rem;
+}
+
+/* Countdown */
+.countdown-section {
+  text-align: center;
+  padding: 2rem 1rem;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+}
+
+.countdown {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.countdown-unit {
+  background: #16213e;
+  color: #fff;
+  border-radius: 10px;
+  padding: 1rem 0.75rem;
+  min-width: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.countdown-number {
+  font-size: 2.2rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #c9a84c;
+  margin-top: 0.35rem;
+}
+
+/* Event Details + Map */
+.details-section {
+  margin-bottom: 2rem;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.event-info {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.event-info .section-heading {
+  text-align: left;
+  margin-bottom: 1.25rem;
+}
+
+.info-item {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  align-items: flex-start;
+}
+
+.info-item:last-child {
+  margin-bottom: 0;
+}
+
+.info-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.info-item strong {
+  display: block;
+  color: #16213e;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.15rem;
+}
+
+.info-item p {
+  margin: 0;
+  color: #444;
+  font-size: 0.95rem;
+}
+
+.info-sub {
+  color: #888 !important;
+  font-size: 0.85rem !important;
+  font-style: italic;
+}
+
+/* Map */
+.map-container {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+  min-height: 300px;
+}
+
+.map-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 300px;
+  background: #f0f2f5;
+  color: #888;
+  text-align: center;
+  padding: 2rem;
+}
+
+.map-pin {
+  font-size: 3rem;
+  margin-bottom: 0.75rem;
+}
+
+.map-placeholder p {
+  margin: 0;
+  max-width: 220px;
+  line-height: 1.5;
+}
+
+.map-container iframe {
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+  border: none;
+}
+
+/* RSVP Stats */
+.stats-section {
+  padding: 2rem 1rem;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+}
+
+.stat-card {
+  text-align: center;
+  padding: 1rem 0.5rem;
+  border-radius: 8px;
+  background: #f7f8fc;
+}
+
+.stat-number {
+  display: block;
+  font-size: 2rem;
+  font-weight: 800;
+  color: #16213e;
+  line-height: 1;
+}
+
+.stat-label {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* CTA */
+.cta-section {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  background: linear-gradient(135deg, #16213e, #2c3e6b);
+  color: #fff;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+}
+
+.cta-section h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.6rem;
+}
+
+.cta-section p {
+  margin: 0 0 1.25rem;
+  color: #bbb;
+  font-size: 1rem;
+}
+
+.cta-button {
+  background: #c9a84c;
+  color: #16213e;
+  border: none;
+  padding: 0.85rem 2.5rem;
+  border-radius: 50px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.cta-button:hover {
+  background: #d4b95e;
+  transform: translateY(-1px);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 1.8rem;
+  }
+
+  .countdown-unit {
+    min-width: 60px;
+    padding: 0.75rem 0.5rem;
+  }
+
+  .countdown-number {
+    font-size: 1.6rem;
+  }
+
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .countdown {
+    gap: 0.5rem;
+  }
+
+  .countdown-unit {
+    min-width: 50px;
+  }
+
+  .countdown-number {
+    font-size: 1.3rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

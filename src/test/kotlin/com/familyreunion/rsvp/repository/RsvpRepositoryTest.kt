@@ -1,7 +1,7 @@
 package com.familyreunion.rsvp.repository
 
 import com.familyreunion.rsvp.model.AgeGroup
-import com.familyreunion.rsvp.model.FamilyMember
+import com.familyreunion.rsvp.model.Attendee
 import com.familyreunion.rsvp.model.Rsvp
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -21,8 +21,8 @@ class RsvpRepositoryTest @Autowired constructor(
             headOfHouseholdName = "$familyName Head",
             email = email
         )
-        val member = FamilyMember(name = "$familyName Member", ageGroup = AgeGroup.ADULT, rsvp = rsvp)
-        rsvp.familyMembers.add(member)
+        val attendee = Attendee(rsvp = rsvp, guestName = "$familyName Member", guestAgeGroup = AgeGroup.ADULT)
+        rsvp.attendees.add(attendee)
         return rsvp
     }
 

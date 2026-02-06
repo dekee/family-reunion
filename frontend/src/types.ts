@@ -1,9 +1,13 @@
 export type AgeGroup = 'ADULT' | 'CHILD' | 'INFANT';
 
-export interface FamilyMemberDto {
+export interface AttendeeDto {
   id?: number;
-  name: string;
-  ageGroup: AgeGroup;
+  familyMemberId?: number;
+  familyMemberName?: string;
+  familyMemberAgeGroup?: AgeGroup;
+  familyMemberParentName?: string;
+  guestName?: string;
+  guestAgeGroup?: AgeGroup;
   dietaryNeeds?: string;
 }
 
@@ -12,7 +16,7 @@ export interface RsvpRequest {
   headOfHouseholdName: string;
   email: string;
   phone?: string;
-  familyMembers: FamilyMemberDto[];
+  attendees: AttendeeDto[];
   needsLodging: boolean;
   arrivalDate?: string;
   departureDate?: string;
@@ -25,7 +29,7 @@ export interface RsvpResponse {
   headOfHouseholdName: string;
   email: string;
   phone?: string;
-  familyMembers: FamilyMemberDto[];
+  attendees: AttendeeDto[];
   needsLodging: boolean;
   arrivalDate?: string;
   departureDate?: string;
@@ -39,4 +43,25 @@ export interface RsvpSummaryResponse {
   childCount: number;
   infantCount: number;
   lodgingCount: number;
+}
+
+export interface FamilyTreeNode {
+  id: number;
+  name: string;
+  generation: number | null;
+  ageGroup: AgeGroup;
+  parentId?: number;
+  children: FamilyTreeNode[];
+}
+
+export interface FamilyTreeResponse {
+  roots: FamilyTreeNode[];
+  totalMembers: number;
+}
+
+export interface FlatFamilyMember {
+  id: number;
+  name: string;
+  ageGroup: AgeGroup;
+  parentName?: string;
 }
