@@ -21,6 +21,12 @@ class GlobalExceptionHandler {
             .body(mapOf("error" to ex.message))
     }
 
+    @ExceptionHandler(MeetingNotFoundException::class)
+    fun handleMeetingNotFound(ex: MeetingNotFoundException): ResponseEntity<Map<String, String?>> {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(mapOf("error" to ex.message))
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleValidation(ex: MethodArgumentNotValidException): ResponseEntity<Map<String, Any>> {
         val errors = ex.bindingResult.fieldErrors.associate { it.field to (it.defaultMessage ?: "invalid") }

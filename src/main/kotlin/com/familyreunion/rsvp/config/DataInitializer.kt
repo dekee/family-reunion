@@ -3,9 +3,12 @@ package com.familyreunion.rsvp.config
 import com.familyreunion.rsvp.model.AgeGroup
 import com.familyreunion.rsvp.model.Attendee
 import com.familyreunion.rsvp.model.FamilyMember
+import com.familyreunion.rsvp.model.Meeting
 import com.familyreunion.rsvp.model.Rsvp
 import com.familyreunion.rsvp.repository.FamilyMemberRepository
+import com.familyreunion.rsvp.repository.MeetingRepository
 import com.familyreunion.rsvp.repository.RsvpRepository
+import java.time.LocalDateTime
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.context.annotation.Profile
@@ -15,7 +18,8 @@ import org.springframework.stereotype.Component
 @Profile("!test")
 class DataInitializer(
     private val rsvpRepository: RsvpRepository,
-    private val familyMemberRepository: FamilyMemberRepository
+    private val familyMemberRepository: FamilyMemberRepository,
+    private val meetingRepository: MeetingRepository
 ) : ApplicationRunner {
 
     override fun run(args: ApplicationArguments?) {
@@ -143,6 +147,19 @@ class DataInitializer(
             val branchMembers = createFamilyTree(branch, wesley)
             createBranchRsvp(branch, branchMembers)
         }
+
+        // Seed a sample meeting
+        meetingRepository.save(
+            Meeting(
+                title = "Reunion Planning Call",
+                meetingDateTime = LocalDateTime.of(2026, 3, 15, 14, 0),
+                zoomLink = "https://zoom.us/j/1234567890",
+                phoneNumber = "+1 (312) 626-6799",
+                meetingId = "123 456 7890",
+                passcode = "tumblin2026",
+                notes = "Monthly planning call — all family branch heads please attend."
+            )
+        )
     }
 
     private data class BranchDef(

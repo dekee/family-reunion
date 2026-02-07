@@ -1,0 +1,104 @@
+.budget-page h2 {
+  margin-bottom: 1rem;
+  color: #16213e;
+}
+
+/* Reuse summary grid style */
+.budget-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.budget-summary-card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 1.25rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.budget-summary-number {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #16213e;
+}
+
+.budget-summary-label {
+  font-size: 0.85rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Cost breakdown */
+.budget-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.budget-row {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.budget-row-label {
+  display: flex;
+  flex-direction: column;
+}
+
+.budget-row-title {
+  font-weight: 700;
+  color: #16213e;
+  font-size: 1rem;
+}
+
+.budget-row-detail {
+  font-size: 0.85rem;
+  color: #888;
+  margin-top: 0.15rem;
+}
+
+.budget-row-range {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #16213e;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Total */
+.budget-total {
+  background: linear-gradient(135deg, #16213e 0%, #1a1a2e 50%, #2c3e6b 100%);
+  border: none;
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.budget-total .budget-row-title {
+  color: #c9a84c;
+  font-size: 1.15rem;
+}
+
+.budget-total .budget-row-detail {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.budget-total .budget-row-range {
+  color: #c9a84c;
+  font-size: 1.3rem;
+}

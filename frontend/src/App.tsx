@@ -5,6 +5,8 @@ import RsvpSummary from './components/RsvpSummary';
 import RsvpForm from './components/RsvpForm';
 import RsvpList from './components/RsvpList';
 import FamilyTree from './components/FamilyTree';
+import Meetings from './components/Meetings';
+import Budget from './components/Budget';
 import type { RsvpResponse } from './types';
 import './App.css';
 
@@ -57,6 +59,8 @@ function App() {
           <nav className="app-nav">
             <NavLink to="/" end>Home</NavLink>
             <NavLink to="/rsvp">RSVP</NavLink>
+            <NavLink to="/meetings">Meetings</NavLink>
+            <NavLink to="/budget">Budget</NavLink>
             <NavLink to="/family-tree">Family Tree</NavLink>
           </nav>
         </header>
@@ -65,6 +69,8 @@ function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/rsvp" element={<RsvpPage />} />
+            <Route path="/meetings" element={<Meetings />} />
+            <Route path="/budget" element={<Budget />} />
             <Route path="/family-tree" element={<FamilyTree />} />
           </Routes>
         </main>
