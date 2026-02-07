@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createRsvp, updateRsvp, fetchFamilyTree } from '../api';
 import type { RsvpRequest, RsvpResponse, AgeGroup, AttendeeDto, FlatFamilyMember, FamilyTreeNode } from '../types';
+import { useToast } from './Toast';
 import './RsvpForm.css';
 
 interface Props {
@@ -46,6 +47,7 @@ export default function RsvpForm({ onSaved, editingRsvp, onCancelEdit }: Props) 
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<FlatFamilyMember[]>([]);
+  const { showToast } = useToast();
 
   useEffect(() => {
     fetchFamilyTree()
@@ -129,13 +131,16 @@ export default function RsvpForm({ onSaved, editingRsvp, onCancelEdit }: Props) 
     try {
       if (editingRsvp) {
         await updateRsvp(editingRsvp.id, payload);
+        showToast('RSVP updated');
       } else {
         await createRsvp(payload);
+        showToast('RSVP submitted!');
       }
       resetForm();
       onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
+      showToast('Failed to save RSVP', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -203,6 +208,7 @@ export default function RsvpForm({ onSaved, editingRsvp, onCancelEdit }: Props) 
                   onChange={(e) => updateRow(index, { guestAgeGroup: e.target.value as AgeGroup })}
                 >
                   <option value="ADULT">Adult</option>
+                  <option value="SPOUSE">Spouse</option>
                   <option value="CHILD">Child</option>
                   <option value="INFANT">Infant</option>
                 </select>

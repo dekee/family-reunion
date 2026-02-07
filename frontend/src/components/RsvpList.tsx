@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { fetchAllRsvps, deleteRsvp } from '../api';
+import { useAuth } from '../AuthContext';
 import type { RsvpResponse, AttendeeDto } from '../types';
+import { useToast } from './Toast';
+import { SkeletonCard } from './Skeleton';
 import './RsvpList.css';
 
 interface Props {
@@ -58,6 +61,8 @@ function AttendeeItem({ node }: { node: AttendeeNode }) {
 export default function RsvpList({ refreshKey, onEdit, onDeleted }: Props) {
   const [rsvps, setRsvps] = useState<RsvpResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const { showToast } = useToast();
+  const { isAdmin } = useAuth();
 
   useEffect(() => {
     setLoading(true);
@@ -71,13 +76,23 @@ export default function RsvpList({ refreshKey, onEdit, onDeleted }: Props) {
     if (!window.confirm(`Remove the ${familyName} family RSVP?`)) return;
     try {
       await deleteRsvp(id);
+      showToast('RSVP deleted');
       onDeleted();
     } catch (err) {
-      console.error(err);
+      showToast('Failed to delete RSVP', 'error');
     }
   };
 
-  if (loading) return <p>Loading RSVPs...</p>;
+  if (loading) return (
+    <div className="rsvp-list">
+      <h2>RSVPs</h2>
+      <div className="rsvp-cards">
+        <SkeletonCard lines={4} />
+        <SkeletonCard lines={4} />
+        <SkeletonCard lines={4} />
+      </div>
+    </div>
+  );
   if (rsvps.length === 0) return <p className="empty-state">No RSVPs yet. Be the first to sign up!</p>;
 
   return (
@@ -90,7 +105,9 @@ export default function RsvpList({ refreshKey, onEdit, onDeleted }: Props) {
               <h3>{rsvp.familyName} Family</h3>
               <div className="card-actions">
                 <button className="btn-edit" onClick={() => onEdit(rsvp)}>Edit</button>
-                <button className="btn-delete" onClick={() => handleDelete(rsvp.id, rsvp.familyName)}>Delete</button>
+                {isAdmin && (
+                  <button className="btn-delete" onClick={() => handleDelete(rsvp.id, rsvp.familyName)}>Delete</button>
+                )}
               </div>
             </div>
             <p className="card-contact">

@@ -113,8 +113,7 @@ export default function HomePage() {
               <span className="info-icon">&#128205;</span>
               <div>
                 <strong>Where</strong>
-                <p>Location TBD</p>
-                <p className="info-sub">Details coming soon</p>
+                <p>439 4th Street, Saint Rose, LA 70068</p>
               </div>
             </div>
             <div className="info-item">
@@ -134,10 +133,21 @@ export default function HomePage() {
           </div>
 
           <div className="map-container">
-            <div className="map-placeholder">
-              <span className="map-pin">&#128205;</span>
-              <p>Venue map will appear here once the location is finalized.</p>
-            </div>
+            <iframe
+              title="Reunion Location"
+              src="https://maps.google.com/maps?q=439+4th+Street,+Saint+Rose,+LA+70068&t=&z=15&ie=UTF8&iwloc=&output=embed"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
+            <a
+              className="get-directions-btn"
+              href="https://www.google.com/maps/dir/?api=1&destination=439+4th+Street,+Saint+Rose,+LA+70068"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Get Directions
+            </a>
           </div>
         </div>
       </section>

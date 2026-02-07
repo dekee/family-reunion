@@ -1,5 +1,6 @@
 package com.familyreunion.rsvp.exception
 
+import com.stripe.exception.StripeException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
@@ -24,6 +25,24 @@ class GlobalExceptionHandler {
     @ExceptionHandler(MeetingNotFoundException::class)
     fun handleMeetingNotFound(ex: MeetingNotFoundException): ResponseEntity<Map<String, String?>> {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(mapOf("error" to ex.message))
+    }
+
+    @ExceptionHandler(EventNotFoundException::class)
+    fun handleEventNotFound(ex: EventNotFoundException): ResponseEntity<Map<String, String?>> {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(mapOf("error" to ex.message))
+    }
+
+    @ExceptionHandler(StripeException::class)
+    fun handleStripeError(ex: StripeException): ResponseEntity<Map<String, String?>> {
+        return ResponseEntity.badRequest()
+            .body(mapOf("error" to (ex.message ?: "Stripe error")))
+    }
+
+    @ExceptionHandler(IllegalStateException::class)
+    fun handleIllegalState(ex: IllegalStateException): ResponseEntity<Map<String, String?>> {
+        return ResponseEntity.badRequest()
             .body(mapOf("error" to ex.message))
     }
 

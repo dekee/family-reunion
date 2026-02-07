@@ -1,18 +1,21 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import Tree from 'react-d3-tree';
 import type { RawNodeDatum, CustomNodeElementProps } from 'react-d3-tree';
 import { fetchFamilyTree } from '../api';
 import type { FamilyTreeNode } from '../types';
+import { Skeleton } from './Skeleton';
 import './FamilyTree.css';
 
 function toTreeData(node: FamilyTreeNode): RawNodeDatum {
   return {
     name: node.name,
     attributes: {
+      id: node.id,
       generation: node.generation ?? 0,
       ageGroup: node.ageGroup,
     },
-    children: node.children.map(toTreeData),
+    children: node.children.filter(c => c.ageGroup !== 'SPOUSE').map(toTreeData),
   };
 }
 
@@ -23,34 +26,6 @@ function generationColor(gen: number | string): string {
   return '#c0392b'; // red — grandchildren (Gen 2+)
 }
 
-function renderNode({ nodeDatum, toggleNode }: CustomNodeElementProps) {
-  const gen = nodeDatum.attributes?.generation ?? 0;
-  const color = generationColor(gen as number);
-  const isFounder = gen === 0 || gen === '0';
-
-  return (
-    <g>
-      <circle
-        r={isFounder ? 16 : 10}
-        fill={color}
-        stroke="#333"
-        strokeWidth={1.5}
-        onClick={toggleNode}
-        style={{ cursor: 'pointer' }}
-      />
-      <text
-        fill={color}
-        strokeWidth={0}
-        x={isFounder ? 22 : 16}
-        y={4}
-        style={{ fontSize: isFounder ? '12px' : '10px', fontWeight: isFounder ? 700 : 500 }}
-      >
-        {nodeDatum.name}
-      </text>
-    </g>
-  );
-}
-
 export default function FamilyTree() {
   const [treeData, setTreeData] = useState<RawNodeDatum | null>(null);
   const [totalMembers, setTotalMembers] = useState(0);
@@ -59,7 +34,7 @@ export default function FamilyTree() {
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(0.55);
 
-  useEffect(() => {
+  const loadTree = useCallback(() => {
     fetchFamilyTree()
       .then((res) => {
         setTotalMembers(res.totalMembers);
@@ -68,7 +43,7 @@ export default function FamilyTree() {
         } else {
           const virtualRoot: RawNodeDatum = {
             name: 'Wesley & Esther Tumblin',
-            attributes: { generation: 0, ageGroup: 'ADULT' },
+            attributes: { id: 0, generation: 0, ageGroup: 'ADULT' },
             children: res.roots.map(toTreeData),
           };
           setTreeData(virtualRoot);
@@ -77,12 +52,47 @@ export default function FamilyTree() {
       .catch((err) => setError(err.message));
   }, []);
 
+  useEffect(() => {
+    loadTree();
+  }, [loadTree]);
+
+  const renderNode = useCallback(({ nodeDatum, toggleNode }: CustomNodeElementProps) => {
+    const gen = nodeDatum.attributes?.generation ?? 0;
+    const color = generationColor(gen as number);
+    const isFounder = gen === 0 || gen === '0';
+
+    return (
+      <g>
+        <circle
+          r={isFounder ? 16 : 10}
+          fill={color}
+          stroke="#333"
+          strokeWidth={1.5}
+          onClick={toggleNode}
+          style={{ cursor: 'pointer' }}
+        />
+        <text
+          fill={color}
+          strokeWidth={0}
+          x={isFounder ? 22 : 16}
+          y={4}
+          className="node-name"
+          style={{
+            fontSize: isFounder ? '12px' : '10px',
+            fontWeight: isFounder ? 700 : 500,
+          }}
+        >
+          {nodeDatum.name}
+        </text>
+      </g>
+    );
+  }, []);
+
   const fitToScreen = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
     const treeGroup = container.querySelector('.rd3t-g') as SVGGElement | null;
     if (!treeGroup) {
-      // Tree hasn't rendered yet — just center horizontally
       const { width } = container.getBoundingClientRect();
       setTranslate({ x: width / 2, y: 40 });
       return;
@@ -99,10 +109,8 @@ export default function FamilyTree() {
     setTranslate({ x: centerX, y: centerY });
   }, []);
 
-  // Fit to screen after tree data loads and renders
   useEffect(() => {
     if (!treeData) return;
-    // Wait for react-d3-tree to render the SVG
     const timer = setTimeout(fitToScreen, 300);
     return () => clearTimeout(timer);
   }, [treeData, fitToScreen]);
@@ -117,8 +125,17 @@ export default function FamilyTree() {
   const handleZoomOut = () => setZoom((z) => Math.max(z - 0.15, 0.1));
   const handleZoomReset = () => fitToScreen();
 
-  if (error) return <div className="family-tree-error">Error loading family tree: {error}</div>;
-  if (!treeData) return <div className="family-tree-loading">Loading family tree...</div>;
+  if (error && !treeData) return <div className="family-tree-error">Error loading family tree: {error}</div>;
+  if (!treeData) return (
+    <div className="family-tree-page">
+      <div className="family-tree-header">
+        <Skeleton width="250px" height="1.6rem" style={{ margin: '0 auto 0.5rem' }} />
+        <Skeleton width="200px" height="1rem" style={{ margin: '0 auto 0.5rem' }} />
+        <Skeleton width="120px" height="1rem" style={{ margin: '0 auto' }} />
+      </div>
+      <Skeleton width="100%" height="500px" style={{ borderRadius: '12px' }} />
+    </div>
+  );
 
   return (
     <div className="family-tree-page">
@@ -126,6 +143,7 @@ export default function FamilyTree() {
         <h2>Tumblin Family Tree</h2>
         <p>Wesley & Esther Tumblin, est. 1948</p>
         <p className="member-count">{totalMembers} family members</p>
+        <p className="edit-hint"><Link to="/members">Manage members</Link></p>
         <div className="legend">
           <span className="legend-item"><span className="dot dot-gold" /> Founders</span>
           <span className="legend-item"><span className="dot dot-blue" /> Children (Gen 1)</span>
