@@ -193,6 +193,22 @@
   border: none;
 }
 
+.get-directions-btn {
+  display: block;
+  text-align: center;
+  padding: 0.7rem 1.5rem;
+  background: linear-gradient(135deg, #16213e, #2c3e6b);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: opacity 0.15s;
+}
+
+.get-directions-btn:hover {
+  opacity: 0.9;
+}
+
 /* RSVP Stats */
 .stats-section {
   padding: 2rem 1rem;

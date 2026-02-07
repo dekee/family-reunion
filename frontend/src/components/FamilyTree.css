@@ -120,3 +120,17 @@
 .family-tree-error {
   color: #c0392b;
 }
+
+.edit-hint {
+  font-size: 0.85rem;
+}
+
+.edit-hint a {
+  color: #2c3e6b;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.edit-hint a:hover {
+  text-decoration: underline;
+}

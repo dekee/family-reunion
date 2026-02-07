@@ -24,12 +24,57 @@ body {
   margin: 0 -1rem;
 }
 
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .app-header h1 {
   margin: 0;
   font-size: 1.3rem;
   font-weight: 700;
   letter-spacing: 0.5px;
   color: #c9a84c;
+}
+
+.auth-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.auth-user-name {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.admin-badge {
+  background: #c9a84c;
+  color: #16213e;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-logout {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 0.3rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-logout:hover {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
 }
 
 .app-nav {
@@ -46,7 +91,8 @@ body {
   font-size: 0.9rem;
   padding: 0.45rem 1.25rem;
   border-radius: 6px 6px 0 0;
-  transition: background 0.2s, color 0.2s;
+  border-bottom: 3px solid transparent;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 
 .app-nav a:hover {
@@ -57,11 +103,64 @@ body {
 .app-nav a.active {
   background: #f5f6fa;
   color: #16213e;
+  border-bottom-color: #c9a84c;
 }
 
 /* Main */
 .app-main {
   padding: 1.5rem 0 3rem;
+}
+
+/* RSVP Hero Image */
+.rsvp-hero {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.rsvp-hero-image {
+  width: 100%;
+  display: block;
+}
+
+.rsvp-hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(
+    to bottom,
+    rgba(22, 33, 62, 0.85) 0%,
+    rgba(22, 33, 62, 0.6) 80%,
+    transparent 100%
+  );
+}
+
+.rsvp-hero-overlay .summary {
+  margin-bottom: 0;
+}
+
+.rsvp-hero-overlay .summary h2 {
+  color: #c9a84c;
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+}
+
+.rsvp-hero-overlay .summary-card {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
+}
+
+.rsvp-hero-overlay .summary-number {
+  color: #fff;
+  font-size: 1.6rem;
+}
+
+.rsvp-hero-overlay .summary-label {
+  color: rgba(255, 255, 255, 0.8);
 }
 
 /* Page header — reusable across RSVP + Family Tree pages */

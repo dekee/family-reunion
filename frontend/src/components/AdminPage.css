@@ -1,0 +1,133 @@
+.admin-page {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.admin-list {
+  margin-bottom: 2rem;
+}
+
+.admin-list h3 {
+  color: #16213e;
+  margin-bottom: 0.75rem;
+}
+
+.admin-empty {
+  color: #888;
+  font-style: italic;
+}
+
+.admin-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.admin-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.admin-name {
+  font-weight: 600;
+  color: #16213e;
+}
+
+.admin-email {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.btn-remove-admin {
+  background: #fff;
+  color: #c0392b;
+  border: 1px solid #c0392b;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-remove-admin:hover {
+  background: #c0392b;
+  color: #fff;
+}
+
+.admin-form {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.admin-form h3 {
+  margin: 0 0 1rem;
+  color: #16213e;
+}
+
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.admin-form input {
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.admin-form-error {
+  color: #c0392b;
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.btn-add-admin {
+  background: #16213e;
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-add-admin:hover {
+  background: #2c3e6b;
+}
+
+.btn-add-admin:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .admin-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

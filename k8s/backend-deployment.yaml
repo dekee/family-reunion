@@ -36,6 +36,21 @@ spec:
                 secretKeyRef:
                   name: postgres-secret
                   key: POSTGRES_PASSWORD
+            - name: GOOGLE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: google-oauth-secret
+                  key: GOOGLE_CLIENT_ID
+            - name: INITIAL_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: google-oauth-secret
+                  key: INITIAL_ADMIN_EMAIL
+            - name: INITIAL_ADMIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: google-oauth-secret
+                  key: INITIAL_ADMIN_NAME
           readinessProbe:
             httpGet:
               path: /api/rsvp/summary
