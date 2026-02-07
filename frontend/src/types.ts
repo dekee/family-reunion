@@ -65,3 +65,24 @@ export interface FlatFamilyMember {
   ageGroup: AgeGroup;
   parentName?: string;
 }
+
+export interface MeetingRequest {
+  title: string;
+  meetingDateTime: string;
+  zoomLink: string;
+  phoneNumber?: string;
+  meetingId?: string;
+  passcode?: string;
+  notes?: string;
+}
+
+export interface MeetingResponse {
+  id: number;
+  title: string;
+  meetingDateTime: string;
+  zoomLink: string;
+  phoneNumber?: string;
+  meetingId?: string;
+  passcode?: string;
+  notes?: string;
+}

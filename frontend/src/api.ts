@@ -1,4 +1,4 @@
-import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse } from './types';
+import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, MeetingRequest, MeetingResponse } from './types';
 
 const BASE_URL = '/api/rsvp';
 
@@ -51,5 +51,37 @@ export async function fetchSummary(): Promise<RsvpSummaryResponse> {
 
 export async function fetchFamilyTree(): Promise<FamilyTreeResponse> {
   const res = await fetch('/api/family-tree');
+  return handleResponse(res);
+}
+
+// --- Meetings ---
+
+const MEETINGS_URL = '/api/meetings';
+
+export async function fetchMeetings(): Promise<MeetingResponse[]> {
+  const res = await fetch(MEETINGS_URL);
+  return handleResponse(res);
+}
+
+export async function createMeeting(data: MeetingRequest): Promise<MeetingResponse> {
+  const res = await fetch(MEETINGS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
+export async function updateMeeting(id: number, data: MeetingRequest): Promise<MeetingResponse> {
+  const res = await fetch(`${MEETINGS_URL}/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
+export async function deleteMeeting(id: number): Promise<void> {
+  const res = await fetch(`${MEETINGS_URL}/${id}`, { method: 'DELETE' });
   return handleResponse(res);
 }
