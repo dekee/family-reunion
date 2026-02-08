@@ -10,17 +10,22 @@ data class GoogleUserInfo(val email: String, val name: String)
 
 @Service
 class GoogleTokenVerifier(
-    @Value("\${google.client-id:}") private val clientId: String
+    @Value("\${google.client-id:}") private val clientId: String,
+    @Value("\${google.ios-client-id:}") private val iosClientId: String
 ) {
 
     private val verifier: GoogleIdTokenVerifier by lazy {
+        val audiences = listOfNotNull(
+            clientId.ifBlank { null },
+            iosClientId.ifBlank { null }
+        )
         GoogleIdTokenVerifier.Builder(NetHttpTransport(), GsonFactory.getDefaultInstance())
-            .setAudience(listOf(clientId))
+            .setAudience(audiences)
             .build()
     }
 
     fun verify(idTokenString: String): GoogleUserInfo? {
-        if (clientId.isBlank()) return null
+        if (clientId.isBlank() && iosClientId.isBlank()) return null
         return try {
             val idToken = verifier.verify(idTokenString) ?: return null
             val payload = idToken.payload
