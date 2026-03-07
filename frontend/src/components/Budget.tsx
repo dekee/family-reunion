@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { fetchFamilyTree } from '../api';
-import type { FamilyTreeNode } from '../types';
+import { useSearchParams } from 'react-router-dom';
+import { fetchFamilyTree, fetchPaymentSummaries, createCheckoutSession } from '../api';
+import type { FamilyTreeNode, PaymentSummaryResponse } from '../types';
 import { SkeletonCard, SkeletonTable } from './Skeleton';
 import './Budget.css';
 
@@ -18,16 +19,6 @@ interface MemberCounts {
   infantCount: number;
 }
 
-interface BranchSummary {
-  name: string;
-  adults: number;
-  children: number;
-  infants: number;
-  total: number;
-  owed: number;
-  paid: number;
-}
-
 function countSubtree(node: FamilyTreeNode): MemberCounts {
   const counts: MemberCounts = { totalMembers: 0, adultCount: 0, childCount: 0, infantCount: 0 };
   function walk(n: FamilyTreeNode) {
@@ -41,51 +32,58 @@ function countSubtree(node: FamilyTreeNode): MemberCounts {
   return counts;
 }
 
-function buildBranches(roots: FamilyTreeNode[]): { totals: MemberCounts; branches: BranchSummary[] } {
+function buildTotals(roots: FamilyTreeNode[]): MemberCounts {
   const totals: MemberCounts = { totalMembers: 0, adultCount: 0, childCount: 0, infantCount: 0 };
-  const branches: BranchSummary[] = [];
-
   for (const root of roots) {
     for (const branch of root.children) {
       const c = countSubtree(branch);
-      const name = branch.name.replace(/ - Done$/, '');
-      const owed = c.adultCount * ADULT_FEE + c.childCount * CHILD_FEE;
-      branches.push({
-        name,
-        adults: c.adultCount,
-        children: c.childCount,
-        infants: c.infantCount,
-        total: c.totalMembers,
-        owed,
-        paid: 0,
-      });
       totals.totalMembers += c.totalMembers;
       totals.adultCount += c.adultCount;
       totals.childCount += c.childCount;
       totals.infantCount += c.infantCount;
     }
   }
-
-  branches.sort((a, b) => a.name.localeCompare(b.name));
-  return { totals, branches };
+  return totals;
 }
 
 export default function Budget() {
   const [memberCounts, setMemberCounts] = useState<MemberCounts | null>(null);
-  const [branches, setBranches] = useState<BranchSummary[]>([]);
+  const [payments, setPayments] = useState<PaymentSummaryResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [payingRsvpId, setPayingRsvpId] = useState<number | null>(null);
+  const [payAmount, setPayAmount] = useState('');
+  const [error, setError] = useState('');
+  const [searchParams] = useSearchParams();
 
-  useEffect(() => {
+  const paymentStatus = searchParams.get('payment');
+
+  const load = () => {
     setLoading(true);
-    fetchFamilyTree()
-      .then((tree) => {
-        const { totals, branches } = buildBranches(tree.roots);
-        setMemberCounts(totals);
-        setBranches(branches);
+    Promise.all([fetchFamilyTree(), fetchPaymentSummaries()])
+      .then(([tree, p]) => {
+        setMemberCounts(buildTotals(tree.roots));
+        setPayments(p);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handlePay = async (rsvpId: number) => {
+    setError('');
+    const cents = Math.round(parseFloat(payAmount) * 100);
+    if (isNaN(cents) || cents < 100) {
+      setError('Please enter a valid amount (minimum $1.00)');
+      return;
+    }
+    try {
+      const { url } = await createCheckoutSession({ rsvpId, amount: cents });
+      window.location.href = url;
+    } catch (err: any) {
+      setError(err.message || 'Failed to start checkout');
+    }
+  };
 
   if (loading) return (
     <div className="budget-page">
@@ -108,6 +106,13 @@ export default function Budget() {
         <h2>Reunion Budget</h2>
         <p>Cost estimates based on family members</p>
       </div>
+
+      {paymentStatus === 'success' && (
+        <div className="payment-banner payment-success">Payment successful! Thank you.</div>
+      )}
+      {paymentStatus === 'cancelled' && (
+        <div className="payment-banner payment-cancelled">Payment was cancelled.</div>
+      )}
 
       <div className="budget-summary-grid">
         <div className="budget-summary-card">
@@ -170,52 +175,76 @@ export default function Budget() {
       </div>
 
       <h2>Payment Tracker</h2>
-      <div className="payment-table-wrapper">
-        <table className="payment-table">
-          <thead>
-            <tr>
-              <th>Family Branch</th>
-              <th>Members</th>
-              <th>Owed</th>
-              <th>Paid</th>
-              <th>Balance</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {branches.map((b) => {
-              const balance = b.owed - b.paid;
-              const status = b.paid === 0 ? 'Unpaid' : b.paid >= b.owed ? 'Paid' : 'Partial';
-              return (
-                <tr key={b.name}>
-                  <td className="payment-family">{b.name}</td>
-                  <td>{b.total}</td>
-                  <td>{dollars(b.owed)}</td>
-                  <td>{dollars(b.paid)}</td>
-                  <td className={balance > 0 ? 'payment-balance-due' : ''}>
-                    {dollars(balance)}
+      {payments.length === 0 ? (
+        <p className="payment-empty">No families to track payments for yet.</p>
+      ) : (
+        <div className="payment-table-wrapper">
+          <table className="payment-table">
+            <thead>
+              <tr>
+                <th>Family</th>
+                <th>Owed</th>
+                <th>Paid</th>
+                <th>Balance</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payments.map((p) => (
+                <tr key={p.rsvpId}>
+                  <td className="payment-family">{p.familyName}</td>
+                  <td>{dollars(p.totalOwed)}</td>
+                  <td>{dollars(p.totalPaid)}</td>
+                  <td className={p.balance > 0 ? 'payment-balance-due' : p.balance < 0 ? 'payment-balance-credit' : ''}>
+                    {p.balance < 0 ? `($${Math.abs(p.balance).toLocaleString()} credit)` : dollars(p.balance)}
                   </td>
                   <td>
-                    <span className={`payment-status-badge status-${status.toLowerCase()}`}>
-                      {status}
+                    <span className={`payment-status-badge ${p.balance < 0 ? 'status-overpaid' : `status-${p.status.toLowerCase()}`}`}>
+                      {p.balance < 0 ? 'Overpaid' : p.status === 'PAID' ? 'Paid' : p.status === 'PARTIAL' ? 'Partial' : p.status === 'PENDING' ? 'Pending' : 'Unpaid'}
                     </span>
                   </td>
+                  <td>
+                    {p.balance > 0 && (
+                      payingRsvpId === p.rsvpId ? (
+                        <div className="pay-inline">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="1"
+                            value={payAmount}
+                            onChange={(e) => setPayAmount(e.target.value)}
+                            placeholder={p.balance.toFixed(2)}
+                            className="pay-amount-input"
+                          />
+                          <button className="btn-pay-confirm" onClick={() => handlePay(p.rsvpId)}>
+                            Pay
+                          </button>
+                          <button className="btn-pay-cancel" onClick={() => { setPayingRsvpId(null); setError(''); }}>
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          className="btn-pay"
+                          onClick={() => {
+                            setPayingRsvpId(p.rsvpId);
+                            setPayAmount(p.balance.toFixed(2));
+                            setError('');
+                          }}
+                        >
+                          Pay Now
+                        </button>
+                      )
+                    )}
+                  </td>
                 </tr>
-              );
-            })}
-            <tr className="payment-total-row">
-              <td className="payment-family"><strong>Total</strong></td>
-              <td><strong>{branches.reduce((s, b) => s + b.total, 0)}</strong></td>
-              <td><strong>{dollars(branches.reduce((s, b) => s + b.owed, 0))}</strong></td>
-              <td><strong>{dollars(branches.reduce((s, b) => s + b.paid, 0))}</strong></td>
-              <td className="payment-balance-due">
-                <strong>{dollars(branches.reduce((s, b) => s + b.owed - b.paid, 0))}</strong>
-              </td>
-              <td></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+          {error && <p className="payment-error">{error}</p>}
+        </div>
+      )}
     </div>
   );
 }
