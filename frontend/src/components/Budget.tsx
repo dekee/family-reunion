@@ -64,9 +64,6 @@ function buildBranches(roots: FamilyTreeNode[]): { totals: MemberCounts; branche
       totals.childCount += c.childCount;
       totals.infantCount += c.infantCount;
     }
-    // count the founder too
-    totals.totalMembers++;
-    if (root.ageGroup === 'ADULT' || root.ageGroup === 'SPOUSE') totals.adultCount++;
   }
 
   branches.sort((a, b) => a.name.localeCompare(b.name));
