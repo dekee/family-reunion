@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { fetchSummary, fetchPaymentSummaries, createCheckoutSession } from '../api';
-import type { RsvpSummaryResponse, PaymentSummaryResponse } from '../types';
+import { fetchFamilyTree, fetchPaymentSummaries, createCheckoutSession } from '../api';
+import type { FamilyTreeNode, PaymentSummaryResponse } from '../types';
 import { SkeletonCard, SkeletonTable } from './Skeleton';
 import './Budget.css';
 
@@ -12,8 +12,28 @@ function dollars(n: number): string {
   return '$' + n.toLocaleString();
 }
 
+interface MemberCounts {
+  totalMembers: number;
+  adultCount: number;
+  childCount: number;
+  infantCount: number;
+}
+
+function countMembers(nodes: FamilyTreeNode[]): MemberCounts {
+  const counts: MemberCounts = { totalMembers: 0, adultCount: 0, childCount: 0, infantCount: 0 };
+  function walk(node: FamilyTreeNode) {
+    counts.totalMembers++;
+    if (node.ageGroup === 'ADULT' || node.ageGroup === 'SPOUSE') counts.adultCount++;
+    else if (node.ageGroup === 'CHILD') counts.childCount++;
+    else if (node.ageGroup === 'INFANT') counts.infantCount++;
+    node.children.forEach(walk);
+  }
+  nodes.forEach(walk);
+  return counts;
+}
+
 export default function Budget() {
-  const [summary, setSummary] = useState<RsvpSummaryResponse | null>(null);
+  const [memberCounts, setMemberCounts] = useState<MemberCounts | null>(null);
   const [payments, setPayments] = useState<PaymentSummaryResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [payingRsvpId, setPayingRsvpId] = useState<number | null>(null);
@@ -25,9 +45,9 @@ export default function Budget() {
 
   const load = () => {
     setLoading(true);
-    Promise.all([fetchSummary(), fetchPaymentSummaries()])
-      .then(([s, p]) => {
-        setSummary(s);
+    Promise.all([fetchFamilyTree(), fetchPaymentSummaries()])
+      .then(([tree, p]) => {
+        setMemberCounts(countMembers(tree.roots));
         setPayments(p);
       })
       .catch(console.error)
@@ -60,17 +80,17 @@ export default function Budget() {
       <SkeletonTable rows={4} cols={6} />
     </div>
   );
-  if (!summary) return <p>Unable to load summary data.</p>;
+  if (!memberCounts) return <p>Unable to load member data.</p>;
 
-  const adultTotal = summary.adultCount * ADULT_FEE;
-  const childTotal = summary.childCount * CHILD_FEE;
+  const adultTotal = memberCounts.adultCount * ADULT_FEE;
+  const childTotal = memberCounts.childCount * CHILD_FEE;
   const grandTotal = adultTotal + childTotal;
 
   return (
     <div className="budget-page">
       <div className="page-header">
         <h2>Reunion Budget</h2>
-        <p>Cost estimates and payment tracking</p>
+        <p>Cost estimates based on family members</p>
       </div>
 
       {paymentStatus === 'success' && (
@@ -82,28 +102,20 @@ export default function Budget() {
 
       <div className="budget-summary-grid">
         <div className="budget-summary-card">
-          <span className="budget-summary-number">{summary.totalFamilies}</span>
-          <span className="budget-summary-label">Families</span>
+          <span className="budget-summary-number">{memberCounts.totalMembers}</span>
+          <span className="budget-summary-label">Total Members</span>
         </div>
         <div className="budget-summary-card">
-          <span className="budget-summary-number">{summary.totalHeadcount}</span>
-          <span className="budget-summary-label">Total Guests</span>
+          <span className="budget-summary-number">{memberCounts.adultCount}</span>
+          <span className="budget-summary-label">Adults / Spouses</span>
         </div>
         <div className="budget-summary-card">
-          <span className="budget-summary-number">{summary.adultCount}</span>
-          <span className="budget-summary-label">Adults</span>
-        </div>
-        <div className="budget-summary-card">
-          <span className="budget-summary-number">{summary.childCount}</span>
+          <span className="budget-summary-number">{memberCounts.childCount}</span>
           <span className="budget-summary-label">Children</span>
         </div>
         <div className="budget-summary-card">
-          <span className="budget-summary-number">{summary.infantCount}</span>
-          <span className="budget-summary-label">Infants</span>
-        </div>
-        <div className="budget-summary-card">
-          <span className="budget-summary-number">{summary.lodgingCount}</span>
-          <span className="budget-summary-label">Need Lodging</span>
+          <span className="budget-summary-number">{memberCounts.infantCount}</span>
+          <span className="budget-summary-label">Infants (free)</span>
         </div>
       </div>
 
@@ -113,7 +125,7 @@ export default function Budget() {
           <div className="budget-row-label">
             <span className="budget-row-title">Adults / Spouses</span>
             <span className="budget-row-detail">
-              {summary.adultCount} x {dollars(ADULT_FEE)} per person
+              {memberCounts.adultCount} x {dollars(ADULT_FEE)} per person
             </span>
           </div>
           <span className="budget-row-range">{dollars(adultTotal)}</span>
@@ -123,7 +135,7 @@ export default function Budget() {
           <div className="budget-row-label">
             <span className="budget-row-title">Children</span>
             <span className="budget-row-detail">
-              {summary.childCount} x {dollars(CHILD_FEE)} per person
+              {memberCounts.childCount} x {dollars(CHILD_FEE)} per person
             </span>
           </div>
           <span className="budget-row-range">{dollars(childTotal)}</span>
@@ -132,7 +144,7 @@ export default function Budget() {
         <div className="budget-row">
           <div className="budget-row-label">
             <span className="budget-row-title">Infants</span>
-            <span className="budget-row-detail">{summary.infantCount} — no cost</span>
+            <span className="budget-row-detail">{memberCounts.infantCount} — no cost</span>
           </div>
           <span className="budget-row-range">$0</span>
         </div>
@@ -141,7 +153,7 @@ export default function Budget() {
           <div className="budget-row-label">
             <span className="budget-row-title">Total</span>
             <span className="budget-row-detail">
-              {summary.totalHeadcount} guests across {summary.totalFamilies} families
+              {memberCounts.totalMembers} family members
             </span>
           </div>
           <span className="budget-row-range">{dollars(grandTotal)}</span>
