@@ -17,7 +17,7 @@ class PaymentController(private val paymentService: PaymentService) {
 
     @PostMapping("/checkout")
     fun createCheckout(@Valid @RequestBody request: CheckoutRequest): ResponseEntity<Map<String, String>> {
-        val url = paymentService.createCheckoutSession(request.rsvpId, request.amount)
+        val url = paymentService.createCheckoutSession(request)
         return ResponseEntity.ok(mapOf("url" to url))
     }
 

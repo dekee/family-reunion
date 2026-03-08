@@ -1,10 +1,12 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { fetchFamilyTree, createFamilyMember, updateFamilyMember, deleteFamilyMember } from '../api';
 import { useAuth } from '../AuthContext';
+import { getBranchColor } from '../branchColors';
 import type { FamilyTreeNode, AgeGroup, FamilyMemberRequest } from '../types';
 import { useToast } from './Toast';
 import { SkeletonCard } from './Skeleton';
 import './FamilyMembers.css';
+import './RegistrationModal.css';
 
 interface FlatMember {
   id: number;
@@ -32,11 +34,11 @@ function flattenTree(node: FamilyTreeNode, depth: number): FlatMember[] {
 
 export default function FamilyMembers() {
   const [roots, setRoots] = useState<FamilyTreeNode[]>([]);
-  const [totalMembers, setTotalMembers] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Form state
+  // Modal form state
+  const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formName, setFormName] = useState('');
   const [formAgeGroup, setFormAgeGroup] = useState<AgeGroup>('ADULT');
@@ -52,18 +54,18 @@ export default function FamilyMembers() {
   const { showToast } = useToast();
   const { isAdmin } = useAuth();
 
-  const formRef = useRef<HTMLDivElement>(null);
+  // Promote children of root nodes (Wesley & Esther) as top-level branches
+  const branches: FamilyTreeNode[] = roots.flatMap(r => r.children);
 
   const allMembers: FlatMember[] = [];
-  for (const root of roots) {
-    allMembers.push(...flattenTree(root, 0));
+  for (const branch of branches) {
+    allMembers.push(...flattenTree(branch, 0));
   }
 
   const loadTree = useCallback(() => {
     fetchFamilyTree()
       .then((res) => {
         setRoots(res.roots);
-        setTotalMembers(res.totalMembers);
         setLoading(false);
       })
       .catch((err) => {
@@ -76,7 +78,8 @@ export default function FamilyMembers() {
     loadTree();
   }, [loadTree]);
 
-  const resetForm = () => {
+  const closeModal = () => {
+    setShowModal(false);
     setEditingId(null);
     setFormName('');
     setFormAgeGroup('ADULT');
@@ -84,14 +87,10 @@ export default function FamilyMembers() {
     setFormError(null);
   };
 
-  const scrollToForm = () => {
-    formRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   const handleAddChild = (parentId: number) => {
-    resetForm();
+    closeModal();
     setFormParentId(parentId);
-    scrollToForm();
+    setShowModal(true);
   };
 
   const handleEdit = (member: FlatMember) => {
@@ -100,7 +99,7 @@ export default function FamilyMembers() {
     setFormAgeGroup(member.ageGroup);
     setFormParentId(member.parentId ?? '');
     setFormError(null);
-    scrollToForm();
+    setShowModal(true);
   };
 
   const handleDelete = async (member: FlatMember) => {
@@ -142,8 +141,8 @@ export default function FamilyMembers() {
         await createFamilyMember(data);
         showToast('Member added');
       }
-      resetForm();
       loadTree();
+      closeModal();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to save');
       showToast('Failed to save member', 'error');
@@ -161,6 +160,14 @@ export default function FamilyMembers() {
     });
   };
 
+  const collapseAll = () => {
+    setCollapsed(new Set(branches.map(b => b.id)));
+  };
+
+  const expandAll = () => {
+    setCollapsed(new Set());
+  };
+
   if (loading) return (
     <div className="members-page">
       <h2>Family Members</h2>
@@ -176,7 +183,12 @@ export default function FamilyMembers() {
   return (
     <div className="members-page">
       <h2>Family Members</h2>
-      <p className="members-count">{totalMembers} members across {roots.length} branches</p>
+      <p className="members-count">{allMembers.length} members across {branches.length} branches</p>
+
+      <div className="members-controls">
+        <button onClick={expandAll}>Expand All</button>
+        <button onClick={collapseAll}>Collapse All</button>
+      </div>
 
       <div className="members-search-wrapper">
         <input
@@ -191,60 +203,70 @@ export default function FamilyMembers() {
         )}
       </div>
 
-      {isAdmin && (
-        <div className="member-form" ref={formRef}>
-          <h3>{editingId ? 'Edit Member' : 'Add Member'}</h3>
-          <form onSubmit={handleSubmit}>
-            <div className="member-form-grid">
-              <label>
-                Name
-                <input
-                  type="text"
-                  value={formName}
-                  onChange={e => setFormName(e.target.value)}
-                  placeholder="Member name"
-                  required
-                  autoFocus={!!editingId}
-                />
-              </label>
-              <label>
-                Age Group
-                <select value={formAgeGroup} onChange={e => setFormAgeGroup(e.target.value as AgeGroup)}>
-                  <option value="ADULT">Adult</option>
-                  <option value="SPOUSE">Spouse</option>
-                  <option value="CHILD">Child</option>
-                  <option value="INFANT">Infant</option>
-                </select>
-              </label>
-              {!editingId && (
-                <label>
-                  Parent
-                  <select
-                    value={formParentId}
-                    onChange={e => setFormParentId(e.target.value)}
-                  >
-                    <option value="">— No parent (root) —</option>
-                    {allMembers.map(m => (
-                      <option key={m.id} value={m.id}>
-                        {'  '.repeat(m.depth)}{m.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+      {isAdmin && showModal && (
+        <div className="modal-backdrop" onClick={closeModal}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{editingId ? 'Edit Member' : 'Add Person'}</h3>
+              {!editingId && formParentId !== '' && (
+                <p className="modal-subtitle">
+                  Under {allMembers.find(m => m.id === Number(formParentId))?.name}
+                </p>
               )}
+              <button className="modal-close" onClick={closeModal}>&times;</button>
             </div>
-            {formError && <p className="member-form-error">{formError}</p>}
-            <div className="member-form-actions">
-              <button type="submit" className="btn-member-submit" disabled={saving || !formName.trim()}>
-                {saving ? 'Saving...' : editingId ? 'Update Member' : 'Add Member'}
-              </button>
-              {editingId && (
-                <button type="button" className="btn-member-cancel" onClick={resetForm}>
+            <form onSubmit={handleSubmit}>
+              <div className="modal-body">
+                <div className="member-form-grid-modal">
+                  <label>
+                    Name
+                    <input
+                      type="text"
+                      value={formName}
+                      onChange={e => setFormName(e.target.value)}
+                      placeholder="Member name"
+                      required
+                      autoFocus
+                    />
+                  </label>
+                  <label>
+                    Age Group
+                    <select value={formAgeGroup} onChange={e => setFormAgeGroup(e.target.value as AgeGroup)}>
+                      <option value="ADULT">Adult</option>
+                      <option value="SPOUSE">Spouse</option>
+                      <option value="CHILD">Child</option>
+                      <option value="INFANT">Infant</option>
+                    </select>
+                  </label>
+                  {!editingId && (
+                    <label>
+                      Parent
+                      <select
+                        value={formParentId}
+                        onChange={e => setFormParentId(e.target.value)}
+                      >
+                        <option value="">— No parent (root) —</option>
+                        {allMembers.map(m => (
+                          <option key={m.id} value={m.id}>
+                            {'  '.repeat(m.depth)}{m.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                </div>
+                {formError && <p className="member-form-error">{formError}</p>}
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-modal-cancel" onClick={closeModal}>
                   Cancel
                 </button>
-              )}
-            </div>
-          </form>
+                <button type="submit" className="btn-modal-register" disabled={saving || !formName.trim()}>
+                  {saving ? 'Saving...' : editingId ? 'Update' : 'Add Person'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
@@ -253,7 +275,7 @@ export default function FamilyMembers() {
         const isSearching = query.length > 0;
         let matchCount = 0;
 
-        const branchElements = roots.map(root => {
+        const branchElements = branches.map(root => {
           const branchMembers = flattenTree(root, 0);
           const filtered = isSearching
             ? branchMembers.filter(m => m.name.toLowerCase().includes(query))
@@ -264,13 +286,26 @@ export default function FamilyMembers() {
 
           const isCollapsed = isSearching ? false : collapsed.has(root.id);
           const displayMembers = isSearching ? filtered : branchMembers;
+          const branchColor = getBranchColor(root.name);
 
           return (
-            <div className="branch-section" key={root.id}>
+            <div
+              className="branch-section"
+              key={root.id}
+              style={{ borderLeft: `4px solid ${branchColor}` }}
+            >
               <div className="branch-header" onClick={() => toggleBranch(root.id)}>
                 <h3>
                   {root.name}
-                  <span className="branch-count">({filtered.length}{isSearching && filtered.length !== branchMembers.length ? ` of ${branchMembers.length}` : ''})</span>
+                  <span
+                    className="branch-count-badge"
+                    style={{ background: branchColor }}
+                  >
+                    {filtered.length}
+                  </span>
+                  {isSearching && filtered.length !== branchMembers.length && (
+                    <span className="branch-count"> of {branchMembers.length}</span>
+                  )}
                 </h3>
                 <span className={`branch-toggle ${isCollapsed ? '' : 'open'}`}>&#9654;</span>
               </div>
@@ -288,9 +323,9 @@ export default function FamilyMembers() {
                           <button
                             className="btn-member-action btn-add-child"
                             onClick={() => handleAddChild(member.id)}
-                            title={`Add child under ${member.name}`}
+                            title={`Add person under ${member.name}`}
                           >
-                            + Child
+                            + Person
                           </button>
                           <button
                             className="btn-member-action btn-member-edit"
@@ -319,7 +354,7 @@ export default function FamilyMembers() {
         return (
           <>
             {isSearching && (
-              <p className="members-search-result">Showing {matchCount} of {totalMembers} members</p>
+              <p className="members-search-result">Showing {matchCount} of {allMembers.length} members</p>
             )}
             {branchElements}
           </>

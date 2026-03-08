@@ -9,8 +9,8 @@ import org.springframework.context.annotation.Configuration
 class StripeConfig(
     @Value("\${stripe.secret-key:}") private val secretKey: String,
     @Value("\${stripe.webhook-secret:}") private val webhookSecret: String,
-    @Value("\${stripe.success-url:http://localhost:5173/budget?payment=success}") val successUrl: String,
-    @Value("\${stripe.cancel-url:http://localhost:5173/budget?payment=cancelled}") val cancelUrl: String
+    @Value("\${stripe.success-url:http://localhost:5173/pay?payment=success}") val successUrl: String,
+    @Value("\${stripe.cancel-url:http://localhost:5173/pay?payment=cancelled}") val cancelUrl: String
 ) {
     @PostConstruct
     fun init() {

@@ -8,5 +8,9 @@ data class CheckoutRequest(
     val rsvpId: Long = 0,
 
     @field:Min(100)
-    val amount: Long = 0
+    val amount: Long = 0,
+
+    val memberIds: List<Long> = emptyList(),
+
+    val guests: List<CheckoutGuestInfo> = emptyList()
 )

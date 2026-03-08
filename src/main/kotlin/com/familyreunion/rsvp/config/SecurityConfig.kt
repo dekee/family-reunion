@@ -48,6 +48,17 @@ class SecurityConfig(
                 // Payments are public
                 auth.requestMatchers("/api/payments/**").permitAll()
 
+                // Gallery: photos are public, refresh is admin-only
+                auth.requestMatchers(HttpMethod.GET, "/api/gallery/**").permitAll()
+                auth.requestMatchers(HttpMethod.POST, "/api/gallery/refresh").hasRole("ADMIN")
+
+                // Check-in: ticket lookup and sending are public, check-in action and status are admin
+                auth.requestMatchers(HttpMethod.GET, "/api/checkin/ticket/**").permitAll()
+                auth.requestMatchers(HttpMethod.GET, "/api/checkin/capabilities").permitAll()
+                auth.requestMatchers(HttpMethod.POST, "/api/checkin/send").permitAll()
+                auth.requestMatchers(HttpMethod.POST, "/api/checkin/{token}").hasRole("ADMIN")
+                auth.requestMatchers(HttpMethod.GET, "/api/checkin/status").hasRole("ADMIN")
+
                 // All other POST/PUT/DELETE/PATCH require ADMIN role
                 auth.requestMatchers(HttpMethod.POST, "/api/**").hasRole("ADMIN")
                 auth.requestMatchers(HttpMethod.PUT, "/api/**").hasRole("ADMIN")

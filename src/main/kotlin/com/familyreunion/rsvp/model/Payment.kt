@@ -3,6 +3,7 @@ package com.familyreunion.rsvp.model
 import jakarta.persistence.*
 import java.math.BigDecimal
 import java.time.LocalDateTime
+import java.util.UUID
 
 @Entity
 @Table(name = "payments")
@@ -28,7 +29,18 @@ class Payment(
     var status: PaymentStatus = PaymentStatus.PENDING,
 
     @Column(nullable = false)
-    var createdAt: LocalDateTime = LocalDateTime.now()
+    var createdAt: LocalDateTime = LocalDateTime.now(),
+
+    @Column(nullable = false, unique = true)
+    var checkinToken: String = UUID.randomUUID().toString(),
+
+    @Column(nullable = false)
+    var checkedIn: Boolean = false,
+
+    var checkedInAt: LocalDateTime? = null,
+
+    @OneToMany(mappedBy = "payment", cascade = [CascadeType.ALL], orphanRemoval = true)
+    val lineItems: MutableList<PaymentLineItem> = mutableListOf()
 )
 
 enum class PaymentStatus {

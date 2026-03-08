@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Tree from 'react-d3-tree';
 import type { RawNodeDatum, CustomNodeElementProps } from 'react-d3-tree';
 import { fetchFamilyTree } from '../api';
 import type { FamilyTreeNode } from '../types';
+import { getBranchColor } from '../branchColors';
 import { Skeleton } from './Skeleton';
 import './FamilyTree.css';
 
@@ -19,70 +20,148 @@ function toTreeData(node: FamilyTreeNode): RawNodeDatum {
   };
 }
 
+function displayName(name: string): string {
+  return name.split(' - ')[0];
+}
+
+function branchKey(fullName: string): string {
+  const cleaned = fullName.split(' - ')[0];
+  if (cleaned.includes(' II')) return 'Wesley II';
+  return cleaned.split(' ')[0];
+}
+
 function generationColor(gen: number | string): string {
   const g = typeof gen === 'string' ? parseInt(gen, 10) : gen;
-  if (g === 0) return '#c9a84c'; // gold — founders
-  if (g === 1) return '#2c3e6b'; // navy — children
-  return '#c0392b'; // red — grandchildren (Gen 2+)
+  if (g === 0) return '#c9a84c';
+  if (g === 1) return '#2c3e6b';
+  if (g === 2) return '#c0392b';
+  return '#1a8a6e';
+}
+
+function countNodes(node: FamilyTreeNode): number {
+  let c = 1;
+  for (const child of node.children) c += countNodes(child);
+  return c;
 }
 
 export default function FamilyTree() {
-  const [treeData, setTreeData] = useState<RawNodeDatum | null>(null);
-  const [totalMembers, setTotalMembers] = useState(0);
+  const [rawData, setRawData] = useState<{ roots: FamilyTreeNode[]; totalMembers: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(0.55);
+  const [selectedBranch, setSelectedBranch] = useState<string>('overview');
+  const [treeKey, setTreeKey] = useState(0);
 
-  const loadTree = useCallback(() => {
+  useEffect(() => {
     fetchFamilyTree()
-      .then((res) => {
-        setTotalMembers(res.totalMembers);
-        if (res.roots.length === 1) {
-          setTreeData(toTreeData(res.roots[0]));
-        } else {
-          const virtualRoot: RawNodeDatum = {
-            name: 'Wesley & Esther Tumblin',
-            attributes: { id: 0, generation: 0, ageGroup: 'ADULT' },
-            children: res.roots.map(toTreeData),
-          };
-          setTreeData(virtualRoot);
-        }
-      })
+      .then(setRawData)
       .catch((err) => setError(err.message));
   }, []);
 
-  useEffect(() => {
-    loadTree();
-  }, [loadTree]);
+  // Extract Gen 1 branches from raw data
+  const branches = useMemo(() => {
+    if (!rawData) return [];
+    const result: FamilyTreeNode[] = [];
+    function find(node: FamilyTreeNode) {
+      if (node.generation === 1) result.push(node);
+      else node.children.forEach(find);
+    }
+    rawData.roots.forEach(find);
+    return result;
+  }, [rawData]);
+
+  // Build tree data based on selected branch
+  const treeData = useMemo<RawNodeDatum | null>(() => {
+    if (!rawData) return null;
+
+    if (selectedBranch === 'overview') {
+      // Single Founders node with all Gen 1 children directly underneath
+      const gen1Children: FamilyTreeNode[] = [];
+      for (const root of rawData.roots) {
+        for (const child of root.children) {
+          if (child.generation === 1) gen1Children.push(child);
+        }
+      }
+      return {
+        name: 'Wesley & Esther Tumblin',
+        attributes: { id: 0, generation: 0, ageGroup: 'ADULT' },
+        children: gen1Children.map(toTreeData),
+      };
+    }
+
+    // Find the selected branch and show it as root with all descendants
+    const branch = branches.find(b => String(b.id) === selectedBranch);
+    if (!branch) return null;
+
+    // Build a mini-tree: branch parent as root with their children
+    return toTreeData(branch);
+  }, [rawData, selectedBranch, branches]);
 
   const renderNode = useCallback(({ nodeDatum, toggleNode }: CustomNodeElementProps) => {
     const gen = nodeDatum.attributes?.generation ?? 0;
     const color = generationColor(gen as number);
     const isFounder = gen === 0 || gen === '0';
+    const isGen1 = gen === 1 || gen === '1';
+    const name = displayName(nodeDatum.name);
+
+    if (isFounder) {
+      const photoSize = 120;
+      const r = photoSize / 2;
+      return (
+        <g onClick={toggleNode} style={{ cursor: 'pointer' }}>
+          <defs>
+            <clipPath id="founder-photo-clip">
+              <circle cx={0} cy={0} r={r} />
+            </clipPath>
+          </defs>
+          {/* Name above */}
+          <text
+            fill="#2c3e6b"
+            textAnchor="middle"
+            x={0}
+            y={-r - 16}
+            style={{ fontSize: '22px', fontWeight: 700 }}
+          >
+            {name}
+          </text>
+          {/* Photo circle */}
+          <circle cx={0} cy={0} r={r + 4} fill={color} style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.35))' }} />
+          <image
+            href="/founders.jpg"
+            x={-r}
+            y={-r}
+            width={photoSize}
+            height={photoSize}
+            clipPath="url(#founder-photo-clip)"
+            preserveAspectRatio="xMidYMid slice"
+          />
+        </g>
+      );
+    }
 
     return (
       <g>
         <circle
-          r={isFounder ? 16 : 10}
+          r={isGen1 ? 14 : 8}
           fill={color}
-          stroke="#333"
-          strokeWidth={1.5}
+          stroke="#fff"
+          strokeWidth={2}
           onClick={toggleNode}
-          style={{ cursor: 'pointer' }}
+          style={{ cursor: 'pointer', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }}
         />
         <text
           fill={color}
           strokeWidth={0}
-          x={isFounder ? 22 : 16}
-          y={4}
+          x={isGen1 ? 20 : 14}
+          y={5}
           className="node-name"
           style={{
-            fontSize: isFounder ? '12px' : '10px',
-            fontWeight: isFounder ? 700 : 500,
+            fontSize: isGen1 ? '13px' : '11px',
+            fontWeight: isGen1 ? 600 : 500,
           }}
         >
-          {nodeDatum.name}
+          {name}
         </text>
       </g>
     );
@@ -109,11 +188,12 @@ export default function FamilyTree() {
     setTranslate({ x: centerX, y: centerY });
   }, []);
 
+  // Re-fit when tree data or selected branch changes
   useEffect(() => {
     if (!treeData) return;
-    const timer = setTimeout(fitToScreen, 300);
+    const timer = setTimeout(fitToScreen, 400);
     return () => clearTimeout(timer);
-  }, [treeData, fitToScreen]);
+  }, [treeData, treeKey, fitToScreen]);
 
   useEffect(() => {
     const handleResize = () => fitToScreen();
@@ -121,12 +201,16 @@ export default function FamilyTree() {
     return () => window.removeEventListener('resize', handleResize);
   }, [fitToScreen]);
 
+  const handleSelectBranch = (id: string) => {
+    setSelectedBranch(id);
+    setTreeKey(k => k + 1);
+  };
+
   const handleZoomIn = () => setZoom((z) => Math.min(z + 0.15, 2));
   const handleZoomOut = () => setZoom((z) => Math.max(z - 0.15, 0.1));
-  const handleZoomReset = () => fitToScreen();
 
-  if (error && !treeData) return <div className="family-tree-error">Error loading family tree: {error}</div>;
-  if (!treeData) return (
+  if (error && !rawData) return <div className="family-tree-error">Error loading family tree: {error}</div>;
+  if (!rawData || !treeData) return (
     <div className="family-tree-page">
       <div className="family-tree-header">
         <Skeleton width="250px" height="1.6rem" style={{ margin: '0 auto 0.5rem' }} />
@@ -142,22 +226,45 @@ export default function FamilyTree() {
       <div className="family-tree-header">
         <h2>Tumblin Family Tree</h2>
         <p>Wesley & Esther Tumblin, est. 1948</p>
-        <p className="member-count">{totalMembers} family members</p>
+        <p className="member-count">{rawData.totalMembers} family members</p>
         <p className="edit-hint"><Link to="/members">Manage members</Link></p>
         <div className="legend">
           <span className="legend-item"><span className="dot dot-gold" /> Founders</span>
-          <span className="legend-item"><span className="dot dot-blue" /> Children (Gen 1)</span>
-          <span className="legend-item"><span className="dot dot-red" /> Grandchildren (Gen 2)</span>
+          <span className="legend-item"><span className="dot dot-blue" /> Gen 1</span>
+          <span className="legend-item"><span className="dot dot-red" /> Gen 2</span>
+          <span className="legend-item"><span className="dot dot-teal" /> Gen 3</span>
         </div>
       </div>
+
+      <div className="branch-tabs">
+        <button
+          className={`branch-tab ${selectedBranch === 'overview' ? 'branch-tab-active' : ''}`}
+          onClick={() => handleSelectBranch('overview')}
+        >
+          Overview
+        </button>
+        {branches.map((b) => (
+          <button
+            key={b.id}
+            className={`branch-tab ${selectedBranch === String(b.id) ? 'branch-tab-active' : ''}`}
+            style={{ '--tab-color': getBranchColor(branchKey(b.name)) } as React.CSSProperties}
+            onClick={() => handleSelectBranch(String(b.id))}
+          >
+            {displayName(b.name).split(' ')[0]}
+            <span className="branch-tab-count">{countNodes(b)}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="family-tree-wrapper">
         <div className="zoom-controls">
           <button onClick={handleZoomIn} title="Zoom in">+</button>
-          <button onClick={handleZoomReset} title="Reset view">Fit</button>
+          <button onClick={fitToScreen} title="Reset view">Fit</button>
           <button onClick={handleZoomOut} title="Zoom out">-</button>
         </div>
         <div className="family-tree-container" ref={containerRef}>
           <Tree
+            key={treeKey}
             data={treeData}
             orientation="vertical"
             translate={translate}
@@ -165,10 +272,10 @@ export default function FamilyTree() {
             scaleExtent={{ min: 0.1, max: 2 }}
             pathFunc="step"
             separation={{ siblings: 1, nonSiblings: 1.2 }}
-            nodeSize={{ x: 150, y: 80 }}
+            nodeSize={{ x: 160, y: selectedBranch === 'overview' ? 220 : 90 }}
             renderCustomNodeElement={renderNode}
             collapsible
-            initialDepth={1}
+            initialDepth={selectedBranch === 'overview' ? 1 : undefined}
           />
         </div>
       </div>

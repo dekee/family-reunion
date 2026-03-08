@@ -111,6 +111,41 @@ export interface PaymentResponse {
   amount: number;
   status: string;
   createdAt: string;
+  checkinToken?: string;
+}
+
+export interface TicketAttendee {
+  name: string;
+  ageGroup: string;
+  isGuest: boolean;
+}
+
+export interface TicketResponse {
+  checkinToken: string;
+  familyName: string;
+  payerName: string;
+  amount: number;
+  checkedIn: boolean;
+  checkedInAt?: string;
+  attendees: TicketAttendee[];
+}
+
+export interface CheckinResponse {
+  success: boolean;
+  message: string;
+  ticket?: TicketResponse;
+}
+
+export interface SendTicketRequest {
+  checkinToken: string;
+  email?: string;
+  phone?: string;
+}
+
+export interface PaidGuestInfo {
+  name: string;
+  ageGroup: string;
+  amount: number;
 }
 
 export interface PaymentSummaryResponse {
@@ -121,11 +156,21 @@ export interface PaymentSummaryResponse {
   balance: number;
   status: string;
   payments: PaymentResponse[];
+  paidMemberIds: number[];
+  paidGuests: PaidGuestInfo[];
+}
+
+export interface CheckoutGuestInfo {
+  name: string;
+  ageGroup: string;
+  fee: number;
 }
 
 export interface CheckoutRequest {
   rsvpId: number;
   amount: number;
+  memberIds: number[];
+  guests: CheckoutGuestInfo[];
 }
 
 export interface MeetingRequest {
@@ -154,4 +199,20 @@ export interface AdminUserResponse {
   email: string;
   name: string;
   createdAt: string;
+}
+
+export interface GalleryPhoto {
+  id: string;
+  name: string;
+  thumbnailUrl: string;
+  fullUrl: string;
+  width: number | null;
+  height: number | null;
+  createdTime: string | null;
+}
+
+export interface GalleryResponse {
+  photos: GalleryPhoto[];
+  nextPageToken: string | null;
+  totalCount: number;
 }

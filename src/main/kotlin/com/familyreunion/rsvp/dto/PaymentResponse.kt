@@ -8,5 +8,6 @@ data class PaymentResponse(
     val familyName: String,
     val amount: BigDecimal,
     val status: String,
-    val createdAt: String
+    val createdAt: String,
+    val checkinToken: String? = null
 )

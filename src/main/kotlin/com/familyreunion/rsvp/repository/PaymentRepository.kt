@@ -6,4 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository
 interface PaymentRepository : JpaRepository<Payment, Long> {
     fun findByRsvpId(rsvpId: Long): List<Payment>
     fun findByStripeSessionId(stripeSessionId: String): Payment?
+    fun findByCheckinToken(checkinToken: String): Payment?
 }

@@ -13,9 +13,11 @@ spec:
       labels:
         app: backend
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: backend
-          image: dekee/family-reunion-backend:latest
+          image: ghcr.io/dekee/family-reunion-backend:latest
           ports:
             - containerPort: 8080
           env:
@@ -51,6 +53,44 @@ spec:
                 secretKeyRef:
                   name: google-oauth-secret
                   key: INITIAL_ADMIN_NAME
+            - name: GMAIL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: notification-secret
+                  key: GMAIL_USERNAME
+            - name: GMAIL_APP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: notification-secret
+                  key: GMAIL_APP_PASSWORD
+            - name: TWILIO_ACCOUNT_SID
+              valueFrom:
+                secretKeyRef:
+                  name: notification-secret
+                  key: TWILIO_ACCOUNT_SID
+            - name: TWILIO_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: notification-secret
+                  key: TWILIO_AUTH_TOKEN
+            - name: TWILIO_FROM_NUMBER
+              valueFrom:
+                secretKeyRef:
+                  name: notification-secret
+                  key: TWILIO_FROM_NUMBER
+            - name: APP_BASE_URL
+              value: "https://tumblinfamily.com"
+            - name: GOOGLE_DRIVE_CREDENTIALS_FILE
+              value: "/etc/gallery/credentials.json"
+            - name: GOOGLE_DRIVE_FOLDER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: gallery-secret
+                  key: GOOGLE_DRIVE_FOLDER_ID
+          volumeMounts:
+            - name: gallery-credentials
+              mountPath: /etc/gallery
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /api/rsvp/summary
@@ -63,6 +103,13 @@ spec:
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 30
+      volumes:
+        - name: gallery-credentials
+          secret:
+            secretName: gallery-secret
+            items:
+              - key: credentials.json
+                path: credentials.json
 ---
 apiVersion: v1
 kind: Service

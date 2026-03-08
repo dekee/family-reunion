@@ -1,8 +1,8 @@
 .skeleton {
-  background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+  background: linear-gradient(90deg, var(--color-border) 25%, var(--color-border-light) 50%, var(--color-border) 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.5s ease-in-out infinite;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 @keyframes skeleton-shimmer {
@@ -11,20 +11,20 @@
 }
 
 .skeleton-card {
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-xl);
   padding: 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  box-shadow: var(--shadow-card);
 }
 
 .skeleton-table {
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-xl);
   overflow: hidden;
+  box-shadow: var(--shadow-card);
 }
 
 .skeleton-table-header {
@@ -32,8 +32,8 @@
   grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
   gap: 1rem;
   padding: 0.75rem 1rem;
-  background: #f7f8fc;
-  border-bottom: 2px solid #e0e0e0;
+  background: var(--color-bg-card-alt);
+  border-bottom: 2px solid var(--color-border);
 }
 
 .skeleton-table-row {
@@ -41,7 +41,7 @@
   grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
   gap: 1rem;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .skeleton-table-row:last-child {

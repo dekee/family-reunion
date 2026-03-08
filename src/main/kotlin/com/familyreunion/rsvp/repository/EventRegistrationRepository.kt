@@ -8,4 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository
 interface EventRegistrationRepository : JpaRepository<EventRegistration, Long> {
     fun findByEventAndFamilyMember(event: Event, familyMember: FamilyMember): EventRegistration?
     fun deleteByEventAndFamilyMember(event: Event, familyMember: FamilyMember)
+    fun findByFamilyMemberIn(members: Collection<FamilyMember>): List<EventRegistration>
 }

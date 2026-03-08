@@ -1,4 +1,4 @@
-import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, CheckoutRequest, AdminUserResponse } from './types';
+import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, CheckoutRequest, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse } from './types';
 
 const BASE_URL = '/api/rsvp';
 
@@ -224,5 +224,53 @@ export async function removeAdminUser(id: number): Promise<void> {
     method: 'DELETE',
     headers: authHeaders(),
   });
+  return handleResponse(res);
+}
+
+// --- Check-in ---
+
+const CHECKIN_URL = '/api/checkin';
+
+export async function fetchTicket(token: string): Promise<TicketResponse> {
+  const res = await fetch(`${CHECKIN_URL}/ticket/${token}`);
+  return handleResponse(res);
+}
+
+export async function performCheckin(token: string): Promise<CheckinResponse> {
+  const res = await fetch(`${CHECKIN_URL}/${token}`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+export async function sendTicket(data: SendTicketRequest): Promise<{ message: string }> {
+  const res = await fetch(`${CHECKIN_URL}/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
+export async function fetchCheckinCapabilities(): Promise<{ email: boolean; sms: boolean }> {
+  const res = await fetch(`${CHECKIN_URL}/capabilities`);
+  return handleResponse(res);
+}
+
+export async function fetchCheckinStatus(): Promise<{ total: number; checkedIn: number; tickets: TicketResponse[] }> {
+  const res = await fetch(`${CHECKIN_URL}/status`, { headers: authHeaders() });
+  return handleResponse(res);
+}
+
+// --- Gallery ---
+
+const GALLERY_URL = '/api/gallery';
+
+export async function fetchGalleryPhotos(pageToken?: string): Promise<GalleryResponse> {
+  const params = new URLSearchParams();
+  if (pageToken) params.set('pageToken', pageToken);
+  const url = params.toString() ? `${GALLERY_URL}?${params}` : GALLERY_URL;
+  const res = await fetch(url);
   return handleResponse(res);
 }

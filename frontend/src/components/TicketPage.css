@@ -1,0 +1,423 @@
+.ticket-page {
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0 3rem;
+  animation: ticket-fade-in 0.4s ease-out;
+}
+
+@keyframes ticket-fade-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ticket-loading,
+.ticket-error {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+}
+
+.ticket-error {
+  color: var(--color-error);
+}
+
+/* Ticket card — real pass feel */
+.ticket-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card), 0 0 0 1px var(--color-border);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Perforated edge between header and body */
+.ticket-card::after {
+  content: '';
+  position: absolute;
+  top: 160px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--color-border) 0,
+    var(--color-border) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
+
+.ticket-header {
+  background: linear-gradient(135deg, var(--color-navy-primary) 0%, var(--color-navy-dark) 50%, var(--color-navy-secondary) 100%);
+  padding: 1.5rem 1.5rem 1.75rem;
+  text-align: center;
+}
+
+.ticket-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-gold);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.ticket-family {
+  margin: 0.35rem 0 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--color-text-on-dark);
+  letter-spacing: 0.3px;
+}
+
+/* QR code area */
+.ticket-qr {
+  display: flex;
+  justify-content: center;
+  padding: 1.75rem 1.5rem 1.25rem;
+}
+
+.ticket-qr svg {
+  border-radius: var(--radius-md);
+  padding: 12px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Checked-in badge */
+.ticket-checked-in-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  margin: 0 1.5rem 1rem;
+  padding: 0.6rem 1rem;
+  background: rgba(39, 174, 96, 0.1);
+  border: 1px solid rgba(39, 174, 96, 0.25);
+  border-radius: var(--radius-lg);
+  color: #27ae60;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-align: center;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+[data-theme="dark"] .ticket-checked-in-badge {
+  background: rgba(39, 174, 96, 0.15);
+  border-color: rgba(39, 174, 96, 0.3);
+  color: #2ecc71;
+}
+
+.ticket-checked-in-time {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.8;
+}
+
+/* Attendees */
+.ticket-attendees {
+  padding: 0 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.ticket-attendees h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+}
+
+.ticket-attendees ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ticket-attendee {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--color-border-light, var(--color-border));
+}
+
+.ticket-attendee:last-child {
+  border-bottom: none;
+}
+
+.ticket-attendee-name {
+  flex: 1;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+}
+
+.ticket-attendee-age {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0.1rem 0.45rem;
+  border-radius: 20px;
+}
+
+.ticket-attendee-age.age-adult,
+.ticket-attendee-age.age-spouse {
+  background: rgba(26, 35, 66, 0.1);
+  color: var(--color-navy-primary);
+}
+
+.ticket-attendee-age.age-child {
+  background: rgba(52, 152, 219, 0.12);
+  color: #2980b9;
+}
+
+.ticket-attendee-age.age-infant {
+  background: rgba(155, 89, 182, 0.12);
+  color: #8e44ad;
+}
+
+[data-theme="dark"] .ticket-attendee-age.age-adult,
+[data-theme="dark"] .ticket-attendee-age.age-spouse {
+  background: rgba(212, 175, 55, 0.15);
+  color: var(--color-gold);
+}
+
+[data-theme="dark"] .ticket-attendee-age.age-child {
+  background: rgba(52, 152, 219, 0.2);
+  color: #5dade2;
+}
+
+[data-theme="dark"] .ticket-attendee-age.age-infant {
+  background: rgba(155, 89, 182, 0.2);
+  color: #bb8fce;
+}
+
+.ticket-guest-tag {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 20px;
+  background: var(--color-gold-light);
+  color: var(--color-gold);
+}
+
+/* Amount */
+.ticket-amount {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 1.5rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.95rem;
+}
+
+.ticket-amount span:first-child {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.ticket-amount span:last-child {
+  font-weight: 800;
+  color: var(--color-text-heading);
+  font-size: 1.1rem;
+}
+
+/* Admin check-in button */
+.ticket-checkin-btn {
+  display: block;
+  width: calc(100% - 3rem);
+  margin: 0.5rem 1.5rem 1rem;
+  padding: 0.85rem;
+  background: linear-gradient(135deg, #27ae60 0%, #219a52 100%);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.3px;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.ticket-checkin-btn:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.ticket-checkin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Send section */
+.ticket-send-section {
+  padding: 1rem 1.5rem 1.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.ticket-send-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+}
+
+.ticket-send-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.ticket-send-btn {
+  padding: 0.5rem 1.25rem;
+  background: var(--color-bg-card-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.ticket-send-btn:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-navy-primary);
+}
+
+.ticket-send-btn.active {
+  background: var(--color-navy-primary);
+  color: var(--color-text-on-dark);
+  border-color: var(--color-navy-primary);
+}
+
+[data-theme="dark"] .ticket-send-btn.active {
+  background: var(--color-gold);
+  color: var(--color-navy-primary);
+  border-color: var(--color-gold);
+}
+
+.ticket-send-disabled {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-faint);
+}
+
+.ticket-send-form {
+  display: flex;
+  gap: 0.5rem;
+  animation: ticket-fade-in 0.2s ease-out;
+}
+
+.ticket-send-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+}
+
+.ticket-send-input:focus {
+  outline: none;
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 2px var(--color-gold-ring);
+}
+
+.ticket-send-submit {
+  padding: 0.5rem 1.25rem;
+  background: linear-gradient(135deg, var(--color-navy-primary), var(--color-navy-secondary));
+  color: var(--color-gold);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity var(--transition-fast);
+  white-space: nowrap;
+}
+
+.ticket-send-submit:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.ticket-send-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ticket-send-result {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-success);
+  font-weight: 500;
+}
+
+/* Print — show just the ticket */
+@media print {
+  .ticket-page {
+    padding: 0;
+  }
+
+  .ticket-card {
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+
+  .ticket-send-section,
+  .ticket-checkin-btn {
+    display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .ticket-card {
+    border-radius: var(--radius-lg);
+  }
+
+  .ticket-header {
+    padding: 1.25rem 1rem 1.5rem;
+  }
+
+  .ticket-family {
+    font-size: 1.2rem;
+  }
+
+  .ticket-qr {
+    padding: 1.25rem 1rem 1rem;
+  }
+
+  .ticket-attendees,
+  .ticket-amount,
+  .ticket-send-section {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .ticket-checkin-btn {
+    width: calc(100% - 2rem);
+    margin-left: 1rem;
+    margin-right: 1rem;
+  }
+
+  .ticket-send-form {
+    flex-direction: column;
+  }
+}
