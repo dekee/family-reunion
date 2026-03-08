@@ -64,17 +64,35 @@ class NotificationService(
             throw IllegalStateException("Twilio not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER.")
         }
 
+        val normalizedNumber = normalizePhoneNumber(to)
         val ticketUrl = "$baseUrl/ticket/$checkinToken"
         val messageBody = "Tumblin Family Reunion - ${familyName} Family Ticket\n\nShow this at the door for check-in:\n$ticketUrl"
 
         com.twilio.Twilio.init(twilioAccountSid, twilioAuthToken)
-        com.twilio.rest.api.v2010.account.Message.creator(
-            com.twilio.type.PhoneNumber(to),
+        val message = com.twilio.rest.api.v2010.account.Message.creator(
+            com.twilio.type.PhoneNumber(normalizedNumber),
             com.twilio.type.PhoneNumber(twilioFromNumber),
             messageBody
         ).create()
 
-        log.info("Ticket SMS sent to $to for family $familyName")
+        val status = message.status?.toString() ?: "unknown"
+        if (status == "failed" || status == "undelivered") {
+            val errorMsg = message.errorMessage ?: "Message $status"
+            log.error("Ticket SMS failed to $normalizedNumber for family $familyName: $errorMsg")
+            throw RuntimeException("SMS failed: $errorMsg")
+        }
+
+        log.info("Ticket SMS sent to $normalizedNumber for family $familyName (status: $status, sid: ${message.sid})")
+    }
+
+    private fun normalizePhoneNumber(phone: String): String {
+        val digits = phone.replace(Regex("[^0-9]"), "")
+        return when {
+            digits.length == 10 -> "+1$digits"
+            digits.length == 11 && digits.startsWith("1") -> "+$digits"
+            phone.startsWith("+") -> phone
+            else -> "+$digits"
+        }
     }
 
     fun isEmailConfigured(): Boolean = mailSender != null && fromEmail.isNotBlank()
