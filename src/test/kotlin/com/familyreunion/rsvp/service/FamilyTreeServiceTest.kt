@@ -5,6 +5,8 @@ import com.familyreunion.rsvp.dto.MoveMemberRequest
 import com.familyreunion.rsvp.exception.FamilyMemberNotFoundException
 import com.familyreunion.rsvp.model.AgeGroup
 import com.familyreunion.rsvp.model.FamilyMember
+import com.familyreunion.rsvp.repository.AttendeeRepository
+import com.familyreunion.rsvp.repository.EventRegistrationRepository
 import com.familyreunion.rsvp.repository.FamilyMemberRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -23,6 +25,12 @@ class FamilyTreeServiceTest {
 
     @Mock
     private lateinit var familyMemberRepository: FamilyMemberRepository
+
+    @Mock
+    private lateinit var attendeeRepository: AttendeeRepository
+
+    @Mock
+    private lateinit var eventRegistrationRepository: EventRegistrationRepository
 
     @InjectMocks
     private lateinit var familyTreeService: FamilyTreeService
@@ -211,6 +219,8 @@ class FamilyTreeServiceTest {
         val member = FamilyMember(id = 5L, name = "ToDelete", ageGroup = AgeGroup.CHILD, generation = 1)
 
         whenever(familyMemberRepository.findById(5L)).thenReturn(Optional.of(member))
+        whenever(eventRegistrationRepository.findByFamilyMemberIn(any<Collection<FamilyMember>>())).thenReturn(emptyList())
+        whenever(attendeeRepository.findByFamilyMemberIn(any<Collection<FamilyMember>>())).thenReturn(emptyList())
 
         familyTreeService.deleteMember(5L)
 

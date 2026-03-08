@@ -4,10 +4,13 @@ import {
   registerForEvent, unregisterFromEvent, fetchFamilyTree,
 } from '../api';
 import { useAuth } from '../AuthContext';
+import { getBranchColor } from '../branchColors';
 import type { EventRequest, EventResponse, FamilyTreeNode } from '../types';
 import { useToast } from './Toast';
 import { SkeletonCard } from './Skeleton';
+import RegistrationModal from './RegistrationModal';
 import './Events.css';
+import './RegistrationModal.css';
 
 const emptyForm: EventRequest = {
   title: '',
@@ -44,11 +47,9 @@ function flattenTree(nodes: FamilyTreeNode[]): FlatMember[] {
   }
   for (const root of nodes) {
     if (root.children.length > 0) {
-      // Group under each child of the root (e.g. Gail, Wesley II, Norris...)
       for (const child of root.children) {
         walk(child, child.name);
       }
-      // Root itself gets its own name
       result.push({ id: root.id, name: root.name, branchName: root.name });
     } else {
       result.push({ id: root.id, name: root.name, branchName: root.name });
@@ -64,8 +65,8 @@ export default function Events() {
   const [form, setForm] = useState<EventRequest>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [error, setError] = useState('');
-  const [selectedMembers, setSelectedMembers] = useState<Record<number, number[]>>({});
-  const [regSearch, setRegSearch] = useState<Record<number, string>>({});
+  const [registeringEventId, setRegisteringEventId] = useState<number | null>(null);
+  const [showFormModal, setShowFormModal] = useState(false);
   const { showToast } = useToast();
   const { isAdmin } = useAuth();
 
@@ -89,16 +90,22 @@ export default function Events() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    // Ensure seconds are included for backend LocalDateTime parsing
+    const payload = {
+      ...form,
+      eventDateTime: form.eventDateTime.length === 16 ? form.eventDateTime + ':00' : form.eventDateTime,
+    };
     try {
       if (editingId !== null) {
-        await updateEvent(editingId, form);
+        await updateEvent(editingId, payload);
         showToast('Event updated');
       } else {
-        await createEvent(form);
+        await createEvent(payload);
         showToast('Event created');
       }
       setForm(emptyForm);
       setEditingId(null);
+      setShowFormModal(false);
       load();
     } catch (err: any) {
       setError(err.message || 'Failed to save event');
@@ -108,17 +115,28 @@ export default function Events() {
 
   const handleEdit = (ev: EventResponse) => {
     setEditingId(ev.id);
+    const dt = ev.eventDateTime.length > 16 ? ev.eventDateTime.slice(0, 16) : ev.eventDateTime;
     setForm({
       title: ev.title,
       description: ev.description || '',
-      eventDateTime: ev.eventDateTime,
+      eventDateTime: dt,
       address: ev.address,
       hostName: ev.hostName || '',
       notes: ev.notes || '',
     });
+    setError('');
+    setShowFormModal(true);
   };
 
-  const handleCancelEdit = () => {
+  const handleAddNew = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+    setError('');
+    setShowFormModal(true);
+  };
+
+  const closeFormModal = () => {
+    setShowFormModal(false);
     setEditingId(null);
     setForm(emptyForm);
     setError('');
@@ -135,13 +153,11 @@ export default function Events() {
     }
   };
 
-  const handleRegister = async (eventId: number) => {
-    const ids = selectedMembers[eventId] || [];
-    if (ids.length === 0) return;
+  const handleModalRegister = async (eventId: number, memberIds: number[]) => {
     try {
-      await registerForEvent(eventId, { familyMemberIds: ids });
-      showToast(`${ids.length} member${ids.length > 1 ? 's' : ''} registered`);
-      setSelectedMembers((prev) => ({ ...prev, [eventId]: [] }));
+      await registerForEvent(eventId, { familyMemberIds: memberIds });
+      showToast(`${memberIds.length} member${memberIds.length > 1 ? 's' : ''} registered`);
+      setRegisteringEventId(null);
       load();
     } catch (err) {
       showToast('Failed to register', 'error');
@@ -158,36 +174,14 @@ export default function Events() {
     }
   };
 
-  const toggleMember = (eventId: number, memberId: number) => {
-    setSelectedMembers((prev) => {
-      const current = prev[eventId] || [];
-      return {
-        ...prev,
-        [eventId]: current.includes(memberId)
-          ? current.filter((id) => id !== memberId)
-          : [...current, memberId],
-      };
-    });
-  };
-
-  const toggleBranchMembers = (eventId: number, memberIds: number[]) => {
-    setSelectedMembers((prev) => {
-      const current = prev[eventId] || [];
-      const allSelected = memberIds.every((id) => current.includes(id));
-      if (allSelected) {
-        return { ...prev, [eventId]: current.filter((id) => !memberIds.includes(id)) };
-      } else {
-        const merged = new Set([...current, ...memberIds]);
-        return { ...prev, [eventId]: [...merged] };
-      }
-    });
-  };
-
   return (
     <div className="events-page">
       <div className="page-header">
         <h2>Reunion Events</h2>
         <p>Events happening during the reunion weekend</p>
+        {isAdmin && (
+          <button className="btn-add-event" onClick={handleAddNew}>+ Add Event</button>
+        )}
       </div>
 
       {loading ? (
@@ -202,7 +196,6 @@ export default function Events() {
           {events.map((ev) => {
             const registeredIds = new Set(ev.registrations.map((r) => r.familyMemberId));
             const available = members.filter((m) => !registeredIds.has(m.id));
-            const selected = selectedMembers[ev.id] || [];
 
             return (
               <div key={ev.id} className="event-card">
@@ -237,6 +230,14 @@ export default function Events() {
                 <div className="event-registration">
                   <div className="event-reg-header">
                     <strong>Registered ({ev.registrationCount})</strong>
+                    {available.length > 0 && (
+                      <button
+                        className="btn-register-open"
+                        onClick={() => setRegisteringEventId(ev.id)}
+                      >
+                        Register Members
+                      </button>
+                    )}
                   </div>
                   {ev.registrations.length > 0 && (() => {
                     const memberMap = new Map(members.map(m => [m.id, m]));
@@ -252,7 +253,11 @@ export default function Events() {
                     return (
                       <div className="event-reg-grouped">
                         {sortedBranches.map(([branch, regs]) => (
-                          <div key={branch} className="reg-branch-group">
+                          <div
+                            key={branch}
+                            className="reg-branch-group"
+                            style={{ borderLeft: `3px solid ${getBranchColor(branch)}`, paddingLeft: '0.75rem' }}
+                          >
                             <span className="reg-branch-label">{branch}</span>
                             <div className="event-reg-badges">
                               {regs.map((r) => (
@@ -274,82 +279,6 @@ export default function Events() {
                     );
                   })()}
 
-                  {available.length > 0 && (() => {
-                    const regQuery = (regSearch[ev.id] || '').toLowerCase().trim();
-                    const filteredAvailable = regQuery
-                      ? available.filter(m => m.name.toLowerCase().includes(regQuery))
-                      : available;
-
-                    return (
-                      <div className="event-reg-add">
-                        <div className="reg-search-and-list">
-                          {available.length > 10 && (
-                            <div className="reg-search-wrapper">
-                              <input
-                                type="text"
-                                className="reg-search-input"
-                                placeholder="Search members..."
-                                value={regSearch[ev.id] || ''}
-                                onChange={e => setRegSearch(prev => ({ ...prev, [ev.id]: e.target.value }))}
-                              />
-                              {regSearch[ev.id] && (
-                                <button
-                                  className="reg-search-clear"
-                                  onClick={() => setRegSearch(prev => ({ ...prev, [ev.id]: '' }))}
-                                >&times;</button>
-                              )}
-                            </div>
-                          )}
-                          <div className="member-checkbox-list">
-                            {(() => {
-                              const byBranch = new Map<string, FlatMember[]>();
-                              for (const m of filteredAvailable) {
-                                const list = byBranch.get(m.branchName) || [];
-                                list.push(m);
-                                byBranch.set(m.branchName, list);
-                              }
-                              const sorted = [...byBranch.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-                              return sorted.map(([branch, branchMembers]) => {
-                                const branchIds = branchMembers.map(m => m.id);
-                                const allSelected = branchIds.every(id => selected.includes(id));
-                                return (
-                                <div key={branch} className="checkbox-branch-group">
-                                  <div className="checkbox-branch-header">
-                                    <span className="checkbox-branch-label">{branch}</span>
-                                    <button
-                                      type="button"
-                                      className="btn-select-branch"
-                                      onClick={() => toggleBranchMembers(ev.id, branchIds)}
-                                    >
-                                      {allSelected ? 'Deselect all' : 'Select all'}
-                                    </button>
-                                  </div>
-                                  {branchMembers.map((m) => (
-                                    <label key={m.id} className="member-checkbox-item">
-                                      <input
-                                        type="checkbox"
-                                        checked={selected.includes(m.id)}
-                                        onChange={() => toggleMember(ev.id, m.id)}
-                                      />
-                                      <span>{m.name}</span>
-                                    </label>
-                                  ))}
-                                </div>
-                              );
-                              });
-                            })()}
-                          </div>
-                        </div>
-                        <button
-                          className="btn-register"
-                          onClick={() => handleRegister(ev.id)}
-                          disabled={selected.length === 0}
-                        >
-                          Register ({selected.length})
-                        </button>
-                      </div>
-                    );
-                  })()}
                 </div>
               </div>
             );
@@ -357,54 +286,72 @@ export default function Events() {
         </div>
       )}
 
-      {isAdmin && (
-        <div className="event-form">
-          <h3>{editingId !== null ? 'Edit Event' : 'Add Event'}</h3>
-          <form onSubmit={handleSubmit}>
-            <div className="event-form-grid">
-              <label className="full-width">
-                Title
-                <input name="title" value={form.title} onChange={handleChange} required />
-              </label>
-              <label>
-                Date & Time
-                <input
-                  type="datetime-local"
-                  name="eventDateTime"
-                  value={form.eventDateTime}
-                  onChange={handleChange}
-                  required
-                />
-              </label>
-              <label>
-                Address
-                <input name="address" value={form.address} onChange={handleChange} required />
-              </label>
-              <label>
-                Host Name
-                <input name="hostName" value={form.hostName} onChange={handleChange} placeholder="Optional" />
-              </label>
-              <label className="full-width">
-                Description
-                <textarea name="description" value={form.description} onChange={handleChange} placeholder="Optional" />
-              </label>
-              <label className="full-width">
-                Notes
-                <textarea name="notes" value={form.notes} onChange={handleChange} placeholder="Optional" />
-              </label>
+      {registeringEventId !== null && (() => {
+        const ev = events.find(e => e.id === registeringEventId);
+        if (!ev) return null;
+        const registeredIds = new Set(ev.registrations.map(r => r.familyMemberId));
+        const available = members.filter(m => !registeredIds.has(m.id));
+        return (
+          <RegistrationModal
+            eventTitle={ev.title}
+            available={available}
+            onRegister={(ids) => handleModalRegister(ev.id, ids)}
+            onClose={() => setRegisteringEventId(null)}
+          />
+        );
+      })()}
+
+      {isAdmin && showFormModal && (
+        <div className="modal-backdrop" onClick={closeFormModal}>
+          <div className="modal-content event-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{editingId !== null ? 'Edit Event' : 'Add Event'}</h3>
+              <button className="modal-close" onClick={closeFormModal}>&times;</button>
             </div>
-            {error && <p className="event-form-error">{error}</p>}
-            <div className="event-form-actions">
-              <button type="submit" className="btn-event-submit">
-                {editingId !== null ? 'Update Event' : 'Add Event'}
-              </button>
-              {editingId !== null && (
-                <button type="button" className="btn-event-cancel" onClick={handleCancelEdit}>
-                  Cancel
+            <form onSubmit={handleSubmit}>
+              <div className="modal-body">
+                <div className="event-form-grid-modal">
+                  <label>
+                    Title
+                    <input name="title" value={form.title} onChange={handleChange} required autoFocus />
+                  </label>
+                  <label>
+                    Date & Time
+                    <input
+                      type="datetime-local"
+                      name="eventDateTime"
+                      value={form.eventDateTime}
+                      onChange={handleChange}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Address
+                    <input name="address" value={form.address} onChange={handleChange} required />
+                  </label>
+                  <label>
+                    Host Name
+                    <input name="hostName" value={form.hostName} onChange={handleChange} placeholder="Optional" />
+                  </label>
+                  <label>
+                    Description
+                    <textarea name="description" value={form.description} onChange={handleChange} placeholder="Optional" />
+                  </label>
+                  <label>
+                    Notes
+                    <textarea name="notes" value={form.notes} onChange={handleChange} placeholder="Optional" />
+                  </label>
+                </div>
+                {error && <p className="event-form-error">{error}</p>}
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-modal-cancel" onClick={closeFormModal}>Cancel</button>
+                <button type="submit" className="btn-modal-register">
+                  {editingId !== null ? 'Update Event' : 'Add Event'}
                 </button>
-              )}
-            </div>
-          </form>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

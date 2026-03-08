@@ -1,13 +1,23 @@
 .rsvp-list h2 {
   margin-bottom: 1rem;
-  color: #16213e;
+  color: var(--color-text-heading);
 }
 
 .empty-state {
   text-align: center;
-  color: #888;
-  padding: 2rem;
+  color: var(--color-text-faint);
+  padding: 3rem 2rem;
   font-style: italic;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-card);
+}
+
+.empty-state::before {
+  content: '\1F44B';
+  display: block;
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
 }
 
 .rsvp-cards {
@@ -17,11 +27,25 @@
 }
 
 .rsvp-card {
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-xl);
   padding: 1.25rem;
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+  animation: card-fade-in 0.4s ease-out both;
 }
+
+.rsvp-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.rsvp-card:nth-child(1) { animation-delay: 0s; }
+.rsvp-card:nth-child(2) { animation-delay: 0.05s; }
+.rsvp-card:nth-child(3) { animation-delay: 0.1s; }
+.rsvp-card:nth-child(4) { animation-delay: 0.15s; }
+.rsvp-card:nth-child(5) { animation-delay: 0.2s; }
+.rsvp-card:nth-child(6) { animation-delay: 0.25s; }
 
 .card-header {
   display: flex;
@@ -32,7 +56,7 @@
 
 .card-header h3 {
   margin: 0;
-  color: #16213e;
+  color: var(--color-text-heading);
 }
 
 .card-actions {
@@ -41,38 +65,38 @@
 }
 
 .btn-edit {
-  background: #c9a84c;
-  color: #16213e;
+  background: var(--color-gold);
+  color: var(--color-navy-primary);
   border: none;
   padding: 0.35rem 0.75rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 600;
-  transition: background 0.15s;
+  transition: background var(--transition-fast);
 }
 
 .btn-edit:hover {
-  background: #d4b95e;
+  background: var(--color-gold-hover);
 }
 
 .btn-delete {
-  background: #c0392b;
-  color: #fff;
+  background: var(--color-error);
+  color: var(--color-text-on-dark);
   border: none;
   padding: 0.35rem 0.75rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 0.85rem;
-  transition: background 0.15s;
+  transition: background var(--transition-fast);
 }
 
 .btn-delete:hover {
-  background: #a93226;
+  background: var(--color-error-hover);
 }
 
 .card-contact {
-  color: #555;
+  color: var(--color-text-secondary);
   margin: 0.25rem 0 0.75rem;
   font-size: 0.9rem;
 }
@@ -80,6 +104,7 @@
 .card-members {
   margin-bottom: 0.75rem;
   font-size: 0.9rem;
+  color: var(--color-text-primary);
 }
 
 .card-members ul {
@@ -88,7 +113,7 @@
 }
 
 .attendee-tree ul {
-  border-left: 2px solid #c9a84c;
+  border-left: 2px solid var(--color-gold);
   padding-left: 1rem;
   margin-left: 0.25rem;
 }
@@ -109,28 +134,32 @@
 }
 
 .age-badge {
-  background: rgba(22, 33, 62, 0.08);
-  color: #16213e;
+  background: var(--color-bg-badge);
+  color: var(--color-text-heading);
   padding: 0.1rem 0.4rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
 }
 
 .guest-badge {
-  background: rgba(201, 168, 76, 0.15);
+  background: var(--color-gold-light);
   color: #8a6d1b;
   padding: 0.1rem 0.4rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   margin-left: 0.25rem;
 }
 
+[data-theme="dark"] .guest-badge {
+  color: var(--color-gold);
+}
+
 .dietary {
-  color: #888;
+  color: var(--color-text-faint);
   font-style: italic;
 }
 
@@ -142,21 +171,74 @@
 }
 
 .badge {
-  background: rgba(22, 33, 62, 0.06);
-  color: #555;
+  background: var(--color-bg-badge);
+  color: var(--color-text-secondary);
   padding: 0.2rem 0.6rem;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   font-size: 0.8rem;
 }
 
 .badge.lodging {
-  background: rgba(201, 168, 76, 0.15);
+  background: var(--color-gold-light);
   color: #6b5515;
 }
 
+[data-theme="dark"] .badge.lodging {
+  color: var(--color-gold);
+}
+
 .card-notes {
-  color: #666;
+  color: var(--color-text-muted);
   font-style: italic;
   margin: 0.5rem 0 0;
   font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .card-actions {
+    width: 100%;
+  }
+
+  .card-actions .btn-edit,
+  .card-actions .btn-delete {
+    flex: 1;
+    text-align: center;
+  }
+}
+
+/* Print */
+@media print {
+  .rsvp-hero,
+  .btn-edit,
+  .btn-delete,
+  .card-actions {
+    display: none !important;
+  }
+
+  .rsvp-card {
+    box-shadow: none !important;
+    border: 1px solid #ccc;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    color: #000 !important;
+  }
+
+  .card-header h3,
+  .card-contact,
+  .card-members,
+  .attendee-name,
+  .card-notes {
+    color: #000 !important;
+  }
+
+  .rsvp-list h2 {
+    color: #000 !important;
+  }
 }

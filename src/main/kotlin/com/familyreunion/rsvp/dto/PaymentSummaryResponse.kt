@@ -9,5 +9,7 @@ data class PaymentSummaryResponse(
     val totalPaid: BigDecimal,
     val balance: BigDecimal,
     val status: String,
-    val payments: List<PaymentResponse>
+    val payments: List<PaymentResponse>,
+    val paidMemberIds: List<Long> = emptyList(),
+    val paidGuests: List<PaidGuestInfo> = emptyList()
 )

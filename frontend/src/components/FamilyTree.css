@@ -2,7 +2,6 @@
   display: flex;
   flex-direction: column;
   height: calc(100vh - 100px);
-  /* break out of the .app max-width */
   margin-left: calc(-50vw + 50%);
   margin-right: calc(-50vw + 50%);
   padding: 0 1rem;
@@ -16,17 +15,17 @@
 .family-tree-header h2 {
   margin: 0;
   font-size: 1.6rem;
-  color: #16213e;
+  color: var(--color-text-heading);
 }
 
 .family-tree-header p {
   margin: 0.3rem 0 0;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 .family-tree-header .member-count {
   font-size: 0.9rem;
-  color: #888;
+  color: var(--color-text-faint);
 }
 
 .legend {
@@ -35,6 +34,7 @@
   gap: 1.5rem;
   margin-top: 0.6rem;
   font-size: 0.85rem;
+  color: var(--color-text-secondary);
 }
 
 .legend-item {
@@ -50,18 +50,79 @@
   border-radius: 50%;
 }
 
-.dot-gold {
-  background: #c9a84c;
+.dot-gold { background: var(--color-gold); }
+.dot-blue { background: var(--color-navy-secondary); }
+.dot-red { background: var(--color-error); }
+.dot-teal { background: #1a8a6e; }
+
+/* Branch tabs */
+.branch-tabs {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.5rem 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 
-.dot-blue {
-  background: #2c3e6b;
+.branch-tabs::-webkit-scrollbar {
+  height: 4px;
 }
 
-.dot-red {
-  background: #c0392b;
+.branch-tabs::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 2px;
 }
 
+.branch-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full, 20px);
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.branch-tab:hover {
+  background: var(--color-bg-card-alt);
+  border-color: var(--color-text-faint);
+}
+
+.branch-tab-active {
+  background: var(--color-navy-primary);
+  color: var(--color-text-on-dark);
+  border-color: var(--color-navy-primary);
+  font-weight: 600;
+}
+
+.branch-tab-active:hover {
+  background: var(--color-navy-dark);
+  border-color: var(--color-navy-dark);
+}
+
+.branch-tab-count {
+  background: rgba(0, 0, 0, 0.1);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 8px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.branch-tab-active .branch-tab-count {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Tree wrapper */
 .family-tree-wrapper {
   flex: 1;
   position: relative;
@@ -81,44 +142,45 @@
 .zoom-controls button {
   width: 36px;
   height: 36px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-card);
   font-size: 16px;
   font-weight: 600;
-  color: #16213e;
+  color: var(--color-text-heading);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  transition: background 0.15s;
+  box-shadow: var(--shadow-sm);
+  transition: background var(--transition-fast);
 }
 
 .zoom-controls button:hover {
-  background: #f5f6fa;
+  background: var(--color-bg-card-alt);
 }
 
 .family-tree-container {
   width: 100%;
   height: 100%;
   min-height: 500px;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
-  background: #fafbfc;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-card-alt);
   overflow: hidden;
+  box-shadow: var(--shadow-card);
 }
 
 .family-tree-loading,
 .family-tree-error {
   text-align: center;
   padding: 3rem;
-  color: #666;
+  color: var(--color-text-muted);
   font-size: 1.1rem;
 }
 
 .family-tree-error {
-  color: #c0392b;
+  color: var(--color-error);
 }
 
 .edit-hint {
@@ -126,11 +188,42 @@
 }
 
 .edit-hint a {
-  color: #2c3e6b;
+  color: var(--color-navy-secondary);
   text-decoration: none;
   font-weight: 500;
 }
 
 .edit-hint a:hover {
   text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .zoom-controls {
+    top: 8px;
+    right: 8px;
+  }
+
+  .legend {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .branch-tabs {
+    padding: 0.4rem 0;
+  }
+
+  .branch-tab {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.78rem;
+  }
+}
+
+@media print {
+  .family-tree-page {
+    height: auto;
+  }
+  .branch-tabs,
+  .zoom-controls {
+    display: none;
+  }
 }

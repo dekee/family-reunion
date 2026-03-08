@@ -29,6 +29,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("com.google.api-client:google-api-client:2.7.2")
+    implementation("com.google.apis:google-api-services-drive:v3-rev20241027-2.0.0")
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.30.1")
+    implementation("org.springframework.boot:spring-boot-starter-mail")
+    implementation("com.twilio.sdk:twilio:10.6.4")
 
     runtimeOnly("com.h2database:h2")
     runtimeOnly("org.postgresql:postgresql")

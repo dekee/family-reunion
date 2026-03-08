@@ -1,13 +1,18 @@
 package com.familyreunion.rsvp.service
 
 import com.familyreunion.rsvp.config.StripeConfig
+import com.familyreunion.rsvp.dto.CheckoutRequest
+import com.familyreunion.rsvp.dto.PaidGuestInfo
 import com.familyreunion.rsvp.dto.PaymentResponse
 import com.familyreunion.rsvp.dto.PaymentSummaryResponse
 import com.familyreunion.rsvp.exception.RsvpNotFoundException
 import com.familyreunion.rsvp.model.AgeGroup
 import com.familyreunion.rsvp.model.Payment
+import com.familyreunion.rsvp.model.PaymentLineItem
 import com.familyreunion.rsvp.model.PaymentStatus
 import com.familyreunion.rsvp.model.Rsvp
+import com.familyreunion.rsvp.repository.FamilyMemberRepository
+import com.familyreunion.rsvp.repository.PaymentLineItemRepository
 import com.familyreunion.rsvp.repository.PaymentRepository
 import com.familyreunion.rsvp.repository.RsvpRepository
 import com.stripe.model.checkout.Session
@@ -22,6 +27,8 @@ import java.time.LocalDateTime
 @Transactional
 class PaymentService(
     private val paymentRepository: PaymentRepository,
+    private val paymentLineItemRepository: PaymentLineItemRepository,
+    private val familyMemberRepository: FamilyMemberRepository,
     private val rsvpRepository: RsvpRepository,
     private val stripeConfig: StripeConfig
 ) {
@@ -32,18 +39,26 @@ class PaymentService(
         const val INFANT_FEE = 0L
     }
 
-    fun createCheckoutSession(rsvpId: Long, amountCents: Long): String {
+    fun createCheckoutSession(request: CheckoutRequest): String {
         if (!stripeConfig.isConfigured()) {
             throw IllegalStateException("Stripe is not configured. Please set STRIPE_SECRET_KEY.")
         }
 
+        val rsvpId = request.rsvpId
+        val amountCents = request.amount
+        val memberIds = request.memberIds
+        val guests = request.guests
+
         val rsvp = rsvpRepository.findById(rsvpId)
             .orElseThrow { RsvpNotFoundException(rsvpId) }
 
+        val successUrlWithRsvp = "${stripeConfig.successUrl}&rsvpId=$rsvpId"
+        val cancelUrlWithRsvp = "${stripeConfig.cancelUrl}&rsvpId=$rsvpId"
+
         val params = SessionCreateParams.builder()
             .setMode(SessionCreateParams.Mode.PAYMENT)
-            .setSuccessUrl(stripeConfig.successUrl)
-            .setCancelUrl(stripeConfig.cancelUrl)
+            .setSuccessUrl(successUrlWithRsvp)
+            .setCancelUrl(cancelUrlWithRsvp)
             .putMetadata("rsvpId", rsvpId.toString())
             .setCustomerEmail(rsvp.email)
             .addLineItem(
@@ -75,6 +90,44 @@ class PaymentService(
             createdAt = LocalDateTime.now()
         )
         paymentRepository.save(payment)
+
+        // Save line items for member tracking
+        val familyMembers = if (memberIds.isNotEmpty()) {
+            familyMemberRepository.findAllById(memberIds).associateBy { it.id }
+        } else emptyMap()
+
+        for (memberId in memberIds) {
+            val member = familyMembers[memberId] ?: continue
+            val fee = when (member.ageGroup) {
+                AgeGroup.ADULT -> ADULT_FEE
+                AgeGroup.SPOUSE -> SPOUSE_FEE
+                AgeGroup.CHILD -> CHILD_FEE
+                AgeGroup.INFANT -> INFANT_FEE
+            }
+            val lineItem = PaymentLineItem(
+                payment = payment,
+                familyMemberId = memberId,
+                familyMemberName = member.name,
+                ageGroup = member.ageGroup,
+                amount = BigDecimal.valueOf(fee).divide(BigDecimal(100))
+            )
+            payment.lineItems.add(lineItem)
+        }
+
+        for (guest in guests) {
+            val ageGroup = try { AgeGroup.valueOf(guest.ageGroup) } catch (_: Exception) { AgeGroup.ADULT }
+            val lineItem = PaymentLineItem(
+                payment = payment,
+                guestName = guest.name,
+                ageGroup = ageGroup,
+                amount = BigDecimal.valueOf(guest.fee).divide(BigDecimal(100))
+            )
+            payment.lineItems.add(lineItem)
+        }
+
+        if (payment.lineItems.isNotEmpty()) {
+            paymentRepository.save(payment)
+        }
 
         return session.url
     }
@@ -148,8 +201,8 @@ class PaymentService(
     private fun buildSummary(rsvp: Rsvp): PaymentSummaryResponse {
         val payments = paymentRepository.findByRsvpId(rsvp.id)
         val totalOwed = calculateAmountOwed(rsvp)
-        val totalPaid = payments
-            .filter { it.status == PaymentStatus.COMPLETED }
+        val completedPayments = payments.filter { it.status == PaymentStatus.COMPLETED }
+        val totalPaid = completedPayments
             .fold(BigDecimal.ZERO) { acc, p -> acc.add(p.amount) }
         val totalPending = payments
             .filter { it.status == PaymentStatus.PENDING }
@@ -164,6 +217,17 @@ class PaymentService(
             else -> "UNPAID"
         }
 
+        // Collect paid member IDs and guests from completed payment line items
+        val completedPaymentIds = completedPayments.map { it.id }
+        val lineItems = if (completedPaymentIds.isNotEmpty()) {
+            paymentLineItemRepository.findByCompletedPaymentIds(completedPaymentIds, PaymentStatus.COMPLETED)
+        } else emptyList()
+
+        val paidMemberIds = lineItems.filter { it.familyMemberId != null }.map { it.familyMemberId!! }.distinct()
+        val paidGuests = lineItems.filter { it.guestName != null }.map {
+            PaidGuestInfo(name = it.guestName!!, ageGroup = it.ageGroup.name, amount = it.amount)
+        }
+
         return PaymentSummaryResponse(
             rsvpId = rsvp.id,
             familyName = rsvp.familyName,
@@ -171,7 +235,9 @@ class PaymentService(
             totalPaid = totalPaid,
             balance = balance,
             status = status,
-            payments = payments.map { toPaymentResponse(it, rsvp) }
+            payments = payments.map { toPaymentResponse(it, rsvp) },
+            paidMemberIds = paidMemberIds,
+            paidGuests = paidGuests
         )
     }
 
@@ -194,6 +260,7 @@ class PaymentService(
         familyName = rsvp.familyName,
         amount = payment.amount,
         status = payment.status.name,
-        createdAt = payment.createdAt.toString()
+        createdAt = payment.createdAt.toString(),
+        checkinToken = if (payment.status == PaymentStatus.COMPLETED) payment.checkinToken else null
     )
 }

@@ -1,6 +1,6 @@
 .budget-page h2 {
   margin-bottom: 1rem;
-  color: #16213e;
+  color: var(--color-text-heading);
 }
 
 /* Reuse summary grid style */
@@ -12,25 +12,32 @@
 }
 
 .budget-summary-card {
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
   padding: 1.25rem;
   text-align: center;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+.budget-summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .budget-summary-number {
   font-size: 2rem;
   font-weight: 800;
-  color: #16213e;
+  color: var(--color-text-heading);
 }
 
 .budget-summary-label {
   font-size: 0.85rem;
-  color: #666;
+  color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -44,13 +51,19 @@
 }
 
 .budget-row {
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-xl);
   padding: 1.25rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+.budget-row:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .budget-row-label {
@@ -60,29 +73,29 @@
 
 .budget-row-title {
   font-weight: 700;
-  color: #16213e;
+  color: var(--color-text-heading);
   font-size: 1rem;
 }
 
 .budget-row-detail {
   font-size: 0.85rem;
-  color: #888;
+  color: var(--color-text-faint);
   margin-top: 0.15rem;
 }
 
 .budget-row-range {
   font-weight: 700;
   font-size: 1.1rem;
-  color: #16213e;
+  color: var(--color-text-heading);
   text-align: right;
   white-space: nowrap;
 }
 
 /* Total */
 .budget-total {
-  background: linear-gradient(135deg, #16213e 0%, #1a1a2e 50%, #2c3e6b 100%);
+  background: linear-gradient(135deg, var(--color-navy-primary) 0%, var(--color-navy-dark) 50%, var(--color-navy-secondary) 100%);
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 1.5rem;
   display: flex;
   justify-content: space-between;
@@ -90,7 +103,7 @@
 }
 
 .budget-total .budget-row-title {
-  color: #c9a84c;
+  color: var(--color-gold);
   font-size: 1.15rem;
 }
 
@@ -99,17 +112,37 @@
 }
 
 .budget-total .budget-row-range {
-  color: #c9a84c;
+  color: var(--color-gold);
   font-size: 1.3rem;
 }
 
 /* Payment banners */
 .payment-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.75rem 1rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-weight: 600;
   margin-bottom: 1.5rem;
   text-align: center;
+}
+
+.payment-ticket-link {
+  display: inline-block;
+  padding: 0.45rem 1.25rem;
+  background: rgba(0, 0, 0, 0.12);
+  color: inherit;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 700;
+  transition: background var(--transition-fast);
+}
+
+.payment-ticket-link:hover {
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .payment-success {
@@ -124,20 +157,42 @@
   border: 1px solid #ffeeba;
 }
 
+[data-theme="dark"] .payment-success {
+  background: rgba(39, 174, 96, 0.15);
+  color: #2ecc71;
+  border-color: rgba(39, 174, 96, 0.3);
+}
+
+[data-theme="dark"] .payment-cancelled {
+  background: rgba(241, 196, 15, 0.15);
+  color: #f1c40f;
+  border-color: rgba(241, 196, 15, 0.3);
+}
+
 /* Payment tracker */
 .payment-empty {
   text-align: center;
-  color: #888;
-  padding: 2rem;
+  color: var(--color-text-faint);
+  padding: 3rem 2rem;
   font-style: italic;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-card);
+}
+
+.payment-empty::before {
+  content: '\1F4B0';
+  display: block;
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
 }
 
 .payment-table-wrapper {
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-xl);
   overflow-x: auto;
   margin-bottom: 2rem;
+  box-shadow: var(--shadow-card);
 }
 
 .payment-table {
@@ -147,21 +202,21 @@
 }
 
 .payment-table th {
-  background: #f7f8fc;
-  color: #16213e;
+  background: var(--color-bg-card-alt);
+  color: var(--color-text-heading);
   font-weight: 700;
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 0.75rem 1rem;
   text-align: left;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 2px solid var(--color-border);
 }
 
 .payment-table td {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid #f0f0f0;
-  color: #333;
+  border-bottom: 1px solid var(--color-border-light);
+  color: var(--color-text-primary);
 }
 
 .payment-table tbody tr:last-child td {
@@ -170,16 +225,16 @@
 
 .payment-family {
   font-weight: 600;
-  color: #16213e;
+  color: var(--color-text-heading);
 }
 
 .payment-balance-due {
-  color: #c0392b;
+  color: var(--color-error);
   font-weight: 600;
 }
 
 .payment-balance-credit {
-  color: #27ae60;
+  color: var(--color-success);
   font-weight: 600;
 }
 
@@ -218,16 +273,37 @@
   color: #155724;
 }
 
+[data-theme="dark"] .status-paid,
+[data-theme="dark"] .status-overpaid {
+  background: rgba(39, 174, 96, 0.2);
+  color: #2ecc71;
+}
+
+[data-theme="dark"] .status-partial {
+  background: rgba(241, 196, 15, 0.2);
+  color: #f1c40f;
+}
+
+[data-theme="dark"] .status-pending {
+  background: rgba(52, 152, 219, 0.2);
+  color: #5dade2;
+}
+
+[data-theme="dark"] .status-unpaid {
+  background: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+}
+
 .btn-pay {
-  background: linear-gradient(135deg, #16213e, #2c3e6b);
-  color: #fff;
+  background: linear-gradient(135deg, var(--color-navy-primary), var(--color-navy-secondary));
+  color: var(--color-text-on-dark);
   border: none;
   padding: 0.4rem 1rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 0.8rem;
   font-weight: 600;
-  transition: opacity 0.15s;
+  transition: opacity var(--transition-fast);
   white-space: nowrap;
 }
 
@@ -244,24 +320,26 @@
 .pay-amount-input {
   width: 90px;
   padding: 0.3rem 0.5rem;
-  border: 1px solid #d0d0d0;
-  border-radius: 4px;
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-sm);
   font-size: 0.85rem;
   font-family: inherit;
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
 }
 
 .pay-amount-input:focus {
   outline: none;
-  border-color: #c9a84c;
-  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.2);
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 2px var(--color-gold-ring);
 }
 
 .btn-pay-confirm {
-  background: #27ae60;
-  color: #fff;
+  background: var(--color-success);
+  color: var(--color-text-on-dark);
   border: none;
   padding: 0.3rem 0.6rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 0.8rem;
   font-weight: 600;
@@ -272,37 +350,57 @@
 }
 
 .btn-pay-cancel {
-  background: #e0e0e0;
-  color: #333;
+  background: var(--color-bg-cancel);
+  color: var(--color-text-primary);
   border: none;
   padding: 0.3rem 0.6rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 0.8rem;
 }
 
 .btn-pay-cancel:hover {
-  background: #d0d0d0;
+  background: var(--color-bg-cancel-hover);
 }
 
 .payment-error {
-  color: #c0392b;
+  color: var(--color-error);
   font-size: 0.85rem;
   padding: 0.5rem 1rem;
 }
 
-@media (max-width: 600px) {
-  .payment-table th,
-  .payment-table td {
-    padding: 0.5rem;
-    font-size: 0.8rem;
-  }
+/* Pay link section */
+.budget-pay-link-section {
+  text-align: center;
+  margin-top: 1.5rem;
+}
 
-  .pay-inline {
-    flex-direction: column;
-  }
+.budget-pay-link-btn {
+  display: inline-block;
+  padding: 0.85rem 2rem;
+  background: linear-gradient(135deg, var(--color-navy-primary) 0%, var(--color-navy-dark) 50%, var(--color-navy-secondary) 100%);
+  color: var(--color-gold);
+  border-radius: var(--radius-lg);
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-decoration: none;
+  letter-spacing: 0.3px;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
 
-  .pay-amount-input {
-    width: 100%;
+.budget-pay-link-btn:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.budget-pay-link-note {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .budget-summary-grid {
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   }
 }

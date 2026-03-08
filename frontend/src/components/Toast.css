@@ -15,7 +15,7 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 1.25rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-size: 0.9rem;
   font-weight: 600;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -35,6 +35,18 @@
   background: #f8d7da;
   color: #721c24;
   border: 1px solid #f5c6cb;
+}
+
+[data-theme="dark"] .toast-success {
+  background: rgba(39, 174, 96, 0.2);
+  color: #2ecc71;
+  border-color: rgba(39, 174, 96, 0.3);
+}
+
+[data-theme="dark"] .toast-error {
+  background: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+  border-color: rgba(231, 76, 60, 0.3);
 }
 
 .toast-message {
