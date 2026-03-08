@@ -2,9 +2,11 @@ package com.familyreunion.rsvp.config
 
 import com.familyreunion.rsvp.model.AgeGroup
 import com.familyreunion.rsvp.model.Attendee
+import com.familyreunion.rsvp.model.Event
 import com.familyreunion.rsvp.model.FamilyMember
 import com.familyreunion.rsvp.model.Meeting
 import com.familyreunion.rsvp.model.Rsvp
+import com.familyreunion.rsvp.repository.EventRepository
 import com.familyreunion.rsvp.repository.FamilyMemberRepository
 import com.familyreunion.rsvp.repository.MeetingRepository
 import com.familyreunion.rsvp.repository.RsvpRepository
@@ -19,7 +21,8 @@ import org.springframework.stereotype.Component
 class DataInitializer(
     private val rsvpRepository: RsvpRepository,
     private val familyMemberRepository: FamilyMemberRepository,
-    private val meetingRepository: MeetingRepository
+    private val meetingRepository: MeetingRepository,
+    private val eventRepository: EventRepository
 ) : ApplicationRunner {
 
     override fun run(args: ApplicationArguments?) {
@@ -39,8 +42,8 @@ class DataInitializer(
                 name = "Gail", head = "Gail Tumblin", email = "gail@tumblin.family",
                 gen1Children = listOf("Alan", "Alana", "Kristy", "Candace"),
                 gen2Grandchildren = mapOf(
-                    "Alan" to listOf("Aeson", "Anasiya"),
-                    "Alana" to listOf("Azael", "Alfie"),
+                    "Alan" to listOf("Aeson", "Anasiya", "Azael"),
+                    "Alana" to listOf("Alfie"),
                     "Kristy" to listOf("Kalah", "Darinam"),
                     "Candace" to listOf("Oren", "Chad", "Austin")
                 )
@@ -158,6 +161,48 @@ class DataInitializer(
                 meetingId = "123 456 7890",
                 passcode = "tumblin2026",
                 notes = "Monthly planning call — all family branch heads please attend."
+            )
+        )
+
+        // Seed reunion events
+        eventRepository.save(
+            Event(
+                title = "SeaFood Party",
+                description = "Seafood feast to kick off the reunion weekend!",
+                eventDateTime = LocalDateTime.of(2026, 10, 16, 18, 0),
+                address = "TBD — Byron's House",
+                hostName = "Byron",
+                notes = "Bring your appetite!"
+            )
+        )
+        eventRepository.save(
+            Event(
+                title = "Andouille Festiville",
+                description = "Andouille sausage cookout and family fun.",
+                eventDateTime = LocalDateTime.of(2026, 10, 17, 12, 0),
+                address = "TBD",
+                hostName = null,
+                notes = null
+            )
+        )
+        eventRepository.save(
+            Event(
+                title = "Church",
+                description = "Sunday morning worship service.",
+                eventDateTime = LocalDateTime.of(2026, 10, 18, 8, 0),
+                address = "TBD — Donald's Church",
+                hostName = "Donald",
+                notes = null
+            )
+        )
+        eventRepository.save(
+            Event(
+                title = "Brunch",
+                description = "Family brunch to close out the reunion.",
+                eventDateTime = LocalDateTime.of(2026, 10, 18, 10, 0),
+                address = "TBD — Derrick's House",
+                hostName = "Derrick",
+                notes = null
             )
         )
     }

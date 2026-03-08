@@ -13,9 +13,11 @@ spec:
       labels:
         app: frontend
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: frontend
-          image: dekee/family-reunion-frontend:latest
+          image: ghcr.io/dekee/family-reunion-frontend:latest
           ports:
             - containerPort: 80
 ---

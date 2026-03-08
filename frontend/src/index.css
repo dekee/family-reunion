@@ -6,4 +6,155 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Brand colors */
+  --color-navy-primary: #16213e;
+  --color-navy-secondary: #2c3e6b;
+  --color-navy-dark: #1a1a2e;
+  --color-gold: #c9a84c;
+  --color-gold-hover: #d4b95e;
+  --color-gold-light: rgba(201, 168, 76, 0.15);
+  --color-gold-ring: rgba(201, 168, 76, 0.2);
+  --color-error: #c0392b;
+  --color-error-hover: #a93226;
+  --color-success: #27ae60;
+  --color-link: #2563eb;
+
+  /* Backgrounds */
+  --color-bg-page: #f5f6fa;
+  --color-bg-card: #fff;
+  --color-bg-card-alt: #f7f8fc;
+  --color-bg-input: #fff;
+  --color-bg-hover: rgba(22, 33, 62, 0.02);
+  --color-bg-subtle: rgba(22, 33, 62, 0.04);
+  --color-bg-badge: rgba(22, 33, 62, 0.08);
+  --color-bg-cancel: #e0e0e0;
+  --color-bg-cancel-hover: #d0d0d0;
+  --color-bg-copy: #e8e8e8;
+  --color-bg-copy-hover: #d0d0d0;
+
+  /* Text */
+  --color-text-primary: #333;
+  --color-text-secondary: #555;
+  --color-text-muted: #666;
+  --color-text-faint: #888;
+  --color-text-heading: #16213e;
+  --color-text-on-dark: #fff;
+  --color-text-on-dark-muted: rgba(255, 255, 255, 0.85);
+  --color-text-on-dark-faint: rgba(255, 255, 255, 0.7);
+
+  /* Borders */
+  --color-border: #e0e0e0;
+  --color-border-light: #f0f0f0;
+  --color-border-input: #d0d0d0;
+  --color-border-input-alt: #ccc;
+
+  /* Shadows */
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-pill: 50px;
+
+  /* Transitions */
+  --transition-normal: 0.2s ease;
+  --transition-fast: 0.15s ease;
+
+  /* Branch colors (pastel) */
+  --branch-gail: #e8d5f5;
+  --branch-wesley-ii: #d5e8f5;
+  --branch-norris: #d5f5e0;
+  --branch-michael: #f5e8d5;
+  --branch-cheryl: #f5d5d5;
+  --branch-stephen: #d5f5f0;
+  --branch-kendra: #f5f0d5;
+  --branch-wendell: #e0d5f5;
+  --branch-donald: #d5f5d5;
+  --branch-myra: #f5d5e8;
+  --branch-chantell: #d5e0f5;
+}
+
+/* Dark mode */
+[data-theme="dark"] {
+  --color-bg-page: #121520;
+  --color-bg-card: #1c2033;
+  --color-bg-card-alt: #232840;
+  --color-bg-input: #232840;
+  --color-bg-hover: rgba(255, 255, 255, 0.04);
+  --color-bg-subtle: rgba(255, 255, 255, 0.06);
+  --color-bg-badge: rgba(201, 168, 76, 0.15);
+  --color-bg-cancel: #2a2f45;
+  --color-bg-cancel-hover: #353b55;
+  --color-bg-copy: #2a2f45;
+  --color-bg-copy-hover: #353b55;
+
+  --color-text-primary: #e0e0e8;
+  --color-text-secondary: #b0b0c0;
+  --color-text-muted: #9090a8;
+  --color-text-faint: #707088;
+  --color-text-heading: #e8e8f0;
+
+  --color-border: #2a2f45;
+  --color-border-light: #232840;
+  --color-border-input: #353b55;
+  --color-border-input-alt: #353b55;
+
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25);
+
+  --branch-gail: #3d2a4d;
+  --branch-wesley-ii: #2a3d4d;
+  --branch-norris: #2a4d35;
+  --branch-michael: #4d3d2a;
+  --branch-cheryl: #4d2a2a;
+  --branch-stephen: #2a4d45;
+  --branch-kendra: #4d4a2a;
+  --branch-wendell: #352a4d;
+  --branch-donald: #2a4d2a;
+  --branch-myra: #4d2a3d;
+  --branch-chantell: #2a354d;
+
+  --color-error: #e74c3c;
+  --color-error-hover: #c0392b;
+  --color-link: #5b9cf5;
+}
+
+/* Fade-in animations */
+.fade-in-section {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.fade-in-section.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes card-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

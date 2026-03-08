@@ -1,70 +1,111 @@
 import { useEffect, useState } from 'react';
-import { fetchSummary } from '../api';
-import type { RsvpSummaryResponse } from '../types';
+import { useSearchParams, Link } from 'react-router-dom';
+import { fetchFamilyTree, fetchPaymentSummaries } from '../api';
+import { ADULT_FEE, CHILD_FEE } from '../constants/fees';
+import { dollars } from '../utils/formatting';
+import type { FamilyTreeNode, PaymentSummaryResponse } from '../types';
+import { SkeletonCard } from './Skeleton';
 import './Budget.css';
 
-const ADULT_MIN = 75;
-const ADULT_MAX = 125;
-const CHILD_MIN = 50;
-const CHILD_MAX = 75;
+interface MemberCounts {
+  totalMembers: number;
+  adultCount: number;
+  childCount: number;
+  infantCount: number;
+}
 
-function dollars(n: number): string {
-  return '$' + n.toLocaleString();
+function countSubtree(node: FamilyTreeNode): MemberCounts {
+  const counts: MemberCounts = { totalMembers: 0, adultCount: 0, childCount: 0, infantCount: 0 };
+  function walk(n: FamilyTreeNode) {
+    counts.totalMembers++;
+    if (n.ageGroup === 'ADULT' || n.ageGroup === 'SPOUSE') counts.adultCount++;
+    else if (n.ageGroup === 'CHILD') counts.childCount++;
+    else if (n.ageGroup === 'INFANT') counts.infantCount++;
+    n.children.forEach(walk);
+  }
+  walk(node);
+  return counts;
+}
+
+function buildTotals(roots: FamilyTreeNode[]): MemberCounts {
+  const totals: MemberCounts = { totalMembers: 0, adultCount: 0, childCount: 0, infantCount: 0 };
+  for (const root of roots) {
+    for (const branch of root.children) {
+      const c = countSubtree(branch);
+      totals.totalMembers += c.totalMembers;
+      totals.adultCount += c.adultCount;
+      totals.childCount += c.childCount;
+      totals.infantCount += c.infantCount;
+    }
+  }
+  return totals;
 }
 
 export default function Budget() {
-  const [summary, setSummary] = useState<RsvpSummaryResponse | null>(null);
+  const [memberCounts, setMemberCounts] = useState<MemberCounts | null>(null);
+  const [payments, setPayments] = useState<PaymentSummaryResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchParams] = useSearchParams();
 
-  useEffect(() => {
+  const paymentStatus = searchParams.get('payment');
+
+  const load = () => {
     setLoading(true);
-    fetchSummary()
-      .then(setSummary)
+    Promise.all([fetchFamilyTree(), fetchPaymentSummaries()])
+      .then(([tree, p]) => {
+        setMemberCounts(buildTotals(tree.roots));
+        setPayments(p);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  };
 
-  if (loading) return <p>Loading budget...</p>;
-  if (!summary) return <p>Unable to load summary data.</p>;
+  useEffect(() => { load(); }, []);
 
-  const adultLow = summary.adultCount * ADULT_MIN;
-  const adultHigh = summary.adultCount * ADULT_MAX;
-  const childLow = summary.childCount * CHILD_MIN;
-  const childHigh = summary.childCount * CHILD_MAX;
-  const totalLow = adultLow + childLow;
-  const totalHigh = adultHigh + childHigh;
+  if (loading) return (
+    <div className="budget-page">
+      <div className="page-header"><h2>Reunion Budget</h2><p>Cost estimates based on family members</p></div>
+      <div className="budget-summary-grid">
+        {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} lines={1} />)}
+      </div>
+    </div>
+  );
+  if (!memberCounts) return <p>Unable to load member data.</p>;
+
+  const adultTotal = memberCounts.adultCount * ADULT_FEE;
+  const childTotal = memberCounts.childCount * CHILD_FEE;
+  const grandTotal = adultTotal + childTotal;
 
   return (
     <div className="budget-page">
       <div className="page-header">
         <h2>Reunion Budget</h2>
-        <p>Cost estimates based on current RSVPs</p>
+        <p>Cost estimates based on family members</p>
       </div>
+
+      {paymentStatus === 'success' && (
+        <div className="payment-banner payment-success">Payment successful! Thank you.</div>
+      )}
+      {paymentStatus === 'cancelled' && (
+        <div className="payment-banner payment-cancelled">Payment was cancelled.</div>
+      )}
 
       <div className="budget-summary-grid">
         <div className="budget-summary-card">
-          <span className="budget-summary-number">{summary.totalFamilies}</span>
-          <span className="budget-summary-label">Families</span>
+          <span className="budget-summary-number">{memberCounts.totalMembers}</span>
+          <span className="budget-summary-label">Total Members</span>
         </div>
         <div className="budget-summary-card">
-          <span className="budget-summary-number">{summary.totalHeadcount}</span>
-          <span className="budget-summary-label">Total Guests</span>
+          <span className="budget-summary-number">{memberCounts.adultCount}</span>
+          <span className="budget-summary-label">Adults / Spouses</span>
         </div>
         <div className="budget-summary-card">
-          <span className="budget-summary-number">{summary.adultCount}</span>
-          <span className="budget-summary-label">Adults</span>
-        </div>
-        <div className="budget-summary-card">
-          <span className="budget-summary-number">{summary.childCount}</span>
+          <span className="budget-summary-number">{memberCounts.childCount}</span>
           <span className="budget-summary-label">Children</span>
         </div>
         <div className="budget-summary-card">
-          <span className="budget-summary-number">{summary.infantCount}</span>
-          <span className="budget-summary-label">Infants</span>
-        </div>
-        <div className="budget-summary-card">
-          <span className="budget-summary-number">{summary.lodgingCount}</span>
-          <span className="budget-summary-label">Need Lodging</span>
+          <span className="budget-summary-number">{memberCounts.infantCount}</span>
+          <span className="budget-summary-label">Infants (free)</span>
         </div>
       </div>
 
@@ -72,48 +113,72 @@ export default function Budget() {
       <div className="budget-breakdown">
         <div className="budget-row">
           <div className="budget-row-label">
-            <span className="budget-row-title">Adults</span>
+            <span className="budget-row-title">Adults / Spouses</span>
             <span className="budget-row-detail">
-              {summary.adultCount} x {dollars(ADULT_MIN)}–{dollars(ADULT_MAX)} per person
+              {memberCounts.adultCount} x {dollars(ADULT_FEE)} per person
             </span>
           </div>
-          <span className="budget-row-range">
-            {dollars(adultLow)} – {dollars(adultHigh)}
-          </span>
+          <span className="budget-row-range">{dollars(adultTotal)}</span>
         </div>
 
         <div className="budget-row">
           <div className="budget-row-label">
             <span className="budget-row-title">Children</span>
             <span className="budget-row-detail">
-              {summary.childCount} x {dollars(CHILD_MIN)}–{dollars(CHILD_MAX)} per person
+              {memberCounts.childCount} x {dollars(CHILD_FEE)} per person
             </span>
           </div>
-          <span className="budget-row-range">
-            {dollars(childLow)} – {dollars(childHigh)}
-          </span>
+          <span className="budget-row-range">{dollars(childTotal)}</span>
         </div>
 
         <div className="budget-row">
           <div className="budget-row-label">
             <span className="budget-row-title">Infants</span>
-            <span className="budget-row-detail">{summary.infantCount} — no cost</span>
+            <span className="budget-row-detail">{memberCounts.infantCount} — no cost</span>
           </div>
           <span className="budget-row-range">$0</span>
         </div>
 
         <div className="budget-total">
           <div className="budget-row-label">
-            <span className="budget-row-title">Estimated Total</span>
+            <span className="budget-row-title">Total</span>
             <span className="budget-row-detail">
-              {summary.totalHeadcount} guests across {summary.totalFamilies} families
+              {memberCounts.totalMembers} family members
             </span>
           </div>
-          <span className="budget-row-range">
-            {dollars(totalLow)} – {dollars(totalHigh)}
-          </span>
+          <span className="budget-row-range">{dollars(grandTotal)}</span>
         </div>
       </div>
+
+      <h2>Payment Summary</h2>
+      {payments.length === 0 ? (
+        <p className="payment-empty">No families to track payments for yet.</p>
+      ) : (
+        <>
+          <div className="payment-summary-overview">
+            <div className="budget-summary-grid">
+              <div className="budget-summary-card">
+                <span className="budget-summary-number">{dollars(payments.reduce((s, p) => s + p.totalPaid, 0))}</span>
+                <span className="budget-summary-label">Total Collected</span>
+              </div>
+              <div className="budget-summary-card">
+                <span className="budget-summary-number">{dollars(payments.reduce((s, p) => s + p.balance, 0))}</span>
+                <span className="budget-summary-label">Remaining Balance</span>
+              </div>
+              <div className="budget-summary-card">
+                <span className="budget-summary-number">{payments.filter(p => p.status === 'PAID').length} / {payments.length}</span>
+                <span className="budget-summary-label">Families Paid</span>
+              </div>
+            </div>
+          </div>
+          <div className="budget-pay-link-section">
+            <Link to="/pay" className="budget-pay-link-btn">
+              Go to Pay &amp; RSVP Page &rarr;
+            </Link>
+            <p className="budget-pay-link-note">Select your family branch and pay for attending members</p>
+          </div>
+        </>
+      )}
     </div>
   );
 }

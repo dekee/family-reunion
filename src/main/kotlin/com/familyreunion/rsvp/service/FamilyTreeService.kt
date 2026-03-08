@@ -6,13 +6,19 @@ import com.familyreunion.rsvp.dto.FamilyTreeResponse
 import com.familyreunion.rsvp.dto.MoveMemberRequest
 import com.familyreunion.rsvp.exception.FamilyMemberNotFoundException
 import com.familyreunion.rsvp.model.FamilyMember
+import com.familyreunion.rsvp.repository.AttendeeRepository
+import com.familyreunion.rsvp.repository.EventRegistrationRepository
 import com.familyreunion.rsvp.repository.FamilyMemberRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
 @Transactional(readOnly = true)
-class FamilyTreeService(private val familyMemberRepository: FamilyMemberRepository) {
+class FamilyTreeService(
+    private val familyMemberRepository: FamilyMemberRepository,
+    private val attendeeRepository: AttendeeRepository,
+    private val eventRegistrationRepository: EventRegistrationRepository
+) {
 
     fun buildTree(): FamilyTreeResponse {
         val founders = familyMemberRepository.findByIsFounderTrue()
@@ -82,7 +88,32 @@ class FamilyTreeService(private val familyMemberRepository: FamilyMemberReposito
     fun deleteMember(id: Long) {
         val member = familyMemberRepository.findById(id)
             .orElseThrow { FamilyMemberNotFoundException(id) }
+
+        // Collect member + all descendants (cascade will delete children too)
+        val allMembers = mutableListOf<FamilyMember>()
+        collectDescendants(member, allMembers)
+
+        // Remove event registrations for these members
+        val registrations = eventRegistrationRepository.findByFamilyMemberIn(allMembers)
+        eventRegistrationRepository.deleteAll(registrations)
+
+        // Null out attendee FK references so cascade delete doesn't violate constraints
+        val attendees = attendeeRepository.findByFamilyMemberIn(allMembers)
+        for (attendee in attendees) {
+            attendee.guestName = attendee.familyMember?.name
+            attendee.guestAgeGroup = attendee.familyMember?.ageGroup
+            attendee.familyMember = null
+        }
+        attendeeRepository.saveAll(attendees)
+
         familyMemberRepository.delete(member)
+    }
+
+    private fun collectDescendants(member: FamilyMember, result: MutableList<FamilyMember>) {
+        result.add(member)
+        for (child in member.children) {
+            collectDescendants(child, result)
+        }
     }
 
     private fun updateDescendantGenerations(member: FamilyMember) {
