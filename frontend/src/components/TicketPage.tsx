@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { fetchTicket, sendTicket, performCheckin, fetchCheckinCapabilities } from '../api';
 import { useAuth } from '../AuthContext';
@@ -143,6 +143,7 @@ export default function TicketPage() {
         {/* Send ticket options */}
         <div className="ticket-send-section">
           <p className="ticket-send-label">Send this ticket</p>
+          <p className="ticket-send-hint">Send a link to this ticket and QR code via email or text</p>
           <div className="ticket-send-buttons">
             {capabilities.email && (
               <button
@@ -189,6 +190,10 @@ export default function TicketPage() {
           {sendResult && (
             <p className="ticket-send-result">{sendResult}</p>
           )}
+        </div>
+
+        <div className="ticket-back-link">
+          <Link to="/pay">&larr; Back to Pay &amp; RSVP</Link>
         </div>
       </div>
     </div>

@@ -212,7 +212,7 @@ export default function PayAndRsvp() {
     <div className="pay-rsvp-page">
       <div className="page-header">
         <h2>Pay & RSVP</h2>
-        <p>Select your family branch, choose attending members, and pay</p>
+        <p>Select your family branch, choose attending members, and pay. Selecting a member confirms their attendance.</p>
       </div>
 
       {paymentStatus === 'success' && (
@@ -243,19 +243,21 @@ export default function PayAndRsvp() {
             {branches.map(b => {
               const branchName = b.node.name.replace(/ - Done$/, '');
               const branchColor = getBranchColor(branchName);
-              const totalCost = b.members.reduce((sum, m) => sum + m.fee, 0);
+              const fallbackTotal = b.members.reduce((sum, m) => sum + m.fee, 0);
+              const totalCost = b.payment?.totalOwed ?? fallbackTotal;
               const paid = b.payment?.totalPaid ?? 0;
               const paidPercent = totalCost > 0 ? Math.min(100, Math.round((paid / totalCost) * 100)) : 0;
-
               const balance = b.payment?.balance ?? totalCost;
+              const fullyPaid = balance <= 0 && paid > 0;
 
               return (
                 <button
                   key={b.node.id}
-                  className="pay-branch-card"
+                  className={`pay-branch-card ${fullyPaid ? 'pay-branch-card-paid' : ''}`}
                   onClick={() => handleExpandBranch(b.node.id)}
                   style={{ borderTopColor: branchColor }}
                 >
+                  {fullyPaid && <span className="pay-branch-paid-badge">Fully Paid</span>}
                   <span className="pay-branch-name">{branchName}</span>
                   <span className="pay-branch-members">{b.members.length} members</span>
                   <div className="pay-branch-amounts">
@@ -267,15 +269,15 @@ export default function PayAndRsvp() {
                       <span>Paid</span>
                       <span>{dollars(paid)}</span>
                     </div>
-                    <div className={`pay-branch-amount-row ${balance <= 0 ? 'pay-branch-amount-paid' : 'pay-branch-amount-due'}`}>
+                    <div className={`pay-branch-amount-row ${fullyPaid ? 'pay-branch-amount-paid' : 'pay-branch-amount-due'}`}>
                       <span>Remaining</span>
-                      <span>{balance <= 0 ? 'Paid in full' : dollars(balance)}</span>
+                      <span>{fullyPaid ? 'Paid in full' : dollars(balance)}</span>
                     </div>
                   </div>
                   <div className="pay-branch-progress">
                     <div
                       className="pay-branch-progress-fill"
-                      style={{ width: `${paidPercent}%`, background: branchColor }}
+                      style={{ width: `${paidPercent}%`, background: fullyPaid ? '#27ae60' : branchColor }}
                     />
                   </div>
                 </button>
@@ -327,18 +329,24 @@ export default function PayAndRsvp() {
           </div>
 
           <div className="pay-members-list">
+            {activeBranch.members.every(m => m.paid) && (
+              <div className="pay-all-paid-notice">All members are paid — nothing to do here!</div>
+            )}
             {activeBranch.members.map(m => (
               <label
                 key={m.id}
                 className={`pay-member-row ${m.paid ? 'paid' : ''} ${!m.paid && selected.has(m.id) ? 'selected' : ''}`}
                 style={{ paddingLeft: `${1 + m.depth * 1.5}rem` }}
               >
-                <input
-                  type="checkbox"
-                  checked={!m.paid && selected.has(m.id)}
-                  onChange={() => toggleMember(m.id)}
-                  disabled={m.paid}
-                />
+                {m.paid ? (
+                  <span className="pay-member-check-icon">&#10003;</span>
+                ) : (
+                  <input
+                    type="checkbox"
+                    checked={selected.has(m.id)}
+                    onChange={() => toggleMember(m.id)}
+                  />
+                )}
                 <span className="pay-member-name">{m.name}</span>
                 <span className={`pay-member-age age-${m.ageGroup.toLowerCase()}`}>{m.ageGroup}</span>
                 {m.paid ? (

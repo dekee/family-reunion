@@ -311,6 +311,13 @@
   border-color: var(--color-gold);
 }
 
+.ticket-send-hint {
+  margin: 0 0 0.65rem;
+  font-size: 0.8rem;
+  color: var(--color-text-faint);
+  font-weight: 400;
+}
+
 .ticket-send-disabled {
   margin: 0;
   font-size: 0.85rem;
@@ -370,6 +377,27 @@
   font-weight: 500;
 }
 
+/* Back link */
+.ticket-back-link {
+  text-align: center;
+  padding: 1rem 1.5rem 1.5rem;
+}
+
+.ticket-back-link a {
+  color: var(--color-navy-primary);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.ticket-back-link a:hover {
+  text-decoration: underline;
+}
+
+[data-theme="dark"] .ticket-back-link a {
+  color: var(--color-gold);
+}
+
 /* Print — show just the ticket */
 @media print {
   .ticket-page {
@@ -382,7 +410,8 @@
   }
 
   .ticket-send-section,
-  .ticket-checkin-btn {
+  .ticket-checkin-btn,
+  .ticket-back-link {
     display: none !important;
   }
 }
