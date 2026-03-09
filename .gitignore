@@ -16,7 +16,10 @@ frontend/dist/
 .DS_Store
 secrets/
 
-# Sensitive files
+# Sensitive files — ignore plaintext secrets, allow sealed secrets
 k8s/*-secret.yaml
+!k8s/sealed-*-secret.yaml
+k8s/oci/*-secret.yaml
+!k8s/oci/sealed-*-secret.yaml
 frontend/.env
 *.sql
