@@ -81,7 +81,8 @@ class CheckinService(
         return TicketResponse(
             checkinToken = payment.checkinToken,
             familyName = payment.rsvp?.familyName ?: "",
-            payerName = payment.rsvp?.headOfHouseholdName ?: "",
+            payerName = payment.payerName ?: payment.rsvp?.headOfHouseholdName ?: "",
+            payerEmail = payment.payerEmail,
             amount = payment.amount,
             checkedIn = payment.checkedIn,
             checkedInAt = payment.checkedInAt?.toString(),

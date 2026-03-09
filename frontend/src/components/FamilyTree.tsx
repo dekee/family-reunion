@@ -35,7 +35,8 @@ function generationColor(gen: number | string): string {
   if (g === 0) return '#c9a84c';
   if (g === 1) return '#2c3e6b';
   if (g === 2) return '#c0392b';
-  return '#1a8a6e';
+  if (g === 3) return '#1a8a6e';
+  return '#8e44ad';
 }
 
 function countNodes(node: FamilyTreeNode): number {
@@ -233,6 +234,7 @@ export default function FamilyTree() {
           <span className="legend-item"><span className="dot dot-blue" /> Gen 1</span>
           <span className="legend-item"><span className="dot dot-red" /> Gen 2</span>
           <span className="legend-item"><span className="dot dot-teal" /> Gen 3</span>
+          <span className="legend-item"><span className="dot dot-purple" /> Gen 4</span>
         </div>
       </div>
 

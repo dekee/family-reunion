@@ -17,7 +17,7 @@ import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
 
 @Component
-@Profile("!test")
+@Profile("dev")
 class DataInitializer(
     private val rsvpRepository: RsvpRepository,
     private val familyMemberRepository: FamilyMemberRepository,
@@ -237,29 +237,29 @@ class DataInitializer(
         )
         members.add(headMember)
 
-        // Gen 1 children and their Gen 2 grandchildren
+        // Gen 2 children of branch head, and their Gen 3 children
         branch.gen1Children.forEach { childName ->
-            val gen1Member = familyMemberRepository.save(
+            val gen2Member = familyMemberRepository.save(
                 FamilyMember(
                     name = childName,
                     ageGroup = AgeGroup.ADULT,
                     parent = headMember,
-                    generation = 1
+                    generation = 2
                 )
             )
-            members.add(gen1Member)
+            members.add(gen2Member)
 
             val grandchildren = branch.gen2Grandchildren[childName] ?: emptyList()
             grandchildren.forEach { grandchildName ->
-                val gen2Member = familyMemberRepository.save(
+                val gen3Member = familyMemberRepository.save(
                     FamilyMember(
                         name = grandchildName,
                         ageGroup = AgeGroup.CHILD,
-                        parent = gen1Member,
-                        generation = 2
+                        parent = gen2Member,
+                        generation = 3
                     )
                 )
-                members.add(gen2Member)
+                members.add(gen3Member)
             }
         }
 

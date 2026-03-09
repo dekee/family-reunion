@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { fetchFamilyTree, fetchPaymentSummaries, createCheckoutSession } from '../api';
 import { getBranchColor } from '../branchColors';
-import { ADULT_FEE, CHILD_FEE, feeForAge } from '../constants/fees';
+import { ADULT_FEE, CHILD_FEE, feeForAge, ageLabel, ageLabelWithFee, AGE_GROUPS } from '../constants/ageGroups';
 import { dollars } from '../utils/formatting';
 import type { FamilyTreeNode, PaymentSummaryResponse, PaidGuestInfo } from '../types';
 import { SkeletonCard } from './Skeleton';
@@ -328,6 +328,13 @@ export default function PayAndRsvp() {
             </span>
           </div>
 
+          <div className="pay-age-legend">
+            <span className="pay-legend-item"><span className="pay-legend-pill age-adult">Adult</span> ages 18+ · ${AGE_GROUPS.ADULT.fee} each</span>
+            <span className="pay-legend-item"><span className="pay-legend-pill age-spouse">Spouse</span> ages 18+ · ${AGE_GROUPS.SPOUSE.fee} each</span>
+            <span className="pay-legend-item"><span className="pay-legend-pill age-child">Child</span> ages 6 to 17 · ${AGE_GROUPS.CHILD.fee} each</span>
+            <span className="pay-legend-item"><span className="pay-legend-pill age-infant">Under 5</span> ages 0 to 5 · Free</span>
+          </div>
+
           <div className="pay-members-list">
             {activeBranch.members.every(m => m.paid) && (
               <div className="pay-all-paid-notice">All members are paid — nothing to do here!</div>
@@ -348,7 +355,7 @@ export default function PayAndRsvp() {
                   />
                 )}
                 <span className="pay-member-name">{m.name}</span>
-                <span className={`pay-member-age age-${m.ageGroup.toLowerCase()}`}>{m.ageGroup}</span>
+                <span className={`pay-member-age age-${m.ageGroup.toLowerCase()}`}>{ageLabel(m.ageGroup)}</span>
                 {m.paid ? (
                   <span className="pay-member-paid-badge">Paid</span>
                 ) : (
@@ -366,7 +373,7 @@ export default function PayAndRsvp() {
               <div key={`paid-guest-${i}`} className="pay-member-row paid pay-guest-row">
                 <span className="pay-guest-icon">+</span>
                 <span className="pay-member-name">{g.name}</span>
-                <span className={`pay-member-age age-${g.ageGroup.toLowerCase()}`}>{g.ageGroup}</span>
+                <span className={`pay-member-age age-${g.ageGroup.toLowerCase()}`}>{ageLabel(g.ageGroup)}</span>
                 <span className="pay-member-paid-badge">Paid</span>
               </div>
             ))}
@@ -374,7 +381,7 @@ export default function PayAndRsvp() {
               <div key={`guest-${g.tempId}`} className="pay-member-row selected pay-guest-row">
                 <span className="pay-guest-icon">+</span>
                 <span className="pay-member-name">{g.name}</span>
-                <span className={`pay-member-age age-${g.ageGroup.toLowerCase()}`}>{g.ageGroup}</span>
+                <span className={`pay-member-age age-${g.ageGroup.toLowerCase()}`}>{ageLabel(g.ageGroup)}</span>
                 <span className="pay-member-fee">
                   {g.fee > 0 ? dollars(g.fee) : 'Free'}
                 </span>
@@ -407,9 +414,9 @@ export default function PayAndRsvp() {
                   onChange={e => setGuestAgeGroup(e.target.value as GuestAgeGroup)}
                   className="pay-guest-age-select"
                 >
-                  <option value="ADULT">Adult ($100)</option>
-                  <option value="CHILD">Child ($50)</option>
-                  <option value="INFANT">Infant (Free)</option>
+                  <option value="ADULT">{ageLabelWithFee('ADULT')}</option>
+                  <option value="CHILD">{ageLabelWithFee('CHILD')}</option>
+                  <option value="INFANT">{ageLabelWithFee('INFANT')}</option>
                 </select>
                 <button className="pay-guest-add-btn" onClick={handleAddGuest} disabled={!guestName.trim()}>
                   Add
@@ -442,7 +449,7 @@ export default function PayAndRsvp() {
                 )}
                 {infantCount > 0 && (
                   <div className="pay-summary-line">
-                    <span>Infants:</span>
+                    <span>Under 5:</span>
                     <span>{infantCount} x Free</span>
                   </div>
                 )}

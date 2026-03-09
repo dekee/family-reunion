@@ -78,6 +78,16 @@ spec:
                 secretKeyRef:
                   name: notification-secret
                   key: TWILIO_FROM_NUMBER
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: stripe-secret
+                  key: STRIPE_SECRET_KEY
+            - name: STRIPE_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: stripe-secret
+                  key: STRIPE_WEBHOOK_SECRET
             - name: APP_BASE_URL
               value: "https://tumblinfamily.com"
             - name: GOOGLE_DRIVE_CREDENTIALS_FILE

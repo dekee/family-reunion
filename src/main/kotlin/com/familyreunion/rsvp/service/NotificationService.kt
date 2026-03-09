@@ -96,5 +96,6 @@ class NotificationService(
     }
 
     fun isEmailConfigured(): Boolean = mailSender != null && fromEmail.isNotBlank()
-    fun isSmsConfigured(): Boolean = twilioAccountSid.isNotBlank() && twilioAuthToken.isNotBlank()
+    // Disabled until A2P 10DLC campaign is approved (pending TCR review)
+    fun isSmsConfigured(): Boolean = false
 }

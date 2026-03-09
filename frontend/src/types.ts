@@ -124,6 +124,7 @@ export interface TicketResponse {
   checkinToken: string;
   familyName: string;
   payerName: string;
+  payerEmail?: string;
   amount: number;
   checkedIn: boolean;
   checkedInAt?: string;

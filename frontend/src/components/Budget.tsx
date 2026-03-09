@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { fetchFamilyTree, fetchPaymentSummaries } from '../api';
-import { ADULT_FEE, CHILD_FEE } from '../constants/fees';
+import { ADULT_FEE, CHILD_FEE } from '../constants/ageGroups';
 import { dollars } from '../utils/formatting';
 import type { FamilyTreeNode, PaymentSummaryResponse } from '../types';
 import { SkeletonCard } from './Skeleton';
@@ -97,15 +97,15 @@ export default function Budget() {
         </div>
         <div className="budget-summary-card">
           <span className="budget-summary-number">{memberCounts.adultCount}</span>
-          <span className="budget-summary-label">Adults / Spouses</span>
+          <span className="budget-summary-label">Adults / Spouses (18+)</span>
         </div>
         <div className="budget-summary-card">
           <span className="budget-summary-number">{memberCounts.childCount}</span>
-          <span className="budget-summary-label">Children</span>
+          <span className="budget-summary-label">Children (6–17)</span>
         </div>
         <div className="budget-summary-card">
           <span className="budget-summary-number">{memberCounts.infantCount}</span>
-          <span className="budget-summary-label">Infants (free)</span>
+          <span className="budget-summary-label">Under 5 (free)</span>
         </div>
       </div>
 
@@ -113,7 +113,7 @@ export default function Budget() {
       <div className="budget-breakdown">
         <div className="budget-row">
           <div className="budget-row-label">
-            <span className="budget-row-title">Adults / Spouses</span>
+            <span className="budget-row-title">Adults / Spouses (18+)</span>
             <span className="budget-row-detail">
               {memberCounts.adultCount} x {dollars(ADULT_FEE)} per person
             </span>
@@ -123,7 +123,7 @@ export default function Budget() {
 
         <div className="budget-row">
           <div className="budget-row-label">
-            <span className="budget-row-title">Children</span>
+            <span className="budget-row-title">Children (6–17)</span>
             <span className="budget-row-detail">
               {memberCounts.childCount} x {dollars(CHILD_FEE)} per person
             </span>
@@ -133,7 +133,7 @@ export default function Budget() {
 
         <div className="budget-row">
           <div className="budget-row-label">
-            <span className="budget-row-title">Infants</span>
+            <span className="budget-row-title">Under 5 (0–5)</span>
             <span className="budget-row-detail">{memberCounts.infantCount} — no cost</span>
           </div>
           <span className="budget-row-range">$0</span>

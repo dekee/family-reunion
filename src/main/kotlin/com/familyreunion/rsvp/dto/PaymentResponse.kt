@@ -9,5 +9,7 @@ data class PaymentResponse(
     val amount: BigDecimal,
     val status: String,
     val createdAt: String,
-    val checkinToken: String? = null
+    val checkinToken: String? = null,
+    val payerName: String? = null,
+    val payerEmail: String? = null
 )

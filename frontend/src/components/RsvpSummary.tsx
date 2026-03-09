@@ -38,7 +38,7 @@ export default function RsvpSummary({ refreshKey }: Props) {
         </div>
         <div className="summary-card">
           <span className="summary-number">{summary.infantCount}</span>
-          <span className="summary-label">Infants</span>
+          <span className="summary-label">Under 5</span>
         </div>
         <div className="summary-card">
           <span className="summary-number">{summary.lodgingCount}</span>

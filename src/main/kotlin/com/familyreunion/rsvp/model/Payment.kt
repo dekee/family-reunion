@@ -39,6 +39,10 @@ class Payment(
 
     var checkedInAt: LocalDateTime? = null,
 
+    var payerName: String? = null,
+
+    var payerEmail: String? = null,
+
     @OneToMany(mappedBy = "payment", cascade = [CascadeType.ALL], orphanRemoval = true)
     val lineItems: MutableList<PaymentLineItem> = mutableListOf()
 )

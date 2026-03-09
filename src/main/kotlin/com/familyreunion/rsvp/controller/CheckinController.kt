@@ -6,8 +6,11 @@ import com.familyreunion.rsvp.dto.SendTicketRequest
 import com.familyreunion.rsvp.dto.TicketResponse
 import com.familyreunion.rsvp.service.CheckinService
 import com.familyreunion.rsvp.service.NotificationService
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import java.util.concurrent.ConcurrentHashMap
+import java.time.Instant
 
 @RestController
 @RequestMapping("/api/checkin")
@@ -15,6 +18,11 @@ class CheckinController(
     private val checkinService: CheckinService,
     private val notificationService: NotificationService
 ) {
+
+    // Rate limit: max 3 sends per token per 10 minutes
+    private val sendRateLimit = ConcurrentHashMap<String, MutableList<Instant>>()
+    private val rateLimitWindow = 600L // seconds
+    private val rateLimitMax = 3
 
     @GetMapping("/ticket/{token}")
     fun getTicket(@PathVariable token: String): ResponseEntity<TicketResponse> {
@@ -37,6 +45,18 @@ class CheckinController(
 
     @PostMapping("/send")
     fun sendTicket(@RequestBody request: SendTicketRequest): ResponseEntity<Map<String, String>> {
+        // Rate limiting per token
+        val now = Instant.now()
+        val timestamps = sendRateLimit.getOrPut(request.checkinToken) { mutableListOf() }
+        synchronized(timestamps) {
+            timestamps.removeAll { it.isBefore(now.minusSeconds(rateLimitWindow)) }
+            if (timestamps.size >= rateLimitMax) {
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(mapOf("error" to "Too many send requests. Please try again later."))
+            }
+            timestamps.add(now)
+        }
+
         val ticket = try {
             checkinService.getTicket(request.checkinToken)
         } catch (e: IllegalArgumentException) {

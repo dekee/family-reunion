@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createRsvp, updateRsvp, fetchFamilyTree } from '../api';
 import type { RsvpRequest, RsvpResponse, AgeGroup, AttendeeDto, FlatFamilyMember, FamilyTreeNode } from '../types';
+import { ageLabelWithRange } from '../constants/ageGroups';
 import { useToast } from './Toast';
 import './RsvpForm.css';
 
@@ -207,10 +208,10 @@ export default function RsvpForm({ onSaved, editingRsvp, onCancelEdit }: Props) 
                   value={row.guestAgeGroup}
                   onChange={(e) => updateRow(index, { guestAgeGroup: e.target.value as AgeGroup })}
                 >
-                  <option value="ADULT">Adult</option>
-                  <option value="SPOUSE">Spouse</option>
-                  <option value="CHILD">Child</option>
-                  <option value="INFANT">Infant</option>
+                  <option value="ADULT">{ageLabelWithRange('ADULT')}</option>
+                  <option value="SPOUSE">{ageLabelWithRange('SPOUSE')}</option>
+                  <option value="CHILD">{ageLabelWithRange('CHILD')}</option>
+                  <option value="INFANT">{ageLabelWithRange('INFANT')}</option>
                 </select>
               </>
             )}

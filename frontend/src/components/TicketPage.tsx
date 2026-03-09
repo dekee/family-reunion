@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { fetchTicket, sendTicket, performCheckin, fetchCheckinCapabilities } from '../api';
 import { useAuth } from '../AuthContext';
+import { ageLabel } from '../constants/ageGroups';
 import { dollars } from '../utils/formatting';
 import type { TicketResponse } from '../types';
 import './TicketPage.css';
@@ -92,6 +93,10 @@ export default function TicketPage() {
         <div className="ticket-header">
           <h2>Tumblin Family Reunion</h2>
           <p className="ticket-family">{ticket.familyName} Family</p>
+          <p className="ticket-payer">Paid by {ticket.payerName}</p>
+          {ticket.payerEmail && (
+            <p className="ticket-payer-email">{ticket.payerEmail}</p>
+          )}
         </div>
 
         <div className="ticket-qr">
@@ -116,7 +121,7 @@ export default function TicketPage() {
               <li key={i} className="ticket-attendee">
                 <span className="ticket-attendee-name">{a.name}</span>
                 <span className={`ticket-attendee-age age-${a.ageGroup.toLowerCase()}`}>
-                  {a.ageGroup}
+                  {ageLabel(a.ageGroup)}
                 </span>
                 {a.isGuest && <span className="ticket-guest-tag">Guest</span>}
               </li>

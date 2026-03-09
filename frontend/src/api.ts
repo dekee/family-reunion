@@ -46,7 +46,7 @@ export async function createRsvp(data: RsvpRequest): Promise<RsvpResponse> {
 export async function updateRsvp(id: number, data: RsvpRequest): Promise<RsvpResponse> {
   const res = await fetch(`${BASE_URL}/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders(),
     body: JSON.stringify(data),
   });
   return handleResponse(res);
@@ -188,7 +188,7 @@ export async function unregisterFromEvent(eventId: number, memberId: number): Pr
 const PAYMENTS_URL = '/api/payments';
 
 export async function fetchPaymentSummaries(): Promise<PaymentSummaryResponse[]> {
-  const res = await fetch(`${PAYMENTS_URL}/summary`);
+  const res = await fetch(`${PAYMENTS_URL}/summary`, { headers: authHeaders() });
   return handleResponse(res);
 }
 
@@ -221,6 +221,24 @@ export async function addAdminUser(data: { email: string; name: string }): Promi
 
 export async function removeAdminUser(id: number): Promise<void> {
   const res = await fetch(`${ADMIN_URL}/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+// --- Admin Reset ---
+
+export async function resetPayments(): Promise<{ deleted: number; message: string }> {
+  const res = await fetch(`${ADMIN_URL.replace('/users', '/reset/payments')}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+export async function resetCheckins(): Promise<{ reset: number; message: string }> {
+  const res = await fetch(`${ADMIN_URL.replace('/users', '/reset/checkins')}`, {
     method: 'DELETE',
     headers: authHeaders(),
   });

@@ -45,12 +45,38 @@ class PaymentService(
         }
 
         val rsvpId = request.rsvpId
-        val amountCents = request.amount
         val memberIds = request.memberIds
         val guests = request.guests
 
         val rsvp = rsvpRepository.findById(rsvpId)
             .orElseThrow { RsvpNotFoundException(rsvpId) }
+
+        // Calculate amount server-side from member age groups and guest age groups
+        val familyMembers = if (memberIds.isNotEmpty()) {
+            familyMemberRepository.findAllById(memberIds).associateBy { it.id }
+        } else emptyMap()
+
+        var calculatedAmountCents = 0L
+        for (memberId in memberIds) {
+            val member = familyMembers[memberId] ?: continue
+            calculatedAmountCents += feeForAgeGroup(member.ageGroup)
+        }
+        for (guest in guests) {
+            val ageGroup = try { AgeGroup.valueOf(guest.ageGroup) } catch (_: Exception) { AgeGroup.ADULT }
+            calculatedAmountCents += feeForAgeGroup(ageGroup)
+        }
+
+        if (calculatedAmountCents <= 0 && memberIds.isNotEmpty()) {
+            throw IllegalArgumentException("Calculated amount must be greater than zero")
+        }
+
+        // Verify client amount matches server calculation
+        if (request.amount != calculatedAmountCents) {
+            log.warn("Amount mismatch for rsvp $rsvpId: client sent ${request.amount}, server calculated $calculatedAmountCents")
+            throw IllegalArgumentException(
+                "Amount mismatch. Expected $calculatedAmountCents cents, got ${request.amount}. Please refresh and try again."
+            )
+        }
 
         val successUrlWithRsvp = "${stripeConfig.successUrl}&rsvpId=$rsvpId"
         val cancelUrlWithRsvp = "${stripeConfig.cancelUrl}&rsvpId=$rsvpId"
@@ -60,14 +86,13 @@ class PaymentService(
             .setSuccessUrl(successUrlWithRsvp)
             .setCancelUrl(cancelUrlWithRsvp)
             .putMetadata("rsvpId", rsvpId.toString())
-            .setCustomerEmail(rsvp.email)
             .addLineItem(
                 SessionCreateParams.LineItem.builder()
                     .setQuantity(1L)
                     .setPriceData(
                         SessionCreateParams.LineItem.PriceData.builder()
                             .setCurrency("usd")
-                            .setUnitAmount(amountCents)
+                            .setUnitAmount(calculatedAmountCents)
                             .setProductData(
                                 SessionCreateParams.LineItem.PriceData.ProductData.builder()
                                     .setName("Tumblin Family Reunion – ${rsvp.familyName} Family")
@@ -84,7 +109,7 @@ class PaymentService(
 
         val payment = Payment(
             rsvp = rsvp,
-            amount = BigDecimal.valueOf(amountCents).divide(BigDecimal(100)),
+            amount = BigDecimal.valueOf(calculatedAmountCents).divide(BigDecimal(100)),
             stripeSessionId = session.id,
             status = PaymentStatus.PENDING,
             createdAt = LocalDateTime.now()
@@ -92,18 +117,9 @@ class PaymentService(
         paymentRepository.save(payment)
 
         // Save line items for member tracking
-        val familyMembers = if (memberIds.isNotEmpty()) {
-            familyMemberRepository.findAllById(memberIds).associateBy { it.id }
-        } else emptyMap()
-
         for (memberId in memberIds) {
             val member = familyMembers[memberId] ?: continue
-            val fee = when (member.ageGroup) {
-                AgeGroup.ADULT -> ADULT_FEE
-                AgeGroup.SPOUSE -> SPOUSE_FEE
-                AgeGroup.CHILD -> CHILD_FEE
-                AgeGroup.INFANT -> INFANT_FEE
-            }
+            val fee = feeForAgeGroup(member.ageGroup)
             val lineItem = PaymentLineItem(
                 payment = payment,
                 familyMemberId = memberId,
@@ -116,11 +132,12 @@ class PaymentService(
 
         for (guest in guests) {
             val ageGroup = try { AgeGroup.valueOf(guest.ageGroup) } catch (_: Exception) { AgeGroup.ADULT }
+            val fee = feeForAgeGroup(ageGroup)
             val lineItem = PaymentLineItem(
                 payment = payment,
                 guestName = guest.name,
                 ageGroup = ageGroup,
-                amount = BigDecimal.valueOf(guest.fee).divide(BigDecimal(100))
+                amount = BigDecimal.valueOf(fee).divide(BigDecimal(100))
             )
             payment.lineItems.add(lineItem)
         }
@@ -130,6 +147,13 @@ class PaymentService(
         }
 
         return session.url
+    }
+
+    private fun feeForAgeGroup(ageGroup: AgeGroup): Long = when (ageGroup) {
+        AgeGroup.ADULT -> ADULT_FEE
+        AgeGroup.SPOUSE -> SPOUSE_FEE
+        AgeGroup.CHILD -> CHILD_FEE
+        AgeGroup.INFANT -> INFANT_FEE
     }
 
     private val log = org.slf4j.LoggerFactory.getLogger(PaymentService::class.java)
@@ -143,11 +167,15 @@ class PaymentService(
             // Try SDK deserialization first, fall back to raw JSON parsing
             var sessionId: String? = null
             var paymentIntentId: String? = null
+            var payerName: String? = null
+            var payerEmail: String? = null
 
             val session = event.dataObjectDeserializer.`object`.orElse(null) as? Session
             if (session != null) {
                 sessionId = session.id
                 paymentIntentId = session.paymentIntent
+                payerName = session.customerDetails?.name
+                payerEmail = session.customerDetails?.email
             } else {
                 // Fall back: parse from raw JSON
                 log.info("SDK deserialization failed, parsing raw JSON")
@@ -157,6 +185,11 @@ class PaymentService(
                     val node = mapper.readTree(rawJson)
                     sessionId = node.get("id")?.asText()
                     paymentIntentId = node.get("payment_intent")?.asText()
+                    val customerDetails = node.get("customer_details")
+                    if (customerDetails != null) {
+                        payerName = customerDetails.get("name")?.asText()
+                        payerEmail = customerDetails.get("email")?.asText()
+                    }
                 }
             }
 
@@ -180,6 +213,8 @@ class PaymentService(
 
             existing.status = PaymentStatus.COMPLETED
             existing.stripePaymentIntentId = paymentIntentId
+            existing.payerName = payerName
+            existing.payerEmail = payerEmail
             paymentRepository.save(existing)
             log.info("Payment ${existing.id} updated to COMPLETED for rsvp ${existing.rsvp?.id}")
         }
@@ -252,6 +287,23 @@ class PaymentService(
             }
         }
         return BigDecimal.valueOf(totalCents).divide(BigDecimal(100))
+    }
+
+    fun resetAllPayments(): Int {
+        val count = paymentRepository.count().toInt()
+        paymentLineItemRepository.deleteAll()
+        paymentRepository.deleteAll()
+        return count
+    }
+
+    fun resetAllCheckins(): Int {
+        val payments = paymentRepository.findAll().filter { it.checkedIn }
+        payments.forEach {
+            it.checkedIn = false
+            it.checkedInAt = null
+            paymentRepository.save(it)
+        }
+        return payments.size
     }
 
     private fun toPaymentResponse(payment: Payment, rsvp: Rsvp) = PaymentResponse(

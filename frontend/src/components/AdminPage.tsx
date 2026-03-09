@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchAdminUsers, addAdminUser, removeAdminUser } from '../api';
+import { fetchAdminUsers, addAdminUser, removeAdminUser, resetPayments, resetCheckins } from '../api';
 import type { AdminUserResponse } from '../types';
 import { useToast } from './Toast';
 import './AdminPage.css';
@@ -74,6 +74,54 @@ export default function AdminPage() {
             ))}
           </div>
         )}
+      </div>
+
+      <div className="admin-danger-zone">
+        <h3>Danger Zone</h3>
+        <p className="admin-danger-desc">These actions are destructive and cannot be undone.</p>
+        <div className="admin-danger-actions">
+          <div className="admin-danger-item">
+            <div>
+              <strong>Clear All Check-Ins</strong>
+              <span>Reset all families to "not checked in" status</span>
+            </div>
+            <button
+              className="btn-danger"
+              onClick={async () => {
+                if (!window.confirm('Clear all check-ins? This cannot be undone.')) return;
+                try {
+                  const res = await resetCheckins();
+                  showToast(res.message);
+                } catch (err: any) {
+                  showToast(err.message || 'Failed to reset check-ins', 'error');
+                }
+              }}
+            >
+              Clear Check-Ins
+            </button>
+          </div>
+          <div className="admin-danger-item">
+            <div>
+              <strong>Delete All Payments</strong>
+              <span>Remove all payment records and line items</span>
+            </div>
+            <button
+              className="btn-danger"
+              onClick={async () => {
+                if (!window.confirm('DELETE all payments? This removes all payment records and ticket data. This cannot be undone.')) return;
+                if (!window.confirm('Are you sure? This will delete ALL payment data.')) return;
+                try {
+                  const res = await resetPayments();
+                  showToast(res.message);
+                } catch (err: any) {
+                  showToast(err.message || 'Failed to reset payments', 'error');
+                }
+              }}
+            >
+              Delete All Payments
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="admin-form">

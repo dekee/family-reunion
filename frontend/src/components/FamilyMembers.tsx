@@ -3,6 +3,7 @@ import { fetchFamilyTree, createFamilyMember, updateFamilyMember, deleteFamilyMe
 import { useAuth } from '../AuthContext';
 import { getBranchColor } from '../branchColors';
 import type { FamilyTreeNode, AgeGroup, FamilyMemberRequest } from '../types';
+import { ageLabel, ageLabelWithRange } from '../constants/ageGroups';
 import { useToast } from './Toast';
 import { SkeletonCard } from './Skeleton';
 import './FamilyMembers.css';
@@ -232,10 +233,10 @@ export default function FamilyMembers() {
                   <label>
                     Age Group
                     <select value={formAgeGroup} onChange={e => setFormAgeGroup(e.target.value as AgeGroup)}>
-                      <option value="ADULT">Adult</option>
-                      <option value="SPOUSE">Spouse</option>
-                      <option value="CHILD">Child</option>
-                      <option value="INFANT">Infant</option>
+                      <option value="ADULT">{ageLabelWithRange('ADULT')}</option>
+                      <option value="SPOUSE">{ageLabelWithRange('SPOUSE')}</option>
+                      <option value="CHILD">{ageLabelWithRange('CHILD')}</option>
+                      <option value="INFANT">{ageLabelWithRange('INFANT')}</option>
                     </select>
                   </label>
                   {!editingId && (
@@ -316,7 +317,7 @@ export default function FamilyMembers() {
                       <span className="member-indent" style={{ width: member.depth * 24 }} />
                       <div className="member-info">
                         <span className="member-name">{member.name}</span>
-                        <span className="member-age-group">{member.ageGroup}</span>
+                        <span className="member-age-group">{ageLabel(member.ageGroup)}</span>
                       </div>
                       {isAdmin && (
                         <div className="member-actions">

@@ -6,6 +6,7 @@ data class TicketResponse(
     val checkinToken: String,
     val familyName: String,
     val payerName: String,
+    val payerEmail: String? = null,
     val amount: BigDecimal,
     val checkedIn: Boolean,
     val checkedInAt: String? = null,

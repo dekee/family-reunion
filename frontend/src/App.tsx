@@ -14,7 +14,9 @@ import Budget from './components/Budget';
 import PayAndRsvp from './components/PayAndRsvp';
 import TicketPage from './components/TicketPage';
 import AdminPage from './components/AdminPage';
+import CheckinDashboard from './components/CheckinDashboard';
 import Gallery from './components/Gallery';
+import CommandPalette from './components/CommandPalette';
 import { ToastProvider } from './components/Toast';
 import type { RsvpResponse } from './types';
 import './App.css';
@@ -84,6 +86,7 @@ function App() {
   return (
     <BrowserRouter>
       <ToastProvider>
+        <CommandPalette />
         <div className="app">
           <header className="app-header">
             <div className="header-top">
@@ -139,6 +142,7 @@ function App() {
               <NavLink to="/family-tree" onClick={closeMenu}>Family Tree</NavLink>
               <NavLink to="/gallery" onClick={closeMenu}>Gallery</NavLink>
               {isAdmin && <NavLink to="/rsvp" className="nav-admin" onClick={closeMenu}>RSVP</NavLink>}
+              {isAdmin && <NavLink to="/checkin" className="nav-admin" onClick={closeMenu}>Check-In</NavLink>}
               {isAdmin && <NavLink to="/admin" className="nav-admin" onClick={closeMenu}>Admin</NavLink>}
             </nav>
           </header>
@@ -155,6 +159,7 @@ function App() {
               <Route path="/members" element={<FamilyMembers />} />
               <Route path="/family-tree" element={<FamilyTree />} />
               <Route path="/gallery" element={<Gallery />} />
+              {isAdmin && <Route path="/checkin" element={<CheckinDashboard />} />}
               {isAdmin && <Route path="/admin" element={<AdminPage />} />}
             </Routes>
           </main>

@@ -45,26 +45,26 @@ class SecurityIntegrationTest @Autowired constructor(
     }
 
     @Test
-    fun `PUT rsvp should be public`() {
+    fun `PUT rsvp should return 401 without auth`() {
         mockMvc.perform(
             put("/api/rsvp/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"familyName":"Test","headOfHouseholdName":"Test","email":"t@t.com","attendees":[{"guestName":"A","guestAgeGroup":"ADULT"}],"needsLodging":false}""")
         )
-            .andExpect(status().isNotFound)
+            .andExpect(status().isUnauthorized)
     }
 
-    // --- Protected endpoints should deny anonymous users ---
-
     @Test
-    fun `POST rsvp should return 401 without auth`() {
+    fun `POST rsvp should be public`() {
         mockMvc.perform(
             post("/api/rsvp")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"familyName":"Test","headOfHouseholdName":"Test","email":"t@t.com","attendees":[{"guestName":"A","guestAgeGroup":"ADULT"}],"needsLodging":false}""")
         )
-            .andExpect(status().isUnauthorized)
+            .andExpect(status().isCreated)
     }
+
+    // --- Protected endpoints should deny anonymous users ---
 
     @Test
     fun `DELETE rsvp should return 401 without auth`() {
@@ -132,14 +132,14 @@ class SecurityIntegrationTest @Autowired constructor(
             .andExpect(status().isCreated)
     }
 
-    // --- Non-admin Google user should be rejected ---
+    // --- Non-admin Google user should be rejected for admin endpoints ---
 
     @Test
-    fun `POST rsvp should return 401 for non-admin Google user`() {
+    fun `PUT rsvp should return 401 for non-admin Google user`() {
         whenever(googleTokenVerifier.verify(any())).thenReturn(GoogleUserInfo("nobody@test.com", "Nobody"))
 
         mockMvc.perform(
-            post("/api/rsvp")
+            put("/api/rsvp/999")
                 .header("Authorization", "Bearer some-token")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"familyName":"Test","headOfHouseholdName":"Test","email":"t@t.com","attendees":[{"guestName":"A","guestAgeGroup":"ADULT"}],"needsLodging":false}""")

@@ -338,9 +338,40 @@
   flex-shrink: 0;
 }
 
-.age-adult, .age-spouse {
+.pay-age-legend {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #666);
+}
+
+.pay-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pay-legend-pill {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0.15rem 0.5rem;
+  border-radius: 20px;
+}
+
+.age-adult {
   background: rgba(26, 35, 66, 0.1);
   color: var(--color-navy-primary);
+}
+
+.age-spouse {
+  background: rgba(39, 174, 96, 0.12);
+  color: #1e8449;
 }
 
 .age-child {
@@ -353,9 +384,14 @@
   color: #8e44ad;
 }
 
-[data-theme="dark"] .age-adult, [data-theme="dark"] .age-spouse {
+[data-theme="dark"] .age-adult {
   background: rgba(212, 175, 55, 0.15);
   color: var(--color-gold);
+}
+
+[data-theme="dark"] .age-spouse {
+  background: rgba(39, 174, 96, 0.2);
+  color: #58d68d;
 }
 
 [data-theme="dark"] .age-child {

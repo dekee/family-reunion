@@ -73,6 +73,20 @@
   letter-spacing: 0.3px;
 }
 
+.ticket-payer {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ticket-payer-email {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.6);
+}
+
 /* QR code area */
 .ticket-qr {
   display: flex;
@@ -169,10 +183,14 @@
   border-radius: 20px;
 }
 
-.ticket-attendee-age.age-adult,
-.ticket-attendee-age.age-spouse {
+.ticket-attendee-age.age-adult {
   background: rgba(26, 35, 66, 0.1);
   color: var(--color-navy-primary);
+}
+
+.ticket-attendee-age.age-spouse {
+  background: rgba(39, 174, 96, 0.12);
+  color: #1e8449;
 }
 
 .ticket-attendee-age.age-child {
@@ -185,10 +203,14 @@
   color: #8e44ad;
 }
 
-[data-theme="dark"] .ticket-attendee-age.age-adult,
-[data-theme="dark"] .ticket-attendee-age.age-spouse {
+[data-theme="dark"] .ticket-attendee-age.age-adult {
   background: rgba(212, 175, 55, 0.15);
   color: var(--color-gold);
+}
+
+[data-theme="dark"] .ticket-attendee-age.age-spouse {
+  background: rgba(39, 174, 96, 0.2);
+  color: #58d68d;
 }
 
 [data-theme="dark"] .ticket-attendee-age.age-child {

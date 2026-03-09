@@ -54,6 +54,7 @@
 .dot-blue { background: var(--color-navy-secondary); }
 .dot-red { background: var(--color-error); }
 .dot-teal { background: #1a8a6e; }
+.dot-purple { background: #8e44ad; }
 
 /* Branch tabs */
 .branch-tabs {
