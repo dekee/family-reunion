@@ -151,7 +151,6 @@ export default function CheckinDashboard() {
                   <span>{t.attendees.length} attendee{t.attendees.length !== 1 ? 's' : ''}</span>
                   <span>{dollars(t.amount)}</span>
                   <span>{t.payerName}</span>
-                  {t.payerEmail && <span className="checkin-card-email">{t.payerEmail}</span>}
                 </div>
               </div>
 

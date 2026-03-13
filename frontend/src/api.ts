@@ -1,4 +1,4 @@
-import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, CheckoutRequest, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse } from './types';
+import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, PaymentDetailResponse, CheckoutRequest, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse, AngelContributor } from './types';
 
 const BASE_URL = '/api/rsvp';
 
@@ -187,8 +187,25 @@ export async function unregisterFromEvent(eventId: number, memberId: number): Pr
 
 const PAYMENTS_URL = '/api/payments';
 
+export interface FeeSchedule {
+  ADULT: number;
+  SPOUSE: number;
+  CHILD: number;
+  INFANT: number;
+}
+
+export async function fetchFees(): Promise<FeeSchedule> {
+  const res = await fetch(`${PAYMENTS_URL}/fees`);
+  return handleResponse(res);
+}
+
 export async function fetchPaymentSummaries(): Promise<PaymentSummaryResponse[]> {
-  const res = await fetch(`${PAYMENTS_URL}/summary`, { headers: authHeaders() });
+  const res = await fetch(`${PAYMENTS_URL}/summary`);
+  return handleResponse(res);
+}
+
+export async function fetchPaymentHistory(): Promise<PaymentDetailResponse[]> {
+  const res = await fetch(`${PAYMENTS_URL}/history`, { headers: authHeaders() });
   return handleResponse(res);
 }
 
@@ -198,6 +215,11 @@ export async function createCheckoutSession(data: CheckoutRequest): Promise<{ ur
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
+  return handleResponse(res);
+}
+
+export async function fetchAngelContributors(): Promise<AngelContributor[]> {
+  const res = await fetch(`${PAYMENTS_URL}/angels`);
   return handleResponse(res);
 }
 

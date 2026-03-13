@@ -12,5 +12,7 @@ data class CheckoutRequest(
 
     val memberIds: List<Long> = emptyList(),
 
-    val guests: List<CheckoutGuestInfo> = emptyList()
+    val guests: List<CheckoutGuestInfo> = emptyList(),
+
+    val angelAmount: Long = 0
 )

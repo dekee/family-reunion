@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Link } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from './AuthContext';
 import HomePage from './components/HomePage';
@@ -14,8 +14,10 @@ import Budget from './components/Budget';
 import PayAndRsvp from './components/PayAndRsvp';
 import TicketPage from './components/TicketPage';
 import AdminPage from './components/AdminPage';
+import PaymentHistory from './components/PaymentHistory';
 import CheckinDashboard from './components/CheckinDashboard';
 import Gallery from './components/Gallery';
+import ThankYou from './components/ThankYou';
 import CommandPalette from './components/CommandPalette';
 import { ToastProvider } from './components/Toast';
 import type { RsvpResponse } from './types';
@@ -66,6 +68,18 @@ function RsvpPage() {
         onDeleted={refresh}
       />
     </>
+  );
+}
+
+function NotFound() {
+  return (
+    <div style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
+      <h2>Page Not Found</h2>
+      <p style={{ color: 'var(--color-text-secondary)', marginBottom: '1.5rem' }}>
+        The page you're looking for doesn't exist.
+      </p>
+      <Link to="/" className="btn-primary" style={{ textDecoration: 'none' }}>Go Home</Link>
+    </div>
   );
 }
 
@@ -137,12 +151,14 @@ function App() {
               <NavLink to="/pay" onClick={closeMenu}>Pay & RSVP</NavLink>
               <NavLink to="/events" onClick={closeMenu}>Events</NavLink>
               <NavLink to="/meetings" onClick={closeMenu}>Meetings</NavLink>
-              <NavLink to="/budget" onClick={closeMenu}>Budget</NavLink>
+              {isAdmin && <NavLink to="/budget" className="nav-admin" onClick={closeMenu}>Budget</NavLink>}
               <NavLink to="/members" onClick={closeMenu}>Members</NavLink>
               <NavLink to="/family-tree" onClick={closeMenu}>Family Tree</NavLink>
               <NavLink to="/gallery" onClick={closeMenu}>Gallery</NavLink>
+              <NavLink to="/thank-you" onClick={closeMenu}>Thank You</NavLink>
               {isAdmin && <NavLink to="/rsvp" className="nav-admin" onClick={closeMenu}>RSVP</NavLink>}
               {isAdmin && <NavLink to="/checkin" className="nav-admin" onClick={closeMenu}>Check-In</NavLink>}
+              {isAdmin && <NavLink to="/payments" className="nav-admin" onClick={closeMenu}>Payments</NavLink>}
               {isAdmin && <NavLink to="/admin" className="nav-admin" onClick={closeMenu}>Admin</NavLink>}
             </nav>
           </header>
@@ -153,14 +169,18 @@ function App() {
               <Route path="/rsvp" element={<RsvpPage />} />
               <Route path="/events" element={<Events />} />
               <Route path="/meetings" element={<Meetings />} />
-              <Route path="/budget" element={<Budget />} />
+              {isAdmin && <Route path="/budget" element={<Budget />} />}
               <Route path="/pay" element={<PayAndRsvp />} />
+              <Route path="/pay/:branch" element={<PayAndRsvp />} />
               <Route path="/ticket/:token" element={<TicketPage />} />
               <Route path="/members" element={<FamilyMembers />} />
               <Route path="/family-tree" element={<FamilyTree />} />
               <Route path="/gallery" element={<Gallery />} />
+              <Route path="/thank-you" element={<ThankYou />} />
               {isAdmin && <Route path="/checkin" element={<CheckinDashboard />} />}
+              {isAdmin && <Route path="/payments" element={<PaymentHistory />} />}
               {isAdmin && <Route path="/admin" element={<AdminPage />} />}
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
         </div>

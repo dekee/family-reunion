@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { fetchFamilyTree, fetchPaymentSummaries } from '../api';
-import { ADULT_FEE, CHILD_FEE } from '../constants/ageGroups';
+import { fetchFamilyTree, fetchPaymentSummaries, fetchFees } from '../api';
+import { feeForAge, setFees } from '../constants/ageGroups';
 import { dollars } from '../utils/formatting';
 import type { FamilyTreeNode, PaymentSummaryResponse } from '../types';
 import { SkeletonCard } from './Skeleton';
@@ -49,14 +49,21 @@ export default function Budget() {
 
   const paymentStatus = searchParams.get('payment');
 
+  const [loadError, setLoadError] = useState('');
+
   const load = () => {
     setLoading(true);
-    Promise.all([fetchFamilyTree(), fetchPaymentSummaries()])
-      .then(([tree, p]) => {
+    setLoadError('');
+    Promise.all([fetchFamilyTree(), fetchPaymentSummaries(), fetchFees()])
+      .then(([tree, p, fees]) => {
+        setFees(fees);
         setMemberCounts(buildTotals(tree.roots));
         setPayments(p);
       })
-      .catch(console.error)
+      .catch((err) => {
+        console.error(err);
+        setLoadError('Unable to load data. Please check your connection and try again.');
+      })
       .finally(() => setLoading(false));
   };
 
@@ -70,11 +77,21 @@ export default function Budget() {
       </div>
     </div>
   );
+  if (loadError) return (
+    <div className="budget-page">
+      <div className="page-header"><h2>Reunion Budget</h2><p>Cost estimates based on family members</p></div>
+      <div className="pay-load-error">
+        <p>{loadError}</p>
+        <button onClick={load} className="pay-retry-btn">Try Again</button>
+      </div>
+    </div>
+  );
   if (!memberCounts) return <p>Unable to load member data.</p>;
 
-  const adultTotal = memberCounts.adultCount * ADULT_FEE;
-  const childTotal = memberCounts.childCount * CHILD_FEE;
-  const grandTotal = adultTotal + childTotal;
+  const adultTotal = memberCounts.adultCount * feeForAge('ADULT');
+  const childTotal = memberCounts.childCount * feeForAge('CHILD');
+  const infantTotal = memberCounts.infantCount * feeForAge('INFANT');
+  const grandTotal = adultTotal + childTotal + infantTotal;
 
   return (
     <div className="budget-page">
@@ -105,7 +122,7 @@ export default function Budget() {
         </div>
         <div className="budget-summary-card">
           <span className="budget-summary-number">{memberCounts.infantCount}</span>
-          <span className="budget-summary-label">Under 5 (free)</span>
+          <span className="budget-summary-label">Under 5 (t-shirt)</span>
         </div>
       </div>
 
@@ -115,7 +132,7 @@ export default function Budget() {
           <div className="budget-row-label">
             <span className="budget-row-title">Adults / Spouses (18+)</span>
             <span className="budget-row-detail">
-              {memberCounts.adultCount} x {dollars(ADULT_FEE)} per person
+              {memberCounts.adultCount} x {dollars(feeForAge('ADULT'))} per person
             </span>
           </div>
           <span className="budget-row-range">{dollars(adultTotal)}</span>
@@ -125,7 +142,7 @@ export default function Budget() {
           <div className="budget-row-label">
             <span className="budget-row-title">Children (6–17)</span>
             <span className="budget-row-detail">
-              {memberCounts.childCount} x {dollars(CHILD_FEE)} per person
+              {memberCounts.childCount} x {dollars(feeForAge('CHILD'))} per person
             </span>
           </div>
           <span className="budget-row-range">{dollars(childTotal)}</span>
@@ -133,10 +150,12 @@ export default function Budget() {
 
         <div className="budget-row">
           <div className="budget-row-label">
-            <span className="budget-row-title">Under 5 (0–5)</span>
-            <span className="budget-row-detail">{memberCounts.infantCount} — no cost</span>
+            <span className="budget-row-title">Under 5 (0–5) — t-shirt</span>
+            <span className="budget-row-detail">
+              {memberCounts.infantCount} x {dollars(feeForAge('INFANT'))} per person
+            </span>
           </div>
-          <span className="budget-row-range">$0</span>
+          <span className="budget-row-range">{dollars(infantTotal)}</span>
         </div>
 
         <div className="budget-total">
@@ -162,11 +181,11 @@ export default function Budget() {
                 <span className="budget-summary-label">Total Collected</span>
               </div>
               <div className="budget-summary-card">
-                <span className="budget-summary-number">{dollars(payments.reduce((s, p) => s + p.balance, 0))}</span>
+                <span className="budget-summary-number">{dollars(Math.max(0, grandTotal - payments.reduce((s, p) => s + p.totalPaid, 0)))}</span>
                 <span className="budget-summary-label">Remaining Balance</span>
               </div>
               <div className="budget-summary-card">
-                <span className="budget-summary-number">{payments.filter(p => p.status === 'PAID').length} / {payments.length}</span>
+                <span className="budget-summary-number">{payments.filter(p => p.totalPaid >= p.totalOwed && p.totalPaid > 0).length} / {payments.length}</span>
                 <span className="budget-summary-label">Families Paid</span>
               </div>
             </div>

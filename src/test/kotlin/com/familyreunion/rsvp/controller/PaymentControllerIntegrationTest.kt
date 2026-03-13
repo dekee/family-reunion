@@ -149,7 +149,7 @@ class PaymentControllerIntegrationTest @Autowired constructor(
     }
 
     @Test
-    fun `GET summary infant fee is zero`() {
+    fun `GET summary infant fee is included`() {
         val attendees = listOf(
             AttendeeDto(guestName = "Parent", guestAgeGroup = AgeGroup.ADULT),
             AttendeeDto(guestName = "Baby", guestAgeGroup = AgeGroup.INFANT)
@@ -167,9 +167,9 @@ class PaymentControllerIntegrationTest @Autowired constructor(
                 .content(objectMapper.writeValueAsString(request))
         )
 
-        // Adult $100 + Infant $0 = $100
+        // Adult $100 + Infant $15 = $115
         mockMvc.perform(get("/api/payments/summary"))
-            .andExpect(jsonPath("$[0].totalOwed").value(100.0))
+            .andExpect(jsonPath("$[0].totalOwed").value(115.0))
     }
 
     // --- Checkout contract tests ---

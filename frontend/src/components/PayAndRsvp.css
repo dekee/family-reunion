@@ -3,6 +3,70 @@
   color: var(--color-text-heading);
 }
 
+.pay-load-error {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  margin-top: 1rem;
+}
+
+.pay-load-error p {
+  color: var(--color-text-secondary);
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+}
+
+.pay-retry-btn {
+  padding: 0.6rem 1.5rem;
+  background: var(--color-primary, #1a2342);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.pay-retry-btn:hover {
+  opacity: 0.9;
+}
+
+/* Payment overview summary */
+.pay-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.pay-overview-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 1rem;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+}
+
+.pay-overview-number {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-heading);
+}
+
+.pay-overview-green { color: var(--color-success, #27ae60); }
+.pay-overview-amber { color: var(--color-warning, #f39c12); }
+
+.pay-overview-label {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .pay-section-title {
   color: var(--color-text-heading);
   margin-bottom: 1rem;
@@ -698,8 +762,155 @@
   font-style: italic;
 }
 
+.pay-summary-angel-note {
+  font-style: italic;
+  color: var(--color-warning, #e67e22) !important;
+}
+
+.pay-summary-angel-note span:last-child {
+  color: var(--color-warning, #e67e22) !important;
+  font-weight: 700;
+}
+
+/* Angel Contributor section */
+.pay-angel-section {
+  margin-bottom: 1.5rem;
+}
+
+.pay-angel-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  background: var(--color-bg-card);
+  border: 2px dashed var(--color-warning, #e67e22);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+  text-align: left;
+}
+
+.pay-angel-btn:hover {
+  background: rgba(230, 126, 34, 0.04);
+  border-color: #d35400;
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .pay-angel-btn:hover {
+  background: rgba(230, 126, 34, 0.08);
+}
+
+.pay-angel-btn-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.pay-angel-btn-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.pay-angel-btn-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-warning, #e67e22);
+}
+
+.pay-angel-btn-hint {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.pay-angel-form {
+  background: var(--color-bg-card);
+  border: 2px solid var(--color-warning, #e67e22);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+}
+
+.pay-angel-description {
+  margin-bottom: 0.75rem;
+}
+
+.pay-angel-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-warning, #e67e22);
+}
+
+.pay-angel-description p {
+  margin: 0.3rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.pay-angel-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pay-angel-dollar-sign {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-heading);
+}
+
+.pay-angel-amount-input {
+  flex: 1;
+  max-width: 120px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-sm);
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-family: inherit;
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+}
+
+.pay-angel-amount-input:focus {
+  outline: none;
+  border-color: var(--color-warning, #e67e22);
+  box-shadow: 0 0 0 2px rgba(230, 126, 34, 0.2);
+}
+
+/* Hide number input spinners */
+.pay-angel-amount-input::-webkit-inner-spin-button,
+.pay-angel-amount-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.pay-angel-amount-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.pay-angel-clear-btn {
+  background: var(--color-bg-cancel);
+  color: var(--color-text-primary);
+  border: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-family: inherit;
+}
+
+.pay-angel-clear-btn:hover {
+  background: var(--color-bg-cancel-hover);
+}
+
+
 /* Responsive */
 @media (max-width: 600px) {
+  .pay-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
   .pay-branch-grid {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }

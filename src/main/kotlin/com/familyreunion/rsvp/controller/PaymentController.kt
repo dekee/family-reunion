@@ -1,6 +1,9 @@
 package com.familyreunion.rsvp.controller
 
+import com.familyreunion.rsvp.config.FeeConfig
+import com.familyreunion.rsvp.dto.AngelContributorResponse
 import com.familyreunion.rsvp.dto.CheckoutRequest
+import com.familyreunion.rsvp.dto.PaymentDetailResponse
 import com.familyreunion.rsvp.dto.PaymentSummaryResponse
 import com.familyreunion.rsvp.service.PaymentService
 import jakarta.servlet.http.HttpServletRequest
@@ -11,9 +14,22 @@ import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/payments")
-class PaymentController(private val paymentService: PaymentService) {
+class PaymentController(
+    private val paymentService: PaymentService,
+    private val feeConfig: FeeConfig
+) {
 
     private val log = LoggerFactory.getLogger(PaymentController::class.java)
+
+    @GetMapping("/fees")
+    fun getFees(): ResponseEntity<Map<String, Long>> {
+        return ResponseEntity.ok(mapOf(
+            "ADULT" to feeConfig.adult,
+            "SPOUSE" to feeConfig.spouse,
+            "CHILD" to feeConfig.child,
+            "INFANT" to feeConfig.infant
+        ))
+    }
 
     @PostMapping("/checkout")
     fun createCheckout(@Valid @RequestBody request: CheckoutRequest): ResponseEntity<Map<String, String>> {
@@ -50,5 +66,15 @@ class PaymentController(private val paymentService: PaymentService) {
     @GetMapping("/summary/{rsvpId}")
     fun getPaymentSummary(@PathVariable rsvpId: Long): ResponseEntity<PaymentSummaryResponse> {
         return ResponseEntity.ok(paymentService.getPaymentSummary(rsvpId))
+    }
+
+    @GetMapping("/history")
+    fun getPaymentHistory(): ResponseEntity<List<PaymentDetailResponse>> {
+        return ResponseEntity.ok(paymentService.getPaymentHistory())
+    }
+
+    @GetMapping("/angels")
+    fun getAngelContributors(): ResponseEntity<List<AngelContributorResponse>> {
+        return ResponseEntity.ok(paymentService.getAngelContributors())
     }
 }

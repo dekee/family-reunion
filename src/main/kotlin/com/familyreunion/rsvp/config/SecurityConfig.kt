@@ -40,6 +40,8 @@ class SecurityConfig(
                 // Public GET endpoints
                 auth.requestMatchers(HttpMethod.GET, "/api/rsvp/**").permitAll()
                 auth.requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
+                auth.requestMatchers(HttpMethod.GET, "/api/payments/fees").permitAll()
+                auth.requestMatchers(HttpMethod.GET, "/api/payments/angels").permitAll()
                 auth.requestMatchers(HttpMethod.GET, "/api/payments/summary/**").permitAll()
                 auth.requestMatchers(HttpMethod.GET, "/api/payments/summary").permitAll()
                 auth.requestMatchers(HttpMethod.GET, "/api/gallery/**").permitAll()

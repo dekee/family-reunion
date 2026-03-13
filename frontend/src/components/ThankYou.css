@@ -1,0 +1,241 @@
+.thankyou-page {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Hero section */
+.thankyou-hero {
+  position: relative;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  min-height: 320px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.thankyou-hero-overlay {
+  width: 100%;
+  padding: 5rem 1.5rem 1.5rem;
+  background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.55) 50%, rgba(0, 0, 0, 0.75) 100%);
+}
+
+.thankyou-hero-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.4rem;
+  color: #f5c542;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.thankyou-hero-desc {
+  margin: 0 auto;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
+  max-width: 550px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* Thermometer */
+.thermo-section {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-card);
+}
+
+.thermo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.75rem;
+}
+
+.thermo-raised {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--color-warning, #e67e22);
+}
+
+.thermo-goal {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.thermo-track {
+  position: relative;
+  height: 28px;
+  background: var(--color-border-light, var(--color-border));
+  border-radius: 14px;
+  overflow: visible;
+}
+
+.thermo-fill {
+  height: 100%;
+  border-radius: 14px;
+  background: linear-gradient(90deg, #f39c12, #e67e22, #d35400);
+  transition: width 1s ease;
+  position: relative;
+  min-width: 28px;
+}
+
+.thermo-fill-complete {
+  background: linear-gradient(90deg, #27ae60, #2ecc71);
+}
+
+.thermo-bulb {
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e67e22, #d35400);
+  border: 4px solid var(--color-bg-card);
+  box-shadow: 0 2px 8px rgba(230, 126, 34, 0.3);
+}
+
+.thermo-fill-complete ~ .thermo-bulb {
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+}
+
+.thermo-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.6rem;
+}
+
+.thermo-pct {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-warning, #e67e22);
+}
+
+.thermo-fill-complete ~ .thermo-bulb + .thermo-footer .thermo-pct {
+  color: #27ae60;
+}
+
+.thermo-remaining {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.thermo-angel-count {
+  text-align: center;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border-light, var(--color-border));
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+/* Card grid */
+.thankyou-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.thankyou-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 1.5rem 1rem;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  text-align: center;
+  position: relative;
+}
+
+.thankyou-card-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  background: rgba(230, 126, 34, 0.12);
+  color: #d35400;
+  margin-bottom: 0.25rem;
+}
+
+[data-theme="dark"] .thankyou-card-badge {
+  background: rgba(230, 126, 34, 0.2);
+  color: #f0a050;
+}
+
+.thankyou-card-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-heading);
+}
+
+.thankyou-card-family {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.thankyou-card-amount {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--color-warning, #e67e22);
+  margin-top: 0.25rem;
+}
+
+.thankyou-card-date {
+  font-size: 0.75rem;
+  color: var(--color-text-faint);
+}
+
+/* Empty state */
+.thankyou-empty {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+}
+
+.thankyou-empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.thankyou-empty h3 {
+  margin: 0 0 0.5rem;
+  color: var(--color-text-heading);
+}
+
+.thankyou-empty p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  max-width: 450px;
+  margin: 0 auto;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .thankyou-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .thankyou-grid {
+    grid-template-columns: 1fr;
+  }
+}

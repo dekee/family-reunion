@@ -94,9 +94,6 @@ export default function TicketPage() {
           <h2>Tumblin Family Reunion</h2>
           <p className="ticket-family">{ticket.familyName} Family</p>
           <p className="ticket-payer">Paid by {ticket.payerName}</p>
-          {ticket.payerEmail && (
-            <p className="ticket-payer-email">{ticket.payerEmail}</p>
-          )}
         </div>
 
         <div className="ticket-qr">

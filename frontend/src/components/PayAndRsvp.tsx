@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
-import { fetchFamilyTree, fetchPaymentSummaries, createCheckoutSession } from '../api';
+import { useSearchParams, useParams, useNavigate, Link } from 'react-router-dom';
+import { fetchFamilyTree, fetchPaymentSummaries, createCheckoutSession, fetchFees } from '../api';
 import { getBranchColor } from '../branchColors';
-import { ADULT_FEE, CHILD_FEE, feeForAge, ageLabel, ageLabelWithFee, AGE_GROUPS } from '../constants/ageGroups';
+import { feeForAge, ageLabel, ageLabelWithFee, setFees } from '../constants/ageGroups';
 import { dollars } from '../utils/formatting';
 import type { FamilyTreeNode, PaymentSummaryResponse, PaidGuestInfo } from '../types';
 import { SkeletonCard } from './Skeleton';
@@ -52,14 +52,20 @@ interface BranchData {
   paidGuests: PaidGuestInfo[];
 }
 
+function branchSlug(name: string): string {
+  return name.replace(/ - Done$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+}
+
 export default function PayAndRsvp() {
   const [branches, setBranches] = useState<BranchData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedBranch, setExpandedBranch] = useState<number | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [checkingOut, setCheckingOut] = useState(false);
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [searchParams] = useSearchParams();
+  const { branch: branchParam } = useParams<{ branch?: string }>();
+  const navigate = useNavigate();
 
   // Guest state
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -68,13 +74,19 @@ export default function PayAndRsvp() {
   const [guestName, setGuestName] = useState('');
   const [guestAgeGroup, setGuestAgeGroup] = useState<GuestAgeGroup>('ADULT');
 
+  // Angel contributor state
+  const [angelAmount, setAngelAmount] = useState('');
+  const [showAngelForm, setShowAngelForm] = useState(false);
+
   const paymentStatus = searchParams.get('payment');
   const returnRsvpId = searchParams.get('rsvpId');
 
-  useEffect(() => {
+  const loadData = () => {
     setLoading(true);
-    Promise.all([fetchFamilyTree(), fetchPaymentSummaries()])
-      .then(([tree, payments]) => {
+    setLoadError('');
+    Promise.all([fetchFamilyTree(), fetchPaymentSummaries(), fetchFees()])
+      .then(([tree, payments, fees]) => {
+        setFees(fees);
         const branchList: BranchData[] = [];
         for (const root of tree.roots) {
           for (const child of root.children) {
@@ -92,31 +104,43 @@ export default function PayAndRsvp() {
         }
         setBranches(branchList);
 
-        // Auto-expand the branch the user just paid for
-        if (returnRsvpId) {
+        // Auto-navigate to the branch the user just paid for
+        if (returnRsvpId && !branchParam) {
           const rsvpIdNum = Number(returnRsvpId);
           const match = branchList.find(b => b.payment?.rsvpId === rsvpIdNum);
           if (match) {
-            setExpandedBranch(match.node.id);
+            const slug = branchSlug(match.node.name);
+            navigate(`/pay/${slug}?${searchParams.toString()}`, { replace: true });
           }
         }
       })
-      .catch(console.error)
+      .catch((err) => {
+        console.error(err);
+        setLoadError('Unable to load payment data. Please check your connection and try again.');
+      })
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  // Resolve the active branch from the URL param
+  const expandedBranch = branchParam
+    ? branches.find(b => branchSlug(b.node.name) === branchParam)?.node.id ?? null
+    : null;
 
   const handleExpandBranch = (branchId: number) => {
+    const branch = branches.find(b => b.node.id === branchId);
+    if (!branch) return;
     if (expandedBranch === branchId) {
-      setExpandedBranch(null);
-      setSelected(new Set());
-      setGuests([]);
-      setShowGuestForm(false);
+      navigate('/pay');
     } else {
-      setExpandedBranch(branchId);
-      setSelected(new Set());
-      setGuests([]);
-      setShowGuestForm(false);
+      navigate(`/pay/${branchSlug(branch.node.name)}`);
     }
+    setSelected(new Set());
+    setGuests([]);
+    setShowGuestForm(false);
+    setAngelAmount('');
+    setShowAngelForm(false);
     setError('');
   };
 
@@ -163,7 +187,9 @@ export default function PayAndRsvp() {
     : [];
   const memberTotal = selectedMembers.reduce((sum, m) => sum + m.fee, 0);
   const guestTotal = guests.reduce((sum, g) => sum + g.fee, 0);
-  const selectedTotal = memberTotal + guestTotal;
+  const angelDollars = parseFloat(angelAmount) || 0;
+  const angelCents = Math.round(angelDollars * 100);
+  const selectedTotal = memberTotal + guestTotal + angelDollars;
 
   // Combined counts for summary
   const adultCount = selectedMembers.filter(m => m.ageGroup === 'ADULT' || m.ageGroup === 'SPOUSE').length
@@ -187,9 +213,10 @@ export default function PayAndRsvp() {
     try {
       const { url } = await createCheckoutSession({
         rsvpId: activeBranch.payment.rsvpId,
-        amount: selectedTotal * 100,
+        amount: Math.round(selectedTotal * 100),
         memberIds: selectedMembers.map(m => m.id),
         guests: guests.map(g => ({ name: g.name, ageGroup: g.ageGroup, fee: g.fee * 100 })),
+        angelAmount: angelCents > 0 ? angelCents : undefined,
       });
       window.location.href = url;
     } catch (err: any) {
@@ -208,6 +235,16 @@ export default function PayAndRsvp() {
     </div>
   );
 
+  if (loadError) return (
+    <div className="pay-rsvp-page">
+      <div className="page-header"><h2>Pay & RSVP</h2><p>Select your family and pay for attending members</p></div>
+      <div className="pay-load-error">
+        <p>{loadError}</p>
+        <button onClick={loadData} className="pay-retry-btn">Try Again</button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="pay-rsvp-page">
       <div className="page-header">
@@ -219,13 +256,10 @@ export default function PayAndRsvp() {
         <div className="payment-banner payment-success">
           <span>Payment successful! Thank you.</span>
           {(() => {
-            const rsvpIdNum = returnRsvpId ? Number(returnRsvpId) : null;
-            const match = rsvpIdNum ? branches.find(b => b.payment?.rsvpId === rsvpIdNum) : null;
-            const completedPayments = match?.payment?.payments?.filter(p => p.status === 'COMPLETED' && p.checkinToken) ?? [];
-            if (completedPayments.length === 0) return null;
-            const latestToken = completedPayments[completedPayments.length - 1].checkinToken;
+            const token = searchParams.get('token');
+            if (!token) return null;
             return (
-              <Link to={`/ticket/${latestToken}`} className="payment-ticket-link">
+              <Link to={`/ticket/${token}`} className="payment-ticket-link">
                 View Your Ticket & QR Code
               </Link>
             );
@@ -238,16 +272,41 @@ export default function PayAndRsvp() {
 
       {!expandedBranch ? (
         <>
+          {branches.length > 0 && (() => {
+            const overallTotal = branches.reduce((s, b) => s + b.members.reduce((ms, m) => ms + m.fee, 0), 0);
+            const overallPaid = branches.reduce((s, b) => s + (b.payment?.totalPaid ?? 0), 0);
+            const overallRemaining = Math.max(0, overallTotal - overallPaid);
+            const familiesPaid = branches.filter(b => {
+              const cost = b.members.reduce((s, m) => s + m.fee, 0);
+              return (b.payment?.totalPaid ?? 0) >= cost && (b.payment?.totalPaid ?? 0) > 0;
+            }).length;
+            return (
+              <div className="pay-overview-grid">
+                <div className="pay-overview-card">
+                  <span className="pay-overview-number pay-overview-green">{dollars(overallPaid)}</span>
+                  <span className="pay-overview-label">Total Collected</span>
+                </div>
+                <div className="pay-overview-card">
+                  <span className={`pay-overview-number ${overallRemaining > 0 ? 'pay-overview-amber' : 'pay-overview-green'}`}>{dollars(overallRemaining)}</span>
+                  <span className="pay-overview-label">Remaining Balance</span>
+                </div>
+                <div className="pay-overview-card">
+                  <span className="pay-overview-number">{familiesPaid} / {branches.length}</span>
+                  <span className="pay-overview-label">Families Paid</span>
+                </div>
+              </div>
+            );
+          })()}
+
           <h3 className="pay-section-title">Select Your Family Branch</h3>
           <div className="pay-branch-grid">
             {branches.map(b => {
               const branchName = b.node.name.replace(/ - Done$/, '');
               const branchColor = getBranchColor(branchName);
-              const fallbackTotal = b.members.reduce((sum, m) => sum + m.fee, 0);
-              const totalCost = b.payment?.totalOwed ?? fallbackTotal;
+              const totalCost = b.members.reduce((sum, m) => sum + m.fee, 0);
               const paid = b.payment?.totalPaid ?? 0;
+              const balance = Math.max(0, totalCost - paid);
               const paidPercent = totalCost > 0 ? Math.min(100, Math.round((paid / totalCost) * 100)) : 0;
-              const balance = b.payment?.balance ?? totalCost;
               const fullyPaid = balance <= 0 && paid > 0;
 
               return (
@@ -284,34 +343,40 @@ export default function PayAndRsvp() {
               );
             })}
           </div>
+
         </>
       ) : activeBranch && (
         <div className="pay-detail-view">
-          <button className="pay-back-btn" onClick={() => { setExpandedBranch(null); setSelected(new Set()); setGuests([]); }}>
+          <button className="pay-back-btn" onClick={() => { navigate('/pay'); setSelected(new Set()); setGuests([]); setAngelAmount(''); setShowAngelForm(false); }}>
             &larr; Back to all branches
           </button>
 
           <div className="pay-detail-header" style={{ borderLeftColor: getBranchColor(activeBranch.node.name.replace(/ - Done$/, '')) }}>
             <h3>{activeBranch.node.name.replace(/ - Done$/, '')} Family</h3>
             <p>{activeBranch.members.length} members</p>
-            {activeBranch.payment && (
-              <div className="pay-detail-stats">
-                <div className="pay-detail-stat">
-                  <span className="pay-detail-stat-label">Total</span>
-                  <span className="pay-detail-stat-value">{dollars(activeBranch.payment.totalOwed)}</span>
+            {(() => {
+              const detailTotal = activeBranch.members.reduce((sum, m) => sum + m.fee, 0);
+              const detailPaid = activeBranch.payment?.totalPaid ?? 0;
+              const detailBalance = Math.max(0, detailTotal - detailPaid);
+              return (
+                <div className="pay-detail-stats">
+                  <div className="pay-detail-stat">
+                    <span className="pay-detail-stat-label">Total</span>
+                    <span className="pay-detail-stat-value">{dollars(detailTotal)}</span>
+                  </div>
+                  <div className="pay-detail-stat">
+                    <span className="pay-detail-stat-label">Paid</span>
+                    <span className="pay-detail-stat-value pay-detail-stat-paid">{dollars(detailPaid)}</span>
+                  </div>
+                  <div className="pay-detail-stat">
+                    <span className="pay-detail-stat-label">Remaining</span>
+                    <span className={`pay-detail-stat-value ${detailBalance <= 0 ? 'pay-detail-stat-paid' : 'pay-detail-stat-due'}`}>
+                      {detailBalance <= 0 ? 'Paid in full' : dollars(detailBalance)}
+                    </span>
+                  </div>
                 </div>
-                <div className="pay-detail-stat">
-                  <span className="pay-detail-stat-label">Paid</span>
-                  <span className="pay-detail-stat-value pay-detail-stat-paid">{dollars(activeBranch.payment.totalPaid)}</span>
-                </div>
-                <div className="pay-detail-stat">
-                  <span className="pay-detail-stat-label">Remaining</span>
-                  <span className={`pay-detail-stat-value ${activeBranch.payment.balance <= 0 ? 'pay-detail-stat-paid' : 'pay-detail-stat-due'}`}>
-                    {activeBranch.payment.balance <= 0 ? 'Paid in full' : dollars(activeBranch.payment.balance)}
-                  </span>
-                </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           <div className="pay-select-controls">
@@ -329,10 +394,10 @@ export default function PayAndRsvp() {
           </div>
 
           <div className="pay-age-legend">
-            <span className="pay-legend-item"><span className="pay-legend-pill age-adult">Adult</span> ages 18+ · ${AGE_GROUPS.ADULT.fee} each</span>
-            <span className="pay-legend-item"><span className="pay-legend-pill age-spouse">Spouse</span> ages 18+ · ${AGE_GROUPS.SPOUSE.fee} each</span>
-            <span className="pay-legend-item"><span className="pay-legend-pill age-child">Child</span> ages 6 to 17 · ${AGE_GROUPS.CHILD.fee} each</span>
-            <span className="pay-legend-item"><span className="pay-legend-pill age-infant">Under 5</span> ages 0 to 5 · Free</span>
+            <span className="pay-legend-item"><span className="pay-legend-pill age-adult">Adult</span> ages 18+ · ${feeForAge('ADULT')} each</span>
+            <span className="pay-legend-item"><span className="pay-legend-pill age-spouse">Spouse</span> ages 18+ · ${feeForAge('SPOUSE')} each</span>
+            <span className="pay-legend-item"><span className="pay-legend-pill age-child">Child</span> ages 6 to 17 · ${feeForAge('CHILD')} each</span>
+            <span className="pay-legend-item"><span className="pay-legend-pill age-infant">Under 5</span> ages 0 to 5 · ${feeForAge('INFANT')} each (t-shirt)</span>
           </div>
 
           <div className="pay-members-list">
@@ -432,31 +497,74 @@ export default function PayAndRsvp() {
             )}
           </div>
 
-          {(selectedMembers.length > 0 || guests.length > 0) && (
+          {/* Angel Contributor */}
+          <div className="pay-angel-section">
+            {showAngelForm ? (
+              <div className="pay-angel-form">
+                <div className="pay-angel-description">
+                  <span className="pay-angel-title">Angel Contributor</span>
+                  <p>Your extra contribution helps enable family members who may not be able to cover their own fees to still participate in the reunion.</p>
+                </div>
+                <div className="pay-angel-input-row">
+                  <span className="pay-angel-dollar-sign">$</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="0"
+                    value={angelAmount}
+                    onChange={e => setAngelAmount(e.target.value)}
+                    className="pay-angel-amount-input"
+                    autoFocus
+                    onKeyDown={e => { if (e.key === 'Escape') { setShowAngelForm(false); setAngelAmount(''); } }}
+                  />
+                  <button className="pay-angel-clear-btn" onClick={() => { setShowAngelForm(false); setAngelAmount(''); }}>
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button className="pay-angel-btn" onClick={() => setShowAngelForm(true)}>
+                <span className="pay-angel-btn-icon">&#10084;&#65039;</span>
+                <span className="pay-angel-btn-text">
+                  <span className="pay-angel-btn-label">Become an Angel Contributor</span>
+                  <span className="pay-angel-btn-hint">Help a family member who can't cover their fees</span>
+                </span>
+              </button>
+            )}
+          </div>
+
+          {(selectedMembers.length > 0 || guests.length > 0 || angelDollars > 0) && (
             <div className="pay-summary-bar">
               <div className="pay-summary-details">
                 {adultCount > 0 && (
                   <div className="pay-summary-line">
                     <span>Adults/Spouses:</span>
-                    <span>{adultCount} x {dollars(ADULT_FEE)}</span>
+                    <span>{adultCount} x {dollars(feeForAge('ADULT'))}</span>
                   </div>
                 )}
                 {childCount > 0 && (
                   <div className="pay-summary-line">
                     <span>Children:</span>
-                    <span>{childCount} x {dollars(CHILD_FEE)}</span>
+                    <span>{childCount} x {dollars(feeForAge('CHILD'))}</span>
                   </div>
                 )}
                 {infantCount > 0 && (
                   <div className="pay-summary-line">
                     <span>Under 5:</span>
-                    <span>{infantCount} x Free</span>
+                    <span>{infantCount} x {dollars(feeForAge('INFANT'))} (t-shirt)</span>
                   </div>
                 )}
                 {guests.length > 0 && (
                   <div className="pay-summary-line pay-summary-guest-note">
                     <span>Includes {guests.length} guest{guests.length > 1 ? 's' : ''}</span>
                     <span>{dollars(guestTotal)}</span>
+                  </div>
+                )}
+                {angelDollars > 0 && (
+                  <div className="pay-summary-line pay-summary-angel-note">
+                    <span>Angel Contribution</span>
+                    <span>{dollars(angelDollars)}</span>
                   </div>
                 )}
               </div>

@@ -19,10 +19,12 @@ class CheckinController(
     private val notificationService: NotificationService
 ) {
 
-    // Rate limit: max 3 sends per token per 10 minutes
+    // Rate limit: max 3 sends per token per 10 minutes, max 10 lifetime sends per token
     private val sendRateLimit = ConcurrentHashMap<String, MutableList<Instant>>()
     private val rateLimitWindow = 600L // seconds
     private val rateLimitMax = 3
+    private val lifetimeSendCount = ConcurrentHashMap<String, Int>()
+    private val lifetimeSendMax = 10
 
     @GetMapping("/ticket/{token}")
     fun getTicket(@PathVariable token: String): ResponseEntity<TicketResponse> {
@@ -45,8 +47,13 @@ class CheckinController(
 
     @PostMapping("/send")
     fun sendTicket(@RequestBody request: SendTicketRequest): ResponseEntity<Map<String, String>> {
-        // Rate limiting per token
+        // Rate limiting per token (sliding window + lifetime cap)
         val now = Instant.now()
+        val lifetime = lifetimeSendCount.getOrDefault(request.checkinToken, 0)
+        if (lifetime >= lifetimeSendMax) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(mapOf("error" to "Send limit reached for this ticket."))
+        }
         val timestamps = sendRateLimit.getOrPut(request.checkinToken) { mutableListOf() }
         synchronized(timestamps) {
             timestamps.removeAll { it.isBefore(now.minusSeconds(rateLimitWindow)) }
@@ -56,6 +63,7 @@ class CheckinController(
             }
             timestamps.add(now)
         }
+        lifetimeSendCount[request.checkinToken] = lifetime + 1
 
         val ticket = try {
             checkinService.getTicket(request.checkinToken)

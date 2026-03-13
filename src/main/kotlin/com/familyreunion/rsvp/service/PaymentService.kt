@@ -1,8 +1,12 @@
 package com.familyreunion.rsvp.service
 
+import com.familyreunion.rsvp.config.FeeConfig
 import com.familyreunion.rsvp.config.StripeConfig
+import com.familyreunion.rsvp.dto.AngelContributorResponse
 import com.familyreunion.rsvp.dto.CheckoutRequest
+import com.familyreunion.rsvp.dto.LineItemResponse
 import com.familyreunion.rsvp.dto.PaidGuestInfo
+import com.familyreunion.rsvp.dto.PaymentDetailResponse
 import com.familyreunion.rsvp.dto.PaymentResponse
 import com.familyreunion.rsvp.dto.PaymentSummaryResponse
 import com.familyreunion.rsvp.exception.RsvpNotFoundException
@@ -30,14 +34,9 @@ class PaymentService(
     private val paymentLineItemRepository: PaymentLineItemRepository,
     private val familyMemberRepository: FamilyMemberRepository,
     private val rsvpRepository: RsvpRepository,
-    private val stripeConfig: StripeConfig
+    private val stripeConfig: StripeConfig,
+    private val feeConfig: FeeConfig
 ) {
-    companion object {
-        const val ADULT_FEE = 10000L   // $100 in cents
-        const val CHILD_FEE = 5000L    // $50 in cents
-        const val SPOUSE_FEE = 10000L  // $100 in cents
-        const val INFANT_FEE = 0L
-    }
 
     fun createCheckoutSession(request: CheckoutRequest): String {
         if (!stripeConfig.isConfigured()) {
@@ -50,6 +49,15 @@ class PaymentService(
 
         val rsvp = rsvpRepository.findById(rsvpId)
             .orElseThrow { RsvpNotFoundException(rsvpId) }
+
+        // Validate that all member IDs belong to this RSVP's attendees
+        val rsvpMemberIds = rsvp.attendees
+            .mapNotNull { it.familyMember?.id }
+            .toSet()
+        val invalidIds = memberIds.filter { it !in rsvpMemberIds }
+        if (invalidIds.isNotEmpty()) {
+            throw IllegalArgumentException("Member IDs $invalidIds do not belong to RSVP $rsvpId")
+        }
 
         // Calculate amount server-side from member age groups and guest age groups
         val familyMembers = if (memberIds.isNotEmpty()) {
@@ -66,6 +74,12 @@ class PaymentService(
             calculatedAmountCents += feeForAgeGroup(ageGroup)
         }
 
+        // Add angel contribution (custom donation amount)
+        val angelAmount = request.angelAmount
+        if (angelAmount > 0) {
+            calculatedAmountCents += angelAmount
+        }
+
         if (calculatedAmountCents <= 0 && memberIds.isNotEmpty()) {
             throw IllegalArgumentException("Calculated amount must be greater than zero")
         }
@@ -78,7 +92,8 @@ class PaymentService(
             )
         }
 
-        val successUrlWithRsvp = "${stripeConfig.successUrl}&rsvpId=$rsvpId"
+        val checkinToken = java.util.UUID.randomUUID().toString()
+        val successUrlWithRsvp = "${stripeConfig.successUrl}&rsvpId=$rsvpId&token=$checkinToken"
         val cancelUrlWithRsvp = "${stripeConfig.cancelUrl}&rsvpId=$rsvpId"
 
         val params = SessionCreateParams.builder()
@@ -112,7 +127,8 @@ class PaymentService(
             amount = BigDecimal.valueOf(calculatedAmountCents).divide(BigDecimal(100)),
             stripeSessionId = session.id,
             status = PaymentStatus.PENDING,
-            createdAt = LocalDateTime.now()
+            createdAt = LocalDateTime.now(),
+            checkinToken = checkinToken
         )
         paymentRepository.save(payment)
 
@@ -142,6 +158,16 @@ class PaymentService(
             payment.lineItems.add(lineItem)
         }
 
+        if (angelAmount > 0) {
+            val angelLineItem = PaymentLineItem(
+                payment = payment,
+                guestName = "Angel Contribution",
+                ageGroup = AgeGroup.ADULT,
+                amount = BigDecimal.valueOf(angelAmount).divide(BigDecimal(100))
+            )
+            payment.lineItems.add(angelLineItem)
+        }
+
         if (payment.lineItems.isNotEmpty()) {
             paymentRepository.save(payment)
         }
@@ -149,12 +175,7 @@ class PaymentService(
         return session.url
     }
 
-    private fun feeForAgeGroup(ageGroup: AgeGroup): Long = when (ageGroup) {
-        AgeGroup.ADULT -> ADULT_FEE
-        AgeGroup.SPOUSE -> SPOUSE_FEE
-        AgeGroup.CHILD -> CHILD_FEE
-        AgeGroup.INFANT -> INFANT_FEE
-    }
+    fun feeForAgeGroup(ageGroup: AgeGroup): Long = feeConfig.feeForAgeGroup(ageGroup)
 
     private val log = org.slf4j.LoggerFactory.getLogger(PaymentService::class.java)
 
@@ -279,12 +300,7 @@ class PaymentService(
     fun calculateAmountOwed(rsvp: Rsvp): BigDecimal {
         var totalCents = 0L
         for (attendee in rsvp.attendees) {
-            totalCents += when (attendee.ageGroup) {
-                AgeGroup.ADULT -> ADULT_FEE
-                AgeGroup.SPOUSE -> SPOUSE_FEE
-                AgeGroup.CHILD -> CHILD_FEE
-                AgeGroup.INFANT -> INFANT_FEE
-            }
+            totalCents += feeForAgeGroup(attendee.ageGroup)
         }
         return BigDecimal.valueOf(totalCents).divide(BigDecimal(100))
     }
@@ -306,13 +322,61 @@ class PaymentService(
         return payments.size
     }
 
+    @Transactional(readOnly = true)
+    fun getPaymentHistory(): List<PaymentDetailResponse> {
+        val allPayments = paymentRepository.findAll()
+        return allPayments.map { payment ->
+            val rsvp = payment.rsvp
+            val lineItems = paymentLineItemRepository.findByPaymentId(payment.id)
+            PaymentDetailResponse(
+                id = payment.id,
+                rsvpId = rsvp?.id ?: 0,
+                familyName = rsvp?.familyName ?: "Unknown",
+                amount = payment.amount,
+                status = payment.status.name,
+                createdAt = payment.createdAt.toString(),
+                payerName = payment.payerName,
+                payerEmail = payment.payerEmail,
+                checkinToken = if (payment.status == PaymentStatus.COMPLETED) payment.checkinToken else null,
+                checkedIn = payment.checkedIn,
+                checkedInAt = payment.checkedInAt?.toString(),
+                lineItems = lineItems.map { li ->
+                    LineItemResponse(
+                        name = li.familyMemberName ?: li.guestName ?: "Unknown",
+                        ageGroup = li.ageGroup.name,
+                        amount = li.amount,
+                        isGuest = li.guestName != null
+                    )
+                }
+            )
+        }.sortedByDescending { it.createdAt }
+    }
+
+    @Transactional(readOnly = true)
+    fun getAngelContributors(): List<AngelContributorResponse> {
+        val completedPayments = paymentRepository.findAll().filter { it.status == PaymentStatus.COMPLETED }
+        val angels = mutableListOf<AngelContributorResponse>()
+        for (payment in completedPayments) {
+            val lineItems = paymentLineItemRepository.findByPaymentId(payment.id)
+            val angelItem = lineItems.find { it.guestName == "Angel Contribution" }
+            if (angelItem != null) {
+                angels.add(AngelContributorResponse(
+                    payerName = payment.payerName ?: "Anonymous",
+                    familyName = payment.rsvp?.familyName ?: "Unknown",
+                    amount = angelItem.amount,
+                    date = payment.createdAt.toLocalDate().toString()
+                ))
+            }
+        }
+        return angels.sortedByDescending { it.date }
+    }
+
     private fun toPaymentResponse(payment: Payment, rsvp: Rsvp) = PaymentResponse(
         id = payment.id,
         rsvpId = rsvp.id,
         familyName = rsvp.familyName,
         amount = payment.amount,
         status = payment.status.name,
-        createdAt = payment.createdAt.toString(),
-        checkinToken = if (payment.status == PaymentStatus.COMPLETED) payment.checkinToken else null
+        createdAt = payment.createdAt.toString()
     )
 }

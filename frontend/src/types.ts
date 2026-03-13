@@ -111,7 +111,28 @@ export interface PaymentResponse {
   amount: number;
   status: string;
   createdAt: string;
-  checkinToken?: string;
+}
+
+export interface PaymentLineItemResponse {
+  name: string;
+  ageGroup: string;
+  amount: number;
+  isGuest: boolean;
+}
+
+export interface PaymentDetailResponse {
+  id: number;
+  rsvpId: number;
+  familyName: string;
+  amount: number;
+  status: string;
+  createdAt: string;
+  payerName: string | null;
+  payerEmail: string | null;
+  checkinToken: string | null;
+  checkedIn: boolean;
+  checkedInAt: string | null;
+  lineItems: PaymentLineItemResponse[];
 }
 
 export interface TicketAttendee {
@@ -124,7 +145,6 @@ export interface TicketResponse {
   checkinToken: string;
   familyName: string;
   payerName: string;
-  payerEmail?: string;
   amount: number;
   checkedIn: boolean;
   checkedInAt?: string;
@@ -172,6 +192,14 @@ export interface CheckoutRequest {
   amount: number;
   memberIds: number[];
   guests: CheckoutGuestInfo[];
+  angelAmount?: number;
+}
+
+export interface AngelContributor {
+  payerName: string;
+  familyName: string;
+  amount: number;
+  date: string;
 }
 
 export interface MeetingRequest {
