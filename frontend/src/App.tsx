@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, NavLink, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Link, useLocation } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from './AuthContext';
 import HomePage from './components/HomePage';
@@ -71,6 +71,18 @@ function RsvpPage() {
   );
 }
 
+declare global {
+  interface Window { gtag?: (...args: unknown[]) => void; }
+}
+
+function AnalyticsTracker() {
+  const location = useLocation();
+  useEffect(() => {
+    window.gtag?.('event', 'page_view', { page_path: location.pathname + location.search });
+  }, [location]);
+  return null;
+}
+
 function NotFound() {
   return (
     <div style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
@@ -99,6 +111,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <AnalyticsTracker />
       <ToastProvider>
         <CommandPalette />
         <div className="app">
