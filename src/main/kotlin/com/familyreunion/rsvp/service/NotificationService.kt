@@ -1,14 +1,20 @@
 package com.familyreunion.rsvp.service
 
+import com.familyreunion.rsvp.model.PaymentLineItem
+import com.familyreunion.rsvp.repository.AdminUserRepository
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.mail.javamail.MimeMessageHelper
 import org.springframework.stereotype.Service
+import java.math.BigDecimal
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 @Service
 class NotificationService(
     private val mailSender: JavaMailSender?,
+    private val adminUserRepository: AdminUserRepository,
     @Value("\${app.base-url:http://localhost:5173}") private val baseUrl: String,
     @Value("\${spring.mail.username:}") private val fromEmail: String,
     @Value("\${twilio.account-sid:}") private val twilioAccountSid: String,
@@ -92,6 +98,80 @@ class NotificationService(
             digits.length == 11 && digits.startsWith("1") -> "+$digits"
             phone.startsWith("+") -> phone
             else -> "+$digits"
+        }
+    }
+
+    fun sendPaymentNotificationToAdmins(
+        familyName: String,
+        payerName: String?,
+        payerEmail: String?,
+        amount: BigDecimal,
+        lineItems: List<PaymentLineItem>,
+        timestamp: LocalDateTime
+    ) {
+        if (!isEmailConfigured()) {
+            log.info("Email not configured, skipping admin payment notification")
+            return
+        }
+
+        val admins = adminUserRepository.findAll()
+        if (admins.isEmpty()) {
+            log.info("No admin users found, skipping admin payment notification")
+            return
+        }
+
+        val formattedAmount = "$${amount}"
+        val formattedTime = timestamp.format(DateTimeFormatter.ofPattern("MMM d, yyyy h:mm a"))
+
+        val lineItemRows = lineItems.joinToString("\n") { li ->
+            val name = li.familyMemberName ?: li.guestName ?: "Unknown"
+            """<tr>
+                <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${name}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${li.ageGroup.name}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">$${li.amount}</td>
+            </tr>"""
+        }
+
+        val htmlBody = """
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #2d3748;">Payment Received</h2>
+                <div style="background: #f7fafc; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                    <p style="margin: 4px 0;"><strong>Family:</strong> ${familyName}</p>
+                    <p style="margin: 4px 0;"><strong>Payer:</strong> ${payerName ?: "N/A"}</p>
+                    <p style="margin: 4px 0;"><strong>Email:</strong> ${payerEmail ?: "N/A"}</p>
+                    <p style="margin: 4px 0;"><strong>Total:</strong> ${formattedAmount}</p>
+                    <p style="margin: 4px 0;"><strong>Date:</strong> ${formattedTime}</p>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                    <thead>
+                        <tr style="background: #edf2f7;">
+                            <th style="padding: 8px; text-align: left;">Name</th>
+                            <th style="padding: 8px; text-align: left;">Age Group</th>
+                            <th style="padding: 8px; text-align: left;">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${lineItemRows}
+                    </tbody>
+                </table>
+            </div>
+        """.trimIndent()
+
+        val subject = "Payment Received - $familyName Family - $formattedAmount"
+
+        for (admin in admins) {
+            try {
+                val message = mailSender!!.createMimeMessage()
+                val helper = MimeMessageHelper(message, true, "UTF-8")
+                helper.setFrom(fromEmail)
+                helper.setTo(admin.email)
+                helper.setSubject(subject)
+                helper.setText(htmlBody, true)
+                mailSender.send(message)
+                log.info("Payment notification sent to admin ${admin.email}")
+            } catch (e: Exception) {
+                log.error("Failed to send payment notification to ${admin.email}: ${e.message}", e)
+            }
         }
     }
 

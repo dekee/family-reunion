@@ -6,10 +6,12 @@ import com.familyreunion.rsvp.model.Event
 import com.familyreunion.rsvp.model.FamilyMember
 import com.familyreunion.rsvp.model.Meeting
 import com.familyreunion.rsvp.model.Rsvp
+import com.familyreunion.rsvp.model.TshirtSlogan
 import com.familyreunion.rsvp.repository.EventRepository
 import com.familyreunion.rsvp.repository.FamilyMemberRepository
 import com.familyreunion.rsvp.repository.MeetingRepository
 import com.familyreunion.rsvp.repository.RsvpRepository
+import com.familyreunion.rsvp.repository.TshirtSloganRepository
 import java.time.LocalDateTime
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
@@ -22,7 +24,8 @@ class DataInitializer(
     private val rsvpRepository: RsvpRepository,
     private val familyMemberRepository: FamilyMemberRepository,
     private val meetingRepository: MeetingRepository,
-    private val eventRepository: EventRepository
+    private val eventRepository: EventRepository,
+    private val tshirtSloganRepository: TshirtSloganRepository
 ) : ApplicationRunner {
 
     override fun run(args: ApplicationArguments?) {
@@ -205,6 +208,8 @@ class DataInitializer(
                 notes = null
             )
         )
+
+        seedSlogans()
     }
 
     private data class BranchDef(
@@ -278,5 +283,29 @@ class DataInitializer(
         }
 
         rsvpRepository.save(rsvp)
+    }
+
+    private fun seedSlogans() {
+        if (tshirtSloganRepository.count() > 0) return
+        val slogans = listOf(
+            "Together We Tumblin, Together We Rise",
+            "Tumblin Through Time, Stronger Every Year",
+            "Rooted in Love, Growing as Tumblins",
+            "One Name, One Love: The Tumblin Way",
+            "Tumblin Together, Forever and Always",
+            "Generations of Greatness: The Tumblin Legacy",
+            "Family First, Tumblin Always",
+            "Where Love Runs Deep: The Tumblin Family",
+            "Stronger Bonds, Proud Tumblins",
+            "The Tumblin Tradition: Love, Laughter, Legacy",
+            "Where Them Tumblins At",
+            "One Tumblin, One Team",
+            "Tumblin Family, Many Branches",
+            "One Family, Many Branches",
+            "One Tumblin Family, Many Branches"
+        )
+        slogans.forEach { text ->
+            tshirtSloganRepository.save(TshirtSlogan(slogan = text))
+        }
     }
 }

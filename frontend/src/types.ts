@@ -245,3 +245,14 @@ export interface GalleryResponse {
   nextPageToken: string | null;
   totalCount: number;
 }
+
+export interface SloganResponse {
+  id: number;
+  slogan: string;
+  voteCount: number;
+}
+
+export interface SloganVoteRequest {
+  sloganId: number;
+  voterName: string;
+}

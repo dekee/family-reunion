@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useParams, useNavigate, Link } from 'react-router-dom';
-import { fetchFamilyTree, fetchPaymentSummaries, createCheckoutSession, fetchFees } from '../api';
+import { fetchFamilyTree, fetchPaymentSummaries, createCheckoutSession, fetchFees, fetchAngelContributors } from '../api';
 import { getBranchColor } from '../branchColors';
 import { feeForAge, ageLabel, ageLabelWithFee, setFees } from '../constants/ageGroups';
 import { dollars } from '../utils/formatting';
-import type { FamilyTreeNode, PaymentSummaryResponse, PaidGuestInfo } from '../types';
+import type { FamilyTreeNode, PaymentSummaryResponse, PaidGuestInfo, AngelContributor } from '../types';
 import { SkeletonCard } from './Skeleton';
 import './PayAndRsvp.css';
 
@@ -77,6 +77,7 @@ export default function PayAndRsvp() {
   // Angel contributor state
   const [angelAmount, setAngelAmount] = useState('');
   const [showAngelForm, setShowAngelForm] = useState(false);
+  const [angels, setAngels] = useState<AngelContributor[]>([]);
 
   const paymentStatus = searchParams.get('payment');
   const returnRsvpId = searchParams.get('rsvpId');
@@ -84,8 +85,9 @@ export default function PayAndRsvp() {
   const loadData = () => {
     setLoading(true);
     setLoadError('');
-    Promise.all([fetchFamilyTree(), fetchPaymentSummaries(), fetchFees()])
-      .then(([tree, payments, fees]) => {
+    Promise.all([fetchFamilyTree(), fetchPaymentSummaries(), fetchFees(), fetchAngelContributors()])
+      .then(([tree, payments, fees, angelData]) => {
+        setAngels(angelData);
         setFees(fees);
         const branchList: BranchData[] = [];
         for (const root of tree.roots) {
@@ -228,7 +230,6 @@ export default function PayAndRsvp() {
 
   if (loading) return (
     <div className="pay-rsvp-page">
-      <div className="page-header"><h2>Pay & RSVP</h2><p>Select your family and pay for attending members</p></div>
       <div className="pay-branch-grid">
         {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} lines={2} />)}
       </div>
@@ -237,7 +238,6 @@ export default function PayAndRsvp() {
 
   if (loadError) return (
     <div className="pay-rsvp-page">
-      <div className="page-header"><h2>Pay & RSVP</h2><p>Select your family and pay for attending members</p></div>
       <div className="pay-load-error">
         <p>{loadError}</p>
         <button onClick={loadData} className="pay-retry-btn">Try Again</button>
@@ -247,10 +247,6 @@ export default function PayAndRsvp() {
 
   return (
     <div className="pay-rsvp-page">
-      <div className="page-header">
-        <h2>Pay & RSVP</h2>
-        <p>Select your family branch, choose attending members, and pay. Selecting a member confirms their attendance.</p>
-      </div>
 
       {paymentStatus === 'success' && (
         <div className="payment-banner payment-success">
@@ -272,7 +268,12 @@ export default function PayAndRsvp() {
 
       {!expandedBranch ? (
         <>
-          {branches.length > 0 && (() => {
+          {/* Stats Group: Angel Contributors + Overview */}
+          {(() => {
+            const ANGEL_GOAL = 2000;
+            const totalContributed = angels.reduce((s, a) => s + a.amount, 0);
+            const pct = Math.min(100, Math.round((totalContributed / ANGEL_GOAL) * 100));
+            const goalReached = totalContributed >= ANGEL_GOAL;
             const overallTotal = branches.reduce((s, b) => s + b.members.reduce((ms, m) => ms + m.fee, 0), 0);
             const overallPaid = branches.reduce((s, b) => s + (b.payment?.totalPaid ?? 0), 0);
             const overallRemaining = Math.max(0, overallTotal - overallPaid);
@@ -281,24 +282,55 @@ export default function PayAndRsvp() {
               return (b.payment?.totalPaid ?? 0) >= cost && (b.payment?.totalPaid ?? 0) > 0;
             }).length;
             return (
-              <div className="pay-overview-grid">
-                <div className="pay-overview-card">
-                  <span className="pay-overview-number pay-overview-green">{dollars(overallPaid)}</span>
-                  <span className="pay-overview-label">Total Collected</span>
-                </div>
-                <div className="pay-overview-card">
-                  <span className={`pay-overview-number ${overallRemaining > 0 ? 'pay-overview-amber' : 'pay-overview-green'}`}>{dollars(overallRemaining)}</span>
-                  <span className="pay-overview-label">Remaining Balance</span>
-                </div>
-                <div className="pay-overview-card">
-                  <span className="pay-overview-number">{familiesPaid} / {branches.length}</span>
-                  <span className="pay-overview-label">Families Paid</span>
-                </div>
+              <div className="pay-stats-group">
+                <Link to="/thank-you" className="pay-angel-promo">
+                  <div className="pay-angel-promo-image">
+                    <img src="/angel-contributor.png" alt="Angel Contributors" />
+                  </div>
+                  <div className="pay-angel-promo-content">
+                    <div className="pay-angel-promo-top">
+                      <h4 className="pay-angel-promo-title">Angel Contributors</h4>
+                      <span className="pay-angel-promo-raised">{dollars(totalContributed)} raised</span>
+                    </div>
+                    <div className="pay-angel-promo-track">
+                      <div
+                        className={`pay-angel-promo-fill ${goalReached ? 'pay-angel-promo-fill-complete' : ''}`}
+                        style={{ width: `${Math.max(pct, 2)}%` }}
+                      />
+                    </div>
+                    <div className="pay-angel-promo-bottom">
+                      <span className={`pay-angel-promo-pct ${goalReached ? 'pay-angel-promo-pct-complete' : ''}`}>{pct}%</span>
+                      <span className="pay-angel-promo-remaining">
+                        {goalReached ? 'Goal reached!' : `${dollars(ANGEL_GOAL - totalContributed)} to go`}
+                      </span>
+                      <span className="pay-angel-promo-goal">Goal: {dollars(ANGEL_GOAL)}</span>
+                    </div>
+                    <p className="pay-angel-promo-cta">
+                      Add an angel donation when paying to help family members who need support
+                    </p>
+                  </div>
+                </Link>
+                {branches.length > 0 && (
+                  <div className="pay-overview-grid">
+                    <div className="pay-overview-card">
+                      <span className="pay-overview-number pay-overview-green">{dollars(overallPaid)}</span>
+                      <span className="pay-overview-label">Total Collected</span>
+                    </div>
+                    <div className="pay-overview-card">
+                      <span className={`pay-overview-number ${overallRemaining > 0 ? 'pay-overview-amber' : 'pay-overview-green'}`}>{dollars(overallRemaining)}</span>
+                      <span className="pay-overview-label">Remaining Balance</span>
+                    </div>
+                    <div className="pay-overview-card">
+                      <span className="pay-overview-number">{familiesPaid} / {branches.length}</span>
+                      <span className="pay-overview-label">Families Paid</span>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })()}
 
-          <h3 className="pay-section-title">Select Your Family Branch</h3>
+          <p className="pay-section-subtitle">Select your family branch, choose attending members, and pay. Selecting a member confirms their attendance.</p>
           <div className="pay-branch-grid">
             {branches.map(b => {
               const branchName = b.node.name.replace(/ - Done$/, '');
@@ -377,6 +409,43 @@ export default function PayAndRsvp() {
                 </div>
               );
             })()}
+          </div>
+
+          {/* Angel Contributor */}
+          <div className="pay-angel-section">
+            {showAngelForm ? (
+              <div className="pay-angel-form">
+                <div className="pay-angel-description">
+                  <span className="pay-angel-title">Angel Contributor</span>
+                  <p>Your extra contribution helps enable family members who may not be able to cover their own fees to still participate in the reunion.</p>
+                </div>
+                <div className="pay-angel-input-row">
+                  <span className="pay-angel-dollar-sign">$</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="0"
+                    value={angelAmount}
+                    onChange={e => setAngelAmount(e.target.value)}
+                    className="pay-angel-amount-input"
+                    autoFocus
+                    onKeyDown={e => { if (e.key === 'Escape') { setShowAngelForm(false); setAngelAmount(''); } }}
+                  />
+                  <button className="pay-angel-clear-btn" onClick={() => { setShowAngelForm(false); setAngelAmount(''); }}>
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button className="pay-angel-btn" onClick={() => setShowAngelForm(true)}>
+                <img src="/angel-contributor.png" alt="" className="pay-angel-btn-icon-img" />
+                <span className="pay-angel-btn-text">
+                  <span className="pay-angel-btn-label">Become an Angel Contributor</span>
+                  <span className="pay-angel-btn-hint">Help a family member who can't cover their fees</span>
+                </span>
+              </button>
+            )}
           </div>
 
           <div className="pay-select-controls">
@@ -493,43 +562,6 @@ export default function PayAndRsvp() {
             ) : (
               <button className="pay-add-guest-btn" onClick={() => setShowGuestForm(true)}>
                 + Add Guest
-              </button>
-            )}
-          </div>
-
-          {/* Angel Contributor */}
-          <div className="pay-angel-section">
-            {showAngelForm ? (
-              <div className="pay-angel-form">
-                <div className="pay-angel-description">
-                  <span className="pay-angel-title">Angel Contributor</span>
-                  <p>Your extra contribution helps enable family members who may not be able to cover their own fees to still participate in the reunion.</p>
-                </div>
-                <div className="pay-angel-input-row">
-                  <span className="pay-angel-dollar-sign">$</span>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    placeholder="0"
-                    value={angelAmount}
-                    onChange={e => setAngelAmount(e.target.value)}
-                    className="pay-angel-amount-input"
-                    autoFocus
-                    onKeyDown={e => { if (e.key === 'Escape') { setShowAngelForm(false); setAngelAmount(''); } }}
-                  />
-                  <button className="pay-angel-clear-btn" onClick={() => { setShowAngelForm(false); setAngelAmount(''); }}>
-                    Remove
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button className="pay-angel-btn" onClick={() => setShowAngelForm(true)}>
-                <span className="pay-angel-btn-icon">&#10084;&#65039;</span>
-                <span className="pay-angel-btn-text">
-                  <span className="pay-angel-btn-label">Become an Angel Contributor</span>
-                  <span className="pay-angel-btn-hint">Help a family member who can't cover their fees</span>
-                </span>
               </button>
             )}
           </div>

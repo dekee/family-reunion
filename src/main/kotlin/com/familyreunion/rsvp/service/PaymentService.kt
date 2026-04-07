@@ -35,7 +35,8 @@ class PaymentService(
     private val familyMemberRepository: FamilyMemberRepository,
     private val rsvpRepository: RsvpRepository,
     private val stripeConfig: StripeConfig,
-    private val feeConfig: FeeConfig
+    private val feeConfig: FeeConfig,
+    private val notificationService: NotificationService
 ) {
 
     fun createCheckoutSession(request: CheckoutRequest): String {
@@ -238,6 +239,20 @@ class PaymentService(
             existing.payerEmail = payerEmail
             paymentRepository.save(existing)
             log.info("Payment ${existing.id} updated to COMPLETED for rsvp ${existing.rsvp?.id}")
+
+            try {
+                val lineItems = paymentLineItemRepository.findByPaymentId(existing.id)
+                notificationService.sendPaymentNotificationToAdmins(
+                    familyName = existing.rsvp?.familyName ?: "Unknown",
+                    payerName = payerName,
+                    payerEmail = payerEmail,
+                    amount = existing.amount,
+                    lineItems = lineItems,
+                    timestamp = existing.createdAt
+                )
+            } catch (e: Exception) {
+                log.error("Failed to send admin payment notification: ${e.message}", e)
+            }
         }
     }
 

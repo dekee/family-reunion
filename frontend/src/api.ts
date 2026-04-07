@@ -1,4 +1,4 @@
-import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, PaymentDetailResponse, CheckoutRequest, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse, AngelContributor } from './types';
+import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, PaymentDetailResponse, CheckoutRequest, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse, AngelContributor, SloganResponse, SloganVoteRequest } from './types';
 
 const BASE_URL = '/api/rsvp';
 
@@ -312,5 +312,28 @@ export async function fetchGalleryPhotos(pageToken?: string): Promise<GalleryRes
   if (pageToken) params.set('pageToken', pageToken);
   const url = params.toString() ? `${GALLERY_URL}?${params}` : GALLERY_URL;
   const res = await fetch(url);
+  return handleResponse(res);
+}
+
+// --- T-Shirt Slogans ---
+
+const SLOGANS_URL = '/api/slogans';
+
+export async function fetchSlogans(): Promise<SloganResponse[]> {
+  const res = await fetch(SLOGANS_URL);
+  return handleResponse(res);
+}
+
+export async function voteForSlogan(data: SloganVoteRequest): Promise<SloganResponse> {
+  const res = await fetch(`${SLOGANS_URL}/vote`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
+export async function fetchMyVote(voterName: string): Promise<{ sloganId: number | null }> {
+  const res = await fetch(`${SLOGANS_URL}/my-vote?voterName=${encodeURIComponent(voterName)}`);
   return handleResponse(res);
 }
