@@ -3,9 +3,11 @@ package com.familyreunion.rsvp.service
 import com.familyreunion.rsvp.dto.SloganRequest
 import com.familyreunion.rsvp.dto.SloganResponse
 import com.familyreunion.rsvp.dto.SloganVoteRequest
+import com.familyreunion.rsvp.exception.FamilyMemberNotFoundException
 import com.familyreunion.rsvp.exception.SloganNotFoundException
 import com.familyreunion.rsvp.model.TshirtSlogan
 import com.familyreunion.rsvp.model.TshirtVote
+import com.familyreunion.rsvp.repository.FamilyMemberRepository
 import com.familyreunion.rsvp.repository.TshirtSloganRepository
 import com.familyreunion.rsvp.repository.TshirtVoteRepository
 import org.springframework.stereotype.Service
@@ -16,7 +18,8 @@ import java.time.LocalDateTime
 @Transactional
 class TshirtSloganService(
     private val sloganRepository: TshirtSloganRepository,
-    private val voteRepository: TshirtVoteRepository
+    private val voteRepository: TshirtVoteRepository,
+    private val familyMemberRepository: FamilyMemberRepository
 ) {
 
     @Transactional(readOnly = true)
@@ -28,18 +31,19 @@ class TshirtSloganService(
         val slogan = sloganRepository.findById(request.sloganId)
             .orElseThrow { SloganNotFoundException(request.sloganId) }
 
-        val normalizedName = request.voterName.trim().lowercase()
-        val existing = voteRepository.findByVoterName(normalizedName)
+        val member = familyMemberRepository.findById(request.familyMemberId)
+            .orElseThrow { FamilyMemberNotFoundException(request.familyMemberId) }
+
+        val existing = voteRepository.findByFamilyMember(member)
 
         if (existing != null) {
-            // Change their vote to the new slogan
             existing.slogan = slogan
             existing.votedAt = LocalDateTime.now()
             voteRepository.save(existing)
         } else {
             val vote = TshirtVote(
                 slogan = slogan,
-                voterName = normalizedName,
+                familyMember = member,
                 votedAt = LocalDateTime.now()
             )
             voteRepository.save(vote)
@@ -49,9 +53,9 @@ class TshirtSloganService(
     }
 
     @Transactional(readOnly = true)
-    fun getVoterChoice(voterName: String): Long? {
-        val normalizedName = voterName.trim().lowercase()
-        return voteRepository.findByVoterName(normalizedName)?.slogan?.id
+    fun getVoterChoice(familyMemberId: Long): Long? {
+        val member = familyMemberRepository.findById(familyMemberId).orElse(null) ?: return null
+        return voteRepository.findByFamilyMember(member)?.slogan?.id
     }
 
     fun createSlogan(request: SloganRequest): SloganResponse {

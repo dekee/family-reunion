@@ -3,22 +3,26 @@
   color: var(--color-text-heading);
 }
 
-/* Name input */
-.survey-name-section {
-  max-width: 400px;
+/* Member picker */
+.survey-member-section {
   margin-bottom: 1.5rem;
 }
 
-.survey-name-label {
-  display: flex;
-  flex-direction: column;
+.survey-member-picker {
+  position: relative;
+  max-width: 400px;
+}
+
+.survey-member-label {
+  display: block;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--color-text-heading);
+  margin-bottom: 0.25rem;
 }
 
-.survey-name-input {
-  margin-top: 0.25rem;
+.survey-member-search {
+  width: 100%;
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--color-border-input);
   border-radius: var(--radius-md);
@@ -26,12 +30,128 @@
   font-family: inherit;
   background: var(--color-bg-input);
   color: var(--color-text-primary);
+  box-sizing: border-box;
 }
 
-.survey-name-input:focus {
+.survey-member-search:focus {
   outline: none;
   border-color: var(--color-gold);
   box-shadow: 0 0 0 2px var(--color-gold-ring);
+}
+
+.survey-member-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card-hover);
+  z-index: 20;
+  margin-top: 2px;
+}
+
+.member-dropdown-empty {
+  padding: 1rem;
+  text-align: center;
+  color: var(--color-text-faint);
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+.member-dropdown-branch-label {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+  border-left: 3px solid transparent;
+  background: var(--color-bg-page);
+  position: sticky;
+  top: 0;
+}
+
+.member-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.75rem 0.5rem 1.25rem;
+  border: none;
+  background: none;
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.member-dropdown-item:hover {
+  background: rgba(201, 168, 76, 0.1);
+}
+
+/* Selected member display */
+.survey-selected-member {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.selected-member-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+}
+
+.selected-member-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--color-text-heading);
+  border-left: 3px solid transparent;
+  padding-left: 0.5rem;
+}
+
+.selected-member-branch {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.btn-change-member {
+  background: none;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-family: inherit;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.btn-change-member:hover {
+  border-color: var(--color-gold);
+  color: var(--color-gold);
+}
+
+/* Prompt */
+.survey-prompt {
+  text-align: center;
+  color: var(--color-text-faint);
+  padding: 3rem 2rem;
+  font-style: italic;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-card);
 }
 
 /* Loading */

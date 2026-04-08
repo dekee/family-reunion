@@ -333,7 +333,7 @@ export async function voteForSlogan(data: SloganVoteRequest): Promise<SloganResp
   return handleResponse(res);
 }
 
-export async function fetchMyVote(voterName: string): Promise<{ sloganId: number | null }> {
-  const res = await fetch(`${SLOGANS_URL}/my-vote?voterName=${encodeURIComponent(voterName)}`);
+export async function fetchMyVote(familyMemberId: number): Promise<{ sloganId: number | null }> {
+  const res = await fetch(`${SLOGANS_URL}/my-vote?familyMemberId=${familyMemberId}`);
   return handleResponse(res);
 }

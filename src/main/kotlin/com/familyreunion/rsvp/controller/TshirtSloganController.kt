@@ -24,8 +24,8 @@ class TshirtSloganController(private val sloganService: TshirtSloganService) {
     }
 
     @GetMapping("/my-vote")
-    fun getMyVote(@RequestParam voterName: String): ResponseEntity<Map<String, Long?>> {
-        val sloganId = sloganService.getVoterChoice(voterName)
+    fun getMyVote(@RequestParam familyMemberId: Long): ResponseEntity<Map<String, Long?>> {
+        val sloganId = sloganService.getVoterChoice(familyMemberId)
         return ResponseEntity.ok(mapOf("sloganId" to sloganId))
     }
 

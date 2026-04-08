@@ -254,5 +254,5 @@ export interface SloganResponse {
 
 export interface SloganVoteRequest {
   sloganId: number;
-  voterName: string;
+  familyMemberId: number;
 }
