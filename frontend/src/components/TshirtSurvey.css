@@ -315,22 +315,27 @@
   color: var(--color-text-heading);
 }
 
+.survey-change-vote-section {
+  text-align: center;
+  padding: 1.5rem 0 1rem;
+}
+
 .btn-change-vote {
-  background: none;
-  border: 1px solid var(--color-gold);
-  color: var(--color-gold);
-  padding: 0.4rem 1rem;
-  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--color-navy-primary), var(--color-navy-secondary));
+  color: var(--color-text-on-dark);
+  border: none;
+  padding: 0.65rem 2rem;
+  border-radius: var(--radius-pill);
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   font-weight: 600;
   font-family: inherit;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .btn-change-vote:hover {
-  background: var(--color-gold);
-  color: var(--color-text-on-dark);
+  opacity: 0.9;
+  transform: translateY(-1px);
 }
 
 .survey-result-cards {

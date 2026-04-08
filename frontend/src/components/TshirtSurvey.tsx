@@ -57,8 +57,9 @@ export default function TshirtSurvey() {
 
   useEffect(() => { load(); }, []);
 
-  // Restore previous vote
+  // Restore previous vote once members are loaded
   useEffect(() => {
+    if (members.length === 0) return;
     const savedId = localStorage.getItem('slogan_member_id');
     if (savedId) {
       fetchMyVote(Number(savedId)).then((result) => {
@@ -69,7 +70,7 @@ export default function TshirtSurvey() {
         }
       }).catch(() => {});
     }
-  }, []);
+  }, [members]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -144,8 +145,8 @@ export default function TshirtSurvey() {
   };
 
   const handleChangeVote = () => {
-    setHasVoted(false);
     setShowResults(false);
+    setHasVoted(false);
   };
 
   const handleChangeMember = () => {
@@ -175,9 +176,7 @@ export default function TshirtSurvey() {
               {selectedMember.name}
               <span className="selected-member-branch">{selectedMember.branchName} branch</span>
             </span>
-            {!hasVoted && (
-              <button className="btn-change-member" onClick={handleChangeMember}>Change</button>
-            )}
+            <button className="btn-change-member" onClick={handleChangeMember}>Not you?</button>
           </div>
         ) : (
           <div className="survey-member-picker" ref={dropdownRef}>
@@ -230,9 +229,6 @@ export default function TshirtSurvey() {
         <div className="survey-results">
           <div className="survey-results-header">
             <h3>Results ({totalVotes} vote{totalVotes !== 1 ? 's' : ''})</h3>
-            <button className="btn-change-vote" onClick={handleChangeVote}>
-              Change My Vote
-            </button>
           </div>
           <div className="survey-result-cards">
             {[...slogans]
@@ -259,6 +255,11 @@ export default function TshirtSurvey() {
                   </div>
                 );
               })}
+          </div>
+          <div className="survey-change-vote-section">
+            <button className="btn-change-vote" onClick={handleChangeVote}>
+              Change My Vote
+            </button>
           </div>
         </div>
       ) : (
@@ -288,7 +289,7 @@ export default function TshirtSurvey() {
               onClick={handleVote}
               disabled={submitting || selectedMemberId === null || selectedSloganId === null}
             >
-              {submitting ? 'Submitting...' : 'Submit My Vote'}
+              {submitting ? 'Submitting...' : hasVoted ? 'Update My Vote' : 'Submit My Vote'}
             </button>
           </div>
         </>
