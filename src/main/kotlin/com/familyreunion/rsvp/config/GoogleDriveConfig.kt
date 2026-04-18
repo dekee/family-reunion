@@ -7,13 +7,13 @@ import com.google.api.services.drive.DriveScopes
 import com.google.auth.http.HttpCredentialsAdapter
 import com.google.auth.oauth2.GoogleCredentials
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.io.FileInputStream
 
 @Configuration
-@ConditionalOnProperty("google.drive.credentials-file")
+@ConditionalOnExpression("'\${google.drive.credentials-file:}' != ''")
 class GoogleDriveConfig(
     @Value("\${google.drive.credentials-file}") private val credentialsFile: String
 ) {

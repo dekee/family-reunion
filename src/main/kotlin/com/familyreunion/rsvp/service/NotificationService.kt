@@ -1,5 +1,6 @@
 package com.familyreunion.rsvp.service
 
+import com.familyreunion.rsvp.config.ReunionConfig
 import com.familyreunion.rsvp.model.PaymentLineItem
 import com.familyreunion.rsvp.repository.AdminUserRepository
 import org.slf4j.LoggerFactory
@@ -15,6 +16,8 @@ import java.time.format.DateTimeFormatter
 class NotificationService(
     private val mailSender: JavaMailSender?,
     private val adminUserRepository: AdminUserRepository,
+    private val reunionConfig: ReunionConfig,
+    private val siteConfigService: SiteConfigService,
     @Value("\${app.base-url:http://localhost:5173}") private val baseUrl: String,
     @Value("\${spring.mail.username:}") private val fromEmail: String,
     @Value("\${twilio.account-sid:}") private val twilioAccountSid: String,
@@ -32,7 +35,7 @@ class NotificationService(
 
         val htmlBody = """
             <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #4a5568;">Tumblin Family Reunion Ticket</h2>
+                <h2 style="color: #4a5568;">${siteConfigService.getResolvedValue("family.fullTitle", reunionConfig.fullTitle)} Ticket</h2>
                 <p>Hello ${familyName} Family!</p>
                 <p>Here is your reunion check-in ticket. Show the QR code at the door for entry.</p>
                 <div style="background: #f7fafc; border-radius: 8px; padding: 20px; margin: 20px 0;">
@@ -58,7 +61,7 @@ class NotificationService(
         val helper = MimeMessageHelper(message, true, "UTF-8")
         helper.setFrom(fromEmail)
         helper.setTo(to)
-        helper.setSubject("Your Tumblin Family Reunion Ticket - ${familyName} Family")
+        helper.setSubject("Your ${siteConfigService.getResolvedValue("family.fullTitle", reunionConfig.fullTitle)} Ticket - ${familyName} Family")
         helper.setText(htmlBody, true)
         mailSender.send(message)
 
@@ -72,7 +75,7 @@ class NotificationService(
 
         val normalizedNumber = normalizePhoneNumber(to)
         val ticketUrl = "$baseUrl/ticket/$checkinToken"
-        val messageBody = "Tumblin Family Reunion - ${familyName} Family Ticket\n\nShow this at the door for check-in:\n$ticketUrl"
+        val messageBody = "${siteConfigService.getResolvedValue("family.fullTitle", reunionConfig.fullTitle)} - ${familyName} Family Ticket\n\nShow this at the door for check-in:\n$ticketUrl"
 
         com.twilio.Twilio.init(twilioAccountSid, twilioAuthToken)
         val message = com.twilio.rest.api.v2010.account.Message.creator(

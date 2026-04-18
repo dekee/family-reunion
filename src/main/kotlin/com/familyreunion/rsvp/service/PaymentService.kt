@@ -1,6 +1,7 @@
 package com.familyreunion.rsvp.service
 
 import com.familyreunion.rsvp.config.FeeConfig
+import com.familyreunion.rsvp.config.ReunionConfig
 import com.familyreunion.rsvp.config.StripeConfig
 import com.familyreunion.rsvp.dto.AngelContributorResponse
 import com.familyreunion.rsvp.dto.CheckoutRequest
@@ -36,7 +37,9 @@ class PaymentService(
     private val rsvpRepository: RsvpRepository,
     private val stripeConfig: StripeConfig,
     private val feeConfig: FeeConfig,
-    private val notificationService: NotificationService
+    private val notificationService: NotificationService,
+    private val reunionConfig: ReunionConfig,
+    private val siteConfigService: SiteConfigService
 ) {
 
     fun createCheckoutSession(request: CheckoutRequest): String {
@@ -111,7 +114,7 @@ class PaymentService(
                             .setUnitAmount(calculatedAmountCents)
                             .setProductData(
                                 SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                    .setName("Tumblin Family Reunion – ${rsvp.familyName} Family")
+                                    .setName("${siteConfigService.getResolvedValue("family.fullTitle", reunionConfig.fullTitle)} – ${rsvp.familyName} Family")
                                     .setDescription("Reunion fee payment")
                                     .build()
                             )

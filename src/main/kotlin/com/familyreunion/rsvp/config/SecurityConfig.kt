@@ -50,6 +50,7 @@ class SecurityConfig(
                 auth.requestMatchers(HttpMethod.GET, "/api/checkin/ticket/**").permitAll()
                 auth.requestMatchers(HttpMethod.GET, "/api/checkin/capabilities").permitAll()
                 auth.requestMatchers(HttpMethod.GET, "/api/slogans/**").permitAll()
+                auth.requestMatchers(HttpMethod.GET, "/api/site-config/**").permitAll()
 
                 // Public mutations (specific paths before parameterized patterns)
                 auth.requestMatchers(HttpMethod.POST, "/api/rsvp").permitAll()

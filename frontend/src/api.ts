@@ -21,7 +21,9 @@ async function handleResponse<T>(response: Response): Promise<T> {
     throw new Error(error.error || error.message || `HTTP ${response.status}`);
   }
   if (response.status === 204) return undefined as T;
-  return response.json();
+  const text = await response.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text);
 }
 
 export async function fetchAllRsvps(): Promise<RsvpResponse[]> {
@@ -335,5 +337,46 @@ export async function voteForSlogan(data: SloganVoteRequest): Promise<SloganResp
 
 export async function fetchMyVote(familyMemberId: number): Promise<{ sloganId: number | null }> {
   const res = await fetch(`${SLOGANS_URL}/my-vote?familyMemberId=${familyMemberId}`);
+  return handleResponse(res);
+}
+
+// --- Site Config ---
+
+export interface SiteConfigResponse {
+  settings: Record<string, string>;
+  imageUrls: Record<string, string>;
+}
+
+export async function fetchSiteConfig(): Promise<SiteConfigResponse> {
+  const res = await fetch('/api/site-config');
+  return handleResponse(res);
+}
+
+export async function updateSiteConfig(settings: Record<string, string>): Promise<void> {
+  const res = await fetch('/api/admin/site-config', {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify({ settings }),
+  });
+  return handleResponse(res);
+}
+
+export async function uploadSiteImage(key: string, file: File): Promise<void> {
+  const token = localStorage.getItem('auth_token');
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`/api/admin/site-config/images/${key}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  return handleResponse(res);
+}
+
+export async function deleteSiteImage(key: string): Promise<void> {
+  const res = await fetch(`/api/admin/site-config/images/${key}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
   return handleResponse(res);
 }

@@ -181,6 +181,72 @@ body {
   border-bottom-color: #e67e22;
 }
 
+/* Admin dropdown menu */
+.admin-menu {
+  position: relative;
+}
+
+.admin-menu-trigger {
+  background: none;
+  border: none;
+  color: #e67e22;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.45rem 1.25rem;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  cursor: pointer;
+  transition: background var(--transition-normal), color var(--transition-normal);
+}
+
+.admin-menu-trigger:hover,
+.admin-menu-trigger.open {
+  background: rgba(230, 126, 34, 0.15);
+  color: #f39c12;
+}
+
+.admin-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.1);
+  min-width: 180px;
+  padding: 0.4rem;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  animation: dropdown-fade 0.15s ease-out;
+}
+
+@keyframes dropdown-fade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.admin-menu-dropdown a {
+  display: block;
+  text-decoration: none;
+  color: var(--color-text-primary) !important;
+  font-weight: 500;
+  font-size: 0.88rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+  border-bottom: none !important;
+}
+
+.admin-menu-dropdown a:hover {
+  background: var(--color-bg-hover) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.admin-menu-dropdown a.active {
+  background: var(--color-gold-light) !important;
+  color: var(--color-gold) !important;
+  font-weight: 600;
+}
+
 /* Main */
 .app-main {
   padding: 1.5rem 0 3rem;
@@ -295,6 +361,30 @@ body {
 
   .app-nav a.nav-admin.active {
     color: #f39c12;
+  }
+
+  .admin-menu-dropdown {
+    position: static;
+    box-shadow: none;
+    background: rgba(230, 126, 34, 0.08);
+    border-radius: var(--radius-md);
+    margin-top: 0.25rem;
+    padding: 0.25rem;
+  }
+
+  .admin-menu-dropdown a {
+    padding: 0.5rem 1rem;
+    color: var(--color-text-on-dark-faint) !important;
+  }
+
+  .admin-menu-dropdown a:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: var(--color-text-on-dark) !important;
+  }
+
+  .admin-menu-dropdown a.active {
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: #f39c12 !important;
   }
 }
 

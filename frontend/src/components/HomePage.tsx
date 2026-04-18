@@ -3,10 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { fetchSummary } from '../api';
 import { useScrollFadeIn } from '../hooks/useScrollFadeIn';
 import { useCountUp } from '../hooks/useCountUp';
+import { useSiteConfig } from '../SiteConfigContext';
 import type { RsvpSummaryResponse } from '../types';
 import './HomePage.css';
-
-const REUNION_START = new Date('2026-10-16T10:00:00');
 
 interface TimeLeft {
   months: number;
@@ -16,9 +15,9 @@ interface TimeLeft {
   seconds: number;
 }
 
-function calcTimeLeft(): TimeLeft {
+function calcTimeLeft(startDate: string): TimeLeft {
   const now = new Date();
-  let diff = REUNION_START.getTime() - now.getTime();
+  let diff = new Date(startDate).getTime() - now.getTime();
   if (diff < 0) diff = 0;
 
   const totalSeconds = Math.floor(diff / 1000);
@@ -50,7 +49,8 @@ function AnimatedStat({ value, label, start }: { value: number; label: string; s
 }
 
 export default function HomePage() {
-  const [timeLeft, setTimeLeft] = useState<TimeLeft>(calcTimeLeft);
+  const { config: reunionConfig } = useSiteConfig();
+  const [timeLeft, setTimeLeft] = useState<TimeLeft>(() => calcTimeLeft(reunionConfig.event.startDate));
   const [summary, setSummary] = useState<RsvpSummaryResponse | null>(null);
   const navigate = useNavigate();
 
@@ -61,7 +61,7 @@ export default function HomePage() {
   const ctaFade = useScrollFadeIn();
 
   useEffect(() => {
-    const timer = setInterval(() => setTimeLeft(calcTimeLeft()), 1000);
+    const timer = setInterval(() => setTimeLeft(calcTimeLeft(reunionConfig.event.startDate)), 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -76,22 +76,22 @@ export default function HomePage() {
     <div className="home">
       {/* Hero */}
       <section className="hero">
-        <img src="/FamilyFirst.jpg" alt="Tumblin Family" className="hero-family-photo" />
+        <img src={reunionConfig.images.heroPhoto} alt={`${reunionConfig.family.name} Family`} className="hero-family-photo" />
         <p className="hero-eyebrow">You're Invited</p>
-        <h1 className="hero-title">The Tumblin Family Reunion</h1>
+        <h1 className="hero-title">The {reunionConfig.family.fullTitle}</h1>
         <p className="hero-subtitle">
-          Celebrating the legacy of Wesley & Esther Tumblin — Est. 1948
+          {reunionConfig.family.subtitle}
         </p>
-        <p className="hero-date">October 16 – 18, 2026</p>
+        <p className="hero-date">{reunionConfig.event.dates}</p>
       </section>
 
       {/* Motto */}
       <div ref={mottoFade.ref} className={`fade-in-section ${mottoFade.isVisible ? 'visible' : ''}`}>
         <section className="motto-section">
           <blockquote className="family-motto">
-            "How good and pleasant it is when God's people live together in unity!"
+            {reunionConfig.family.motto.text}
           </blockquote>
-          <p className="motto-attribution">— Psalm 133:1</p>
+          <p className="motto-attribution">{reunionConfig.family.motto.attribution}</p>
         </section>
       </div>
 
@@ -138,28 +138,28 @@ export default function HomePage() {
                 <span className="info-icon">&#128197;</span>
                 <div>
                   <strong>When</strong>
-                  <p>October 16 – 18, 2026</p>
+                  <p>{reunionConfig.event.dates}</p>
                 </div>
               </div>
               <div className="info-item">
                 <span className="info-icon">&#128205;</span>
                 <div>
                   <strong>Where</strong>
-                  <p>439 4th Street, Saint Rose, LA 70068</p>
+                  <p>{reunionConfig.event.address}</p>
                 </div>
               </div>
               <div className="info-item">
                 <span className="info-icon">&#128336;</span>
                 <div>
                   <strong>Time</strong>
-                  <p>Friday 10:00 AM – Sunday Evening</p>
+                  <p>{reunionConfig.event.time}</p>
                 </div>
               </div>
               <div className="info-item">
                 <span className="info-icon">&#128106;</span>
                 <div>
                   <strong>Who</strong>
-                  <p>All descendants of Wesley & Esther Tumblin, plus guests</p>
+                  <p>{reunionConfig.family.whoInvited}</p>
                 </div>
               </div>
             </div>
@@ -167,14 +167,14 @@ export default function HomePage() {
             <div className="map-container">
               <iframe
                 title="Reunion Location"
-                src="https://maps.google.com/maps?q=439+4th+Street,+Saint+Rose,+LA+70068&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                src={reunionConfig.event.mapEmbedUrl}
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
                 allowFullScreen
               />
               <a
                 className="get-directions-btn"
-                href="https://www.google.com/maps/dir/?api=1&destination=439+4th+Street,+Saint+Rose,+LA+70068"
+                href={reunionConfig.event.directionsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
               >

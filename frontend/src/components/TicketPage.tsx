@@ -5,12 +5,14 @@ import { fetchTicket, sendTicket, performCheckin, fetchCheckinCapabilities } fro
 import { useAuth } from '../AuthContext';
 import { ageLabel } from '../constants/ageGroups';
 import { dollars } from '../utils/formatting';
+import { useSiteConfig } from '../SiteConfigContext';
 import type { TicketResponse } from '../types';
 import './TicketPage.css';
 
 export default function TicketPage() {
   const { token } = useParams<{ token: string }>();
   const { isAdmin } = useAuth();
+  const { config: reunionConfig } = useSiteConfig();
   const [ticket, setTicket] = useState<TicketResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -91,7 +93,7 @@ export default function TicketPage() {
     <div className="ticket-page">
       <div className="ticket-card">
         <div className="ticket-header">
-          <h2>Tumblin Family Reunion</h2>
+          <h2>{reunionConfig.family.fullTitle}</h2>
           <p className="ticket-family">{ticket.familyName} Family</p>
           <p className="ticket-payer">Paid by {ticket.payerName}</p>
         </div>

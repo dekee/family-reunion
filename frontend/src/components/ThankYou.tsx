@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { fetchAngelContributors } from '../api';
 import { dollars } from '../utils/formatting';
 import type { AngelContributor } from '../types';
+import { useSiteConfig } from '../SiteConfigContext';
 import { SkeletonCard } from './Skeleton';
 import './ThankYou.css';
 
@@ -11,6 +12,7 @@ function formatDate(iso: string): string {
 }
 
 export default function ThankYou() {
+  const { config: reunionConfig } = useSiteConfig();
   const [angels, setAngels] = useState<AngelContributor[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -21,7 +23,7 @@ export default function ThankYou() {
       .finally(() => setLoading(false));
   }, []);
 
-  const ANGEL_GOAL = 2000;
+  const ANGEL_GOAL = reunionConfig.angelGoal;
   const totalContributed = angels.reduce((s, a) => s + a.amount, 0);
   const pct = Math.min(100, Math.round((totalContributed / ANGEL_GOAL) * 100));
   const goalReached = totalContributed >= ANGEL_GOAL;
@@ -39,7 +41,7 @@ export default function ThankYou() {
           <p className="thankyou-hero-desc">
             Angel contributors donate beyond their own fees to help enable family members
             who may not be able to cover the cost of attendance. Their generosity ensures
-            that everyone in the Tumblin family can come together.
+            that everyone in the {reunionConfig.family.name} family can come together.
           </p>
         </div>
       </div>

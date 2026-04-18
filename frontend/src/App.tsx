@@ -19,8 +19,10 @@ import CheckinDashboard from './components/CheckinDashboard';
 import Gallery from './components/Gallery';
 import ThankYou from './components/ThankYou';
 import TshirtSurvey from './components/TshirtSurvey';
+import SiteSettings from './components/SiteSettings';
 import CommandPalette from './components/CommandPalette';
 import { ToastProvider } from './components/Toast';
+import { useSiteConfig } from './SiteConfigContext';
 import type { RsvpResponse } from './types';
 import './App.css';
 
@@ -29,6 +31,7 @@ function RsvpPage() {
   const [editingRsvp, setEditingRsvp] = useState<RsvpResponse | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
   const { isAdmin } = useAuth();
+  const { config: reunionConfig } = useSiteConfig();
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
@@ -47,7 +50,7 @@ function RsvpPage() {
   return (
     <>
       <div className="rsvp-hero">
-        <img src="/FamilyFirst.jpg" alt="Tumblin Family" className="rsvp-hero-image" />
+        <img src={reunionConfig.images.heroPhoto} alt={`${reunionConfig.family.name} Family`} className="rsvp-hero-image" />
         <div className="rsvp-hero-overlay">
           <RsvpSummary refreshKey={refreshKey} />
         </div>
@@ -73,7 +76,10 @@ function RsvpPage() {
 }
 
 declare global {
-  interface Window { gtag?: (...args: unknown[]) => void; }
+  interface Window {
+    gtag?: (...args: unknown[]) => void;
+    dataLayer?: unknown[];
+  }
 }
 
 function AnalyticsTracker() {
@@ -82,6 +88,42 @@ function AnalyticsTracker() {
     window.gtag?.('event', 'page_view', { page_path: location.pathname + location.search });
   }, [location]);
   return null;
+}
+
+function AdminMenu({ onNavigate }: { onNavigate: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleClick = () => { setOpen(false); onNavigate(); };
+
+  return (
+    <div className="admin-menu" ref={ref}>
+      <button
+        className={`admin-menu-trigger ${open ? 'open' : ''}`}
+        onClick={() => setOpen(o => !o)}
+      >
+        Admin &#9662;
+      </button>
+      {open && (
+        <div className="admin-menu-dropdown">
+          <NavLink to="/budget" className="nav-admin" onClick={handleClick}>Budget</NavLink>
+          <NavLink to="/rsvp" className="nav-admin" onClick={handleClick}>RSVP</NavLink>
+          <NavLink to="/checkin" className="nav-admin" onClick={handleClick}>Check-In</NavLink>
+          <NavLink to="/payments" className="nav-admin" onClick={handleClick}>Payments</NavLink>
+          <NavLink to="/admin" className="nav-admin" onClick={handleClick}>Manage Admins</NavLink>
+          <NavLink to="/settings" className="nav-admin" onClick={handleClick}>Site Settings</NavLink>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function NotFound() {
@@ -98,6 +140,7 @@ function NotFound() {
 
 function App() {
   const { user, isAdmin, login, logout } = useAuth();
+  const { config: reunionConfig } = useSiteConfig();
   const [menuOpen, setMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem('theme') === 'dark';
@@ -118,7 +161,7 @@ function App() {
         <div className="app">
           <header className="app-header">
             <div className="header-top">
-              <h1>Tumblin Family Reunion</h1>
+              <h1>{reunionConfig.family.fullTitle}</h1>
               <div className="header-right">
                 <button
                   className="btn-theme-toggle"
@@ -142,7 +185,7 @@ function App() {
                           login(response.credential).catch(() => {});
                         }
                       }}
-                      onError={() => {}}
+                      onError={() => console.error('Google Login failed')}
                       size="small"
                       theme="filled_blue"
                     />
@@ -165,16 +208,12 @@ function App() {
               <NavLink to="/pay" onClick={closeMenu}>Pay & RSVP</NavLink>
               <NavLink to="/events" onClick={closeMenu}>Events</NavLink>
               <NavLink to="/meetings" onClick={closeMenu}>Meetings</NavLink>
-              {isAdmin && <NavLink to="/budget" className="nav-admin" onClick={closeMenu}>Budget</NavLink>}
               <NavLink to="/members" onClick={closeMenu}>Members</NavLink>
               <NavLink to="/family-tree" onClick={closeMenu}>Family Tree</NavLink>
               <NavLink to="/gallery" onClick={closeMenu}>Gallery</NavLink>
               <NavLink to="/tshirt-survey" onClick={closeMenu}>T-Shirt Vote</NavLink>
               <NavLink to="/thank-you" onClick={closeMenu}>Thank You</NavLink>
-              {isAdmin && <NavLink to="/rsvp" className="nav-admin" onClick={closeMenu}>RSVP</NavLink>}
-              {isAdmin && <NavLink to="/checkin" className="nav-admin" onClick={closeMenu}>Check-In</NavLink>}
-              {isAdmin && <NavLink to="/payments" className="nav-admin" onClick={closeMenu}>Payments</NavLink>}
-              {isAdmin && <NavLink to="/admin" className="nav-admin" onClick={closeMenu}>Admin</NavLink>}
+              {isAdmin && <AdminMenu onNavigate={closeMenu} />}
             </nav>
           </header>
 
@@ -196,6 +235,7 @@ function App() {
               {isAdmin && <Route path="/checkin" element={<CheckinDashboard />} />}
               {isAdmin && <Route path="/payments" element={<PaymentHistory />} />}
               {isAdmin && <Route path="/admin" element={<AdminPage />} />}
+              {isAdmin && <Route path="/settings" element={<SiteSettings />} />}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>

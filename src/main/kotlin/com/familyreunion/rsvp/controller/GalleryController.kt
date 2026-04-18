@@ -2,7 +2,7 @@ package com.familyreunion.rsvp.controller
 
 import com.familyreunion.rsvp.dto.GalleryResponse
 import com.familyreunion.rsvp.service.GalleryService
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.http.CacheControl
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
 
 @RestController
 @RequestMapping("/api/gallery")
-@ConditionalOnProperty("google.drive.credentials-file")
+@ConditionalOnExpression("'\${google.drive.credentials-file:}' != ''")
 class GalleryController(private val galleryService: GalleryService) {
 
     @GetMapping

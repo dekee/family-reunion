@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useParams, useNavigate, Link } from 'react-router-dom';
 import { fetchFamilyTree, fetchPaymentSummaries, createCheckoutSession, fetchFees, fetchAngelContributors } from '../api';
-import { getBranchColor } from '../branchColors';
+import { getBranchColor, initBranchColors } from '../branchColors';
 import { feeForAge, ageLabel, ageLabelWithFee, setFees } from '../constants/ageGroups';
 import { dollars } from '../utils/formatting';
 import type { FamilyTreeNode, PaymentSummaryResponse, PaidGuestInfo, AngelContributor } from '../types';
+import { useSiteConfig } from '../SiteConfigContext';
 import { SkeletonCard } from './Skeleton';
 import './PayAndRsvp.css';
 
@@ -57,6 +58,7 @@ function branchSlug(name: string): string {
 }
 
 export default function PayAndRsvp() {
+  const { config: reunionConfig } = useSiteConfig();
   const [branches, setBranches] = useState<BranchData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -89,6 +91,14 @@ export default function PayAndRsvp() {
       .then(([tree, payments, fees, angelData]) => {
         setAngels(angelData);
         setFees(fees);
+        // Initialize branch colors from Gen 1 names
+        const gen1Names: string[] = [];
+        for (const root of tree.roots) {
+          for (const child of root.children) {
+            gen1Names.push(child.name.split(' - ')[0]);
+          }
+        }
+        initBranchColors(gen1Names);
         const branchList: BranchData[] = [];
         for (const root of tree.roots) {
           for (const child of root.children) {
@@ -270,7 +280,7 @@ export default function PayAndRsvp() {
         <>
           {/* Stats Group: Angel Contributors + Overview */}
           {(() => {
-            const ANGEL_GOAL = 2000;
+            const ANGEL_GOAL = reunionConfig.angelGoal;
             const totalContributed = angels.reduce((s, a) => s + a.amount, 0);
             const pct = Math.min(100, Math.round((totalContributed / ANGEL_GOAL) * 100));
             const goalReached = totalContributed >= ANGEL_GOAL;

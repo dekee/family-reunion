@@ -4,7 +4,8 @@ import Tree from 'react-d3-tree';
 import type { RawNodeDatum, CustomNodeElementProps } from 'react-d3-tree';
 import { fetchFamilyTree } from '../api';
 import type { FamilyTreeNode } from '../types';
-import { getBranchColor } from '../branchColors';
+import { getBranchColor, initBranchColors } from '../branchColors';
+import { useSiteConfig } from '../SiteConfigContext';
 import { Skeleton } from './Skeleton';
 import './FamilyTree.css';
 
@@ -25,18 +26,12 @@ function displayName(name: string): string {
 }
 
 function branchKey(fullName: string): string {
-  const cleaned = fullName.split(' - ')[0];
-  if (cleaned.includes(' II')) return 'Wesley II';
-  return cleaned.split(' ')[0];
+  return fullName.split(' - ')[0].split(' ')[0];
 }
 
-function generationColor(gen: number | string): string {
+function generationColor(gen: number | string, colors: string[]): string {
   const g = typeof gen === 'string' ? parseInt(gen, 10) : gen;
-  if (g === 0) return '#c9a84c';
-  if (g === 1) return '#2c3e6b';
-  if (g === 2) return '#c0392b';
-  if (g === 3) return '#1a8a6e';
-  return '#8e44ad';
+  return colors[Math.min(g, colors.length - 1)] || colors[colors.length - 1];
 }
 
 function countNodes(node: FamilyTreeNode): number {
@@ -47,6 +42,7 @@ function countNodes(node: FamilyTreeNode): number {
 
 export default function FamilyTree() {
   const [rawData, setRawData] = useState<{ roots: FamilyTreeNode[]; totalMembers: number } | null>(null);
+  const { config: reunionConfig } = useSiteConfig();
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
@@ -56,7 +52,17 @@ export default function FamilyTree() {
 
   useEffect(() => {
     fetchFamilyTree()
-      .then(setRawData)
+      .then((data) => {
+        // Extract Gen 1 branch names and initialize branch colors
+        const gen1Names: string[] = [];
+        function findGen1(node: FamilyTreeNode) {
+          if (node.generation === 1) gen1Names.push(node.name.split(' - ')[0]);
+          else node.children.forEach(findGen1);
+        }
+        data.roots.forEach(findGen1);
+        initBranchColors(gen1Names);
+        setRawData(data);
+      })
       .catch((err) => setError(err.message));
   }, []);
 
@@ -85,7 +91,7 @@ export default function FamilyTree() {
         }
       }
       return {
-        name: 'Wesley & Esther Tumblin',
+        name: reunionConfig.family.founders,
         attributes: { id: 0, generation: 0, ageGroup: 'ADULT' },
         children: gen1Children.map(toTreeData),
       };
@@ -101,7 +107,7 @@ export default function FamilyTree() {
 
   const renderNode = useCallback(({ nodeDatum, toggleNode }: CustomNodeElementProps) => {
     const gen = nodeDatum.attributes?.generation ?? 0;
-    const color = generationColor(gen as number);
+    const color = generationColor(gen as number, reunionConfig.generationColors);
     const isFounder = gen === 0 || gen === '0';
     const isGen1 = gen === 1 || gen === '1';
     const name = displayName(nodeDatum.name);
@@ -129,7 +135,7 @@ export default function FamilyTree() {
           {/* Photo circle */}
           <circle cx={0} cy={0} r={r + 4} fill={color} style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.35))' }} />
           <image
-            href="/founders.jpg"
+            href={reunionConfig.images.founderPhoto}
             x={-r}
             y={-r}
             width={photoSize}
@@ -166,7 +172,7 @@ export default function FamilyTree() {
         </text>
       </g>
     );
-  }, []);
+  }, [reunionConfig.generationColors, reunionConfig.images.founderPhoto]);
 
   const fitToScreen = useCallback(() => {
     const container = containerRef.current;
@@ -225,16 +231,16 @@ export default function FamilyTree() {
   return (
     <div className="family-tree-page">
       <div className="family-tree-header">
-        <h2>Tumblin Family Tree</h2>
-        <p>Wesley & Esther Tumblin, est. 1948</p>
+        <h2>{reunionConfig.family.name} Family Tree</h2>
+        <p>{reunionConfig.family.founders}, est. {reunionConfig.family.established}</p>
         <p className="member-count">{rawData.totalMembers} family members</p>
         <p className="edit-hint"><Link to="/members">Manage members</Link></p>
         <div className="legend">
-          <span className="legend-item"><span className="dot dot-gold" /> Founders</span>
-          <span className="legend-item"><span className="dot dot-blue" /> Gen 1</span>
-          <span className="legend-item"><span className="dot dot-red" /> Gen 2</span>
-          <span className="legend-item"><span className="dot dot-teal" /> Gen 3</span>
-          <span className="legend-item"><span className="dot dot-purple" /> Gen 4</span>
+          {reunionConfig.generationLabels.map((label, i) => (
+            <span key={i} className="legend-item">
+              <span className="dot" style={{ background: reunionConfig.generationColors[i] }} /> {label}
+            </span>
+          ))}
         </div>
       </div>
 

@@ -5,11 +5,11 @@ import com.familyreunion.rsvp.dto.GalleryResponse
 import com.google.api.services.drive.Drive
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.stereotype.Service
 
 @Service
-@ConditionalOnProperty("google.drive.credentials-file")
+@ConditionalOnExpression("'\${google.drive.credentials-file:}' != ''")
 class GalleryService(
     private val drive: Drive,
     @Value("\${google.drive.folder-id}") private val folderId: String
