@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/dekee/family-reunion.git
-    targetRevision: HEAD
+    targetRevision: templatize
     path: k8s
   destination:
     server: https://kubernetes.default.svc

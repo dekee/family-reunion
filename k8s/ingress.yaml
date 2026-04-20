@@ -1,4 +1,4 @@
-# TODO: Replace "tumblinfamily.com" with your domain throughout this file
+# Homelab ingress — reunion.home
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -6,16 +6,16 @@ metadata:
   namespace: family-reunion
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "homelab-ca-issuer"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - tumblinfamily.com
-      secretName: tumblinfamily-tls
+        - reunion.home
+      secretName: reunion-home-tls
   rules:
-    - host: tumblinfamily.com
+    - host: reunion.home
       http:
         paths:
           - path: /

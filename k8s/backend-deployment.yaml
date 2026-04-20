@@ -89,7 +89,7 @@ spec:
                   name: stripe-secret
                   key: STRIPE_WEBHOOK_SECRET
             - name: APP_BASE_URL
-              value: "https://tumblinfamily.com"
+              value: "https://reunion.home"
             - name: GOOGLE_DRIVE_CREDENTIALS_FILE
               value: "/etc/gallery/credentials.json"
             - name: GOOGLE_DRIVE_FOLDER_ID
