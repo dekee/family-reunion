@@ -17,10 +17,12 @@ interface MemberCounts {
 function countSubtree(node: FamilyTreeNode): MemberCounts {
   const counts: MemberCounts = { totalMembers: 0, adultCount: 0, childCount: 0, infantCount: 0 };
   function walk(n: FamilyTreeNode) {
-    counts.totalMembers++;
-    if (n.ageGroup === 'ADULT' || n.ageGroup === 'SPOUSE') counts.adultCount++;
-    else if (n.ageGroup === 'CHILD') counts.childCount++;
-    else if (n.ageGroup === 'INFANT') counts.infantCount++;
+    if (!n.excludeFromRsvp) {
+      counts.totalMembers++;
+      if (n.ageGroup === 'ADULT' || n.ageGroup === 'SPOUSE') counts.adultCount++;
+      else if (n.ageGroup === 'CHILD') counts.childCount++;
+      else if (n.ageGroup === 'INFANT') counts.infantCount++;
+    }
     n.children.forEach(walk);
   }
   walk(node);
