@@ -27,13 +27,16 @@ interface Guest {
 }
 
 function flattenBranch(node: FamilyTreeNode, depth: number): FlatMember[] {
-  const result: FlatMember[] = [{
-    id: node.id,
-    name: node.name,
-    ageGroup: node.ageGroup,
-    fee: feeForAge(node.ageGroup),
-    depth,
-  }];
+  const result: FlatMember[] = [];
+  if (!node.excludeFromRsvp) {
+    result.push({
+      id: node.id,
+      name: node.name,
+      ageGroup: node.ageGroup,
+      fee: feeForAge(node.ageGroup),
+      depth,
+    });
+  }
   for (const child of node.children) {
     result.push(...flattenBranch(child, depth + 1));
   }
@@ -277,10 +280,8 @@ export default function PayAndRsvp() {
             const overallTotal = branches.reduce((s, b) => s + b.members.reduce((ms, m) => ms + m.fee, 0), 0);
             const overallPaid = branches.reduce((s, b) => s + (b.payment?.totalPaid ?? 0), 0);
             const overallRemaining = Math.max(0, overallTotal - overallPaid);
-            const familiesPaid = branches.filter(b => {
-              const cost = b.members.reduce((s, m) => s + m.fee, 0);
-              return (b.payment?.totalPaid ?? 0) >= cost && (b.payment?.totalPaid ?? 0) > 0;
-            }).length;
+            const peoplePaid = branches.reduce((s, b) => s + b.members.filter(m => m.paid).length + b.paidGuests.length, 0);
+            const totalPeople = branches.reduce((s, b) => s + b.members.length, 0);
             return (
               <div className="pay-stats-group">
                 <Link to="/thank-you" className="pay-angel-promo">
@@ -321,8 +322,8 @@ export default function PayAndRsvp() {
                       <span className="pay-overview-label">Remaining Balance</span>
                     </div>
                     <div className="pay-overview-card">
-                      <span className="pay-overview-number">{familiesPaid} / {branches.length}</span>
-                      <span className="pay-overview-label">Families Paid</span>
+                      <span className="pay-overview-number">{peoplePaid} / {totalPeople}</span>
+                      <span className="pay-overview-label">People Paid</span>
                     </div>
                   </div>
                 )}
