@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { fetchFamilyTree, createFamilyMember, updateFamilyMember, deleteFamilyMember } from '../api';
+import { fetchFamilyTree, createFamilyMember, updateFamilyMember, deleteFamilyMember, toggleExcludeFromRsvp } from '../api';
 import { useAuth } from '../AuthContext';
 import { getBranchColor } from '../branchColors';
 import type { FamilyTreeNode, AgeGroup, FamilyMemberRequest } from '../types';
@@ -16,6 +16,7 @@ interface FlatMember {
   parentId?: number;
   generation: number | null;
   depth: number;
+  excludeFromRsvp?: boolean;
 }
 
 function flattenTree(node: FamilyTreeNode, depth: number): FlatMember[] {
@@ -26,6 +27,7 @@ function flattenTree(node: FamilyTreeNode, depth: number): FlatMember[] {
     parentId: node.parentId,
     generation: node.generation,
     depth,
+    excludeFromRsvp: node.excludeFromRsvp,
   }];
   for (const child of node.children) {
     result.push(...flattenTree(child, depth + 1));
@@ -101,6 +103,17 @@ export default function FamilyMembers() {
     setFormParentId(member.parentId ?? '');
     setFormError(null);
     setShowModal(true);
+  };
+
+  const handleToggleExclude = async (member: FlatMember) => {
+    try {
+      const newExclude = !member.excludeFromRsvp;
+      await toggleExcludeFromRsvp(member.id, newExclude);
+      showToast(newExclude ? `${member.name} excluded from RSVP` : `${member.name} included in RSVP`);
+      loadTree();
+    } catch (err) {
+      showToast('Failed to update member', 'error');
+    }
   };
 
   const handleDelete = async (member: FlatMember) => {
@@ -313,14 +326,22 @@ export default function FamilyMembers() {
               {!isCollapsed && (
                 <div className="branch-members">
                   {displayMembers.map(member => (
-                    <div className="member-row" key={member.id}>
+                    <div className={`member-row${member.excludeFromRsvp ? ' member-excluded' : ''}`} key={member.id}>
                       <span className="member-indent" style={{ width: member.depth * 24 }} />
                       <div className="member-info">
                         <span className="member-name">{member.name}</span>
                         <span className="member-age-group">{ageLabel(member.ageGroup)}</span>
+                        {member.excludeFromRsvp && <span className="member-excluded-badge">Excluded from RSVP</span>}
                       </div>
                       {isAdmin && (
                         <div className="member-actions">
+                          <button
+                            className={`btn-member-action ${member.excludeFromRsvp ? 'btn-member-include' : 'btn-member-exclude'}`}
+                            onClick={() => handleToggleExclude(member)}
+                            title={member.excludeFromRsvp ? 'Include in RSVP' : 'Exclude from RSVP'}
+                          >
+                            {member.excludeFromRsvp ? 'Include' : 'Exclude'}
+                          </button>
                           <button
                             className="btn-member-action btn-add-child"
                             onClick={() => handleAddChild(member.id)}

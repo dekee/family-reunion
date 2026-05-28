@@ -8,7 +8,8 @@ data class FamilyTreeNode(
     val generation: Int?,
     val ageGroup: AgeGroup,
     val parentId: Long? = null,
-    val children: List<FamilyTreeNode> = emptyList()
+    val children: List<FamilyTreeNode> = emptyList(),
+    val excludeFromRsvp: Boolean = false
 )
 
 data class FamilyTreeResponse(

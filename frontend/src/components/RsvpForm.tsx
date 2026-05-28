@@ -29,7 +29,9 @@ const emptyGuest = (): AttendeeFormRow => ({
 function flattenTree(nodes: FamilyTreeNode[], parentName?: string): FlatFamilyMember[] {
   const result: FlatFamilyMember[] = [];
   for (const node of nodes) {
-    result.push({ id: node.id, name: node.name, ageGroup: node.ageGroup, parentName });
+    if (!node.excludeFromRsvp) {
+      result.push({ id: node.id, name: node.name, ageGroup: node.ageGroup, parentName });
+    }
     result.push(...flattenTree(node.children, node.name));
   }
   return result;

@@ -43,6 +43,16 @@ class FamilyTreeController(private val familyTreeService: FamilyTreeService) {
         return ResponseEntity.ok(node)
     }
 
+    @PostMapping("/members/{id}/exclude")
+    fun toggleExcludeFromRsvp(
+        @PathVariable id: Long,
+        @RequestBody body: Map<String, Boolean>
+    ): ResponseEntity<FamilyTreeNode> {
+        val exclude = body["exclude"] ?: false
+        val node = familyTreeService.toggleExcludeFromRsvp(id, exclude)
+        return ResponseEntity.ok(node)
+    }
+
     @DeleteMapping("/members/{id}")
     fun deleteMember(@PathVariable id: Long): ResponseEntity<Void> {
         familyTreeService.deleteMember(id)

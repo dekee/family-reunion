@@ -25,5 +25,7 @@ class FamilyMember(
 
     var generation: Int? = null,
 
-    var isFounder: Boolean = false
+    var isFounder: Boolean = false,
+
+    var excludeFromRsvp: Boolean = false
 )

@@ -124,6 +124,15 @@ class FamilyTreeService(
         }
     }
 
+    @Transactional
+    fun toggleExcludeFromRsvp(id: Long, exclude: Boolean): FamilyTreeNode {
+        val member = familyMemberRepository.findById(id)
+            .orElseThrow { FamilyMemberNotFoundException(id) }
+        member.excludeFromRsvp = exclude
+        val saved = familyMemberRepository.save(member)
+        return toNode(saved)
+    }
+
     private fun toNode(member: FamilyMember): FamilyTreeNode {
         return FamilyTreeNode(
             id = member.id,
@@ -131,7 +140,8 @@ class FamilyTreeService(
             generation = member.generation,
             ageGroup = member.ageGroup,
             parentId = member.parent?.id,
-            children = member.children.map { toNode(it) }
+            children = member.children.map { toNode(it) },
+            excludeFromRsvp = member.excludeFromRsvp
         )
     }
 }

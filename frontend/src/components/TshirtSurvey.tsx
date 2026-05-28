@@ -14,7 +14,9 @@ interface FlatMember {
 function flattenTree(nodes: FamilyTreeNode[]): FlatMember[] {
   const result: FlatMember[] = [];
   function walk(n: FamilyTreeNode, branch: string) {
-    result.push({ id: n.id, name: n.name, branchName: branch });
+    if (!n.excludeFromRsvp) {
+      result.push({ id: n.id, name: n.name, branchName: branch });
+    }
     n.children.forEach((c) => walk(c, branch));
   }
   for (const root of nodes) {

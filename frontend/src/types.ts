@@ -52,6 +52,7 @@ export interface FamilyTreeNode {
   ageGroup: AgeGroup;
   parentId?: number;
   children: FamilyTreeNode[];
+  excludeFromRsvp?: boolean;
 }
 
 export interface FamilyTreeResponse {
@@ -64,6 +65,7 @@ export interface FlatFamilyMember {
   name: string;
   ageGroup: AgeGroup;
   parentName?: string;
+  excludeFromRsvp?: boolean;
 }
 
 export interface FamilyMemberRequest {

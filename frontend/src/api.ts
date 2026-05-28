@@ -99,6 +99,15 @@ export async function deleteFamilyMember(id: number): Promise<void> {
   return handleResponse(res);
 }
 
+export async function toggleExcludeFromRsvp(id: number, exclude: boolean): Promise<FamilyTreeNode> {
+  const res = await fetch(`/api/family-tree/members/${id}/exclude`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ exclude }),
+  });
+  return handleResponse(res);
+}
+
 // --- Meetings ---
 
 const MEETINGS_URL = '/api/meetings';

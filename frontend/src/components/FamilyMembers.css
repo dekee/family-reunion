@@ -266,6 +266,37 @@
   color: var(--color-error);
 }
 
+/* Exclude from RSVP */
+.member-excluded {
+  opacity: 0.55;
+}
+
+.member-excluded-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-error);
+  background: var(--color-error-bg, rgba(220, 53, 69, 0.1));
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-sm);
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+.btn-member-exclude:hover {
+  color: var(--color-error);
+}
+
+.btn-member-include {
+  color: var(--color-success, #28a745);
+  font-weight: 600;
+}
+
+.btn-member-include:hover {
+  color: var(--color-success, #28a745);
+  background: rgba(40, 167, 69, 0.1);
+}
+
 .members-loading,
 .members-error {
   text-align: center;
