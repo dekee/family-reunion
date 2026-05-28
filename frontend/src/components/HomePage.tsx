@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchSummary } from '../api';
+import { fetchSummary, fetchEvents } from '../api';
 import { useScrollFadeIn } from '../hooks/useScrollFadeIn';
 import { useCountUp } from '../hooks/useCountUp';
-import type { RsvpSummaryResponse } from '../types';
+import type { RsvpSummaryResponse, EventResponse } from '../types';
 import './HomePage.css';
 
 const REUNION_START = new Date('2026-10-16T10:00:00');
@@ -52,6 +52,7 @@ function AnimatedStat({ value, label, start }: { value: number; label: string; s
 export default function HomePage() {
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(calcTimeLeft);
   const [summary, setSummary] = useState<RsvpSummaryResponse | null>(null);
+  const [banquet, setBanquet] = useState<EventResponse | null>(null);
   const navigate = useNavigate();
 
   const mottoFade = useScrollFadeIn();
@@ -67,6 +68,10 @@ export default function HomePage() {
 
   useEffect(() => {
     fetchSummary().then(setSummary).catch(console.error);
+    fetchEvents().then(events => {
+      const b = events.find(e => e.title.toLowerCase().includes('banquet'));
+      if (b) setBanquet(b);
+    }).catch(console.error);
   }, []);
 
   const isOver = timeLeft.months === 0 && timeLeft.days === 0 && timeLeft.hours === 0
@@ -133,28 +138,41 @@ export default function HomePage() {
         <section className="details-section">
           <div className="details-grid">
             <div className="event-info">
-              <h2 className="section-heading">Event Details</h2>
+              <h2 className="section-heading">{banquet ? banquet.title : 'Event Details'}</h2>
               <div className="info-item">
                 <span className="info-icon">&#128197;</span>
                 <div>
                   <strong>When</strong>
-                  <p>October 16 – 18, 2026</p>
+                  <p>{banquet
+                    ? new Date(banquet.eventDateTime).toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+                    : 'October 16 – 18, 2026'}</p>
                 </div>
               </div>
               <div className="info-item">
                 <span className="info-icon">&#128205;</span>
                 <div>
                   <strong>Where</strong>
-                  <p>439 4th Street, Saint Rose, LA 70068</p>
+                  <p>{banquet?.address ?? '439 4th Street, Saint Rose, LA 70068'}</p>
                 </div>
               </div>
-              <div className="info-item">
-                <span className="info-icon">&#128336;</span>
-                <div>
-                  <strong>Time</strong>
-                  <p>Friday 10:00 AM – Sunday Evening</p>
+              {banquet?.hostName && (
+                <div className="info-item">
+                  <span className="info-icon">&#128100;</span>
+                  <div>
+                    <strong>Host</strong>
+                    <p>{banquet.hostName}</p>
+                  </div>
                 </div>
-              </div>
+              )}
+              {banquet?.description && (
+                <div className="info-item">
+                  <span className="info-icon">&#128221;</span>
+                  <div>
+                    <strong>Details</strong>
+                    <p>{banquet.description}</p>
+                  </div>
+                </div>
+              )}
               <div className="info-item">
                 <span className="info-icon">&#128106;</span>
                 <div>
@@ -164,23 +182,29 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="map-container">
-              <iframe
-                title="Reunion Location"
-                src="https://maps.google.com/maps?q=439+4th+Street,+Saint+Rose,+LA+70068&t=&z=15&ie=UTF8&iwloc=&output=embed"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                allowFullScreen
-              />
-              <a
-                className="get-directions-btn"
-                href="https://www.google.com/maps/dir/?api=1&destination=439+4th+Street,+Saint+Rose,+LA+70068"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Get Directions
-              </a>
-            </div>
+            {(() => {
+              const addr = banquet?.address ?? '439 4th Street, Saint Rose, LA 70068';
+              const encoded = encodeURIComponent(addr);
+              return (
+                <div className="map-container">
+                  <iframe
+                    title="Reunion Location"
+                    src={`https://maps.google.com/maps?q=${encoded}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    allowFullScreen
+                  />
+                  <a
+                    className="get-directions-btn"
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${encoded}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Get Directions
+                  </a>
+                </div>
+              );
+            })()}
           </div>
         </section>
       </div>
