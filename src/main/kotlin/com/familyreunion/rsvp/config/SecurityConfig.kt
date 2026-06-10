@@ -38,7 +38,9 @@ class SecurityConfig(
                 auth.requestMatchers("/api/auth/**").permitAll()
 
                 // Public GET endpoints
-                auth.requestMatchers(HttpMethod.GET, "/api/rsvp/**").permitAll()
+                // Only the aggregate summary is public; full RSVP detail (names, emails,
+                // phones, attendees, notes) requires ADMIN via the /api/** catch-all below.
+                auth.requestMatchers(HttpMethod.GET, "/api/rsvp/summary").permitAll()
                 auth.requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
                 auth.requestMatchers(HttpMethod.GET, "/api/payments/fees").permitAll()
                 auth.requestMatchers(HttpMethod.GET, "/api/payments/angels").permitAll()

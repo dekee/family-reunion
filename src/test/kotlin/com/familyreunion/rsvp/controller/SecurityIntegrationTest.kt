@@ -39,8 +39,34 @@ class SecurityIntegrationTest @Autowired constructor(
     // --- Public endpoints should work without auth ---
 
     @Test
-    fun `GET endpoints should be public`() {
+    fun `GET rsvp summary should be public`() {
+        mockMvc.perform(get("/api/rsvp/summary"))
+            .andExpect(status().isOk)
+    }
+
+    // --- RSVP detail (PII) must require admin auth ---
+
+    @Test
+    fun `GET all rsvps should return 401 without auth`() {
         mockMvc.perform(get("/api/rsvp"))
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `GET rsvp by id should return 401 without auth`() {
+        mockMvc.perform(get("/api/rsvp/1"))
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `GET all rsvps should succeed with admin token`() {
+        seedAdmin()
+        setupMockToken()
+
+        mockMvc.perform(
+            get("/api/rsvp")
+                .header("Authorization", "Bearer valid-token")
+        )
             .andExpect(status().isOk)
     }
 

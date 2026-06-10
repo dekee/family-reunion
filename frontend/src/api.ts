@@ -25,12 +25,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function fetchAllRsvps(): Promise<RsvpResponse[]> {
-  const res = await fetch(BASE_URL);
+  const res = await fetch(BASE_URL, { headers: authHeaders() });
   return handleResponse(res);
 }
 
 export async function fetchRsvpById(id: number): Promise<RsvpResponse> {
-  const res = await fetch(`${BASE_URL}/${id}`);
+  const res = await fetch(`${BASE_URL}/${id}`, { headers: authHeaders() });
   return handleResponse(res);
 }
 

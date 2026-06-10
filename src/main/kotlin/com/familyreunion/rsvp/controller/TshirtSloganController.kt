@@ -3,15 +3,21 @@ package com.familyreunion.rsvp.controller
 import com.familyreunion.rsvp.dto.SloganRequest
 import com.familyreunion.rsvp.dto.SloganResponse
 import com.familyreunion.rsvp.dto.SloganVoteRequest
+import com.familyreunion.rsvp.security.IpRateLimiter
 import com.familyreunion.rsvp.service.TshirtSloganService
+import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.server.ResponseStatusException
 
 @RestController
 @RequestMapping("/api/slogans")
-class TshirtSloganController(private val sloganService: TshirtSloganService) {
+class TshirtSloganController(
+    private val sloganService: TshirtSloganService,
+    private val rateLimiter: IpRateLimiter
+) {
 
     @GetMapping
     fun getAllSlogans(): ResponseEntity<List<SloganResponse>> {
@@ -19,7 +25,15 @@ class TshirtSloganController(private val sloganService: TshirtSloganService) {
     }
 
     @PostMapping("/vote")
-    fun vote(@Valid @RequestBody request: SloganVoteRequest): ResponseEntity<SloganResponse> {
+    fun vote(
+        @Valid @RequestBody request: SloganVoteRequest,
+        httpRequest: HttpServletRequest
+    ): ResponseEntity<SloganResponse> {
+        // Public endpoint: cap votes per client IP to blunt automated ballot-stuffing.
+        val ip = IpRateLimiter.clientIp(httpRequest)
+        if (!rateLimiter.tryAcquire("slogan-vote:$ip", maxRequests = 15, windowSeconds = 600)) {
+            throw ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many votes. Please try again later.")
+        }
         return ResponseEntity.ok(sloganService.vote(request))
     }
 

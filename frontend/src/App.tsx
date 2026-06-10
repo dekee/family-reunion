@@ -181,7 +181,7 @@ function App() {
           <main className="app-main">
             <Routes>
               <Route path="/" element={<HomePage />} />
-              <Route path="/rsvp" element={<RsvpPage />} />
+              {isAdmin && <Route path="/rsvp" element={<RsvpPage />} />}
               <Route path="/events" element={<Events />} />
               <Route path="/meetings" element={<Meetings />} />
               {isAdmin && <Route path="/budget" element={<Budget />} />}

@@ -6,7 +6,9 @@ import com.google.api.services.drive.Drive
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
+import org.springframework.web.server.ResponseStatusException
 
 @Service
 @ConditionalOnProperty("google.drive.credentials-file")
@@ -80,15 +82,20 @@ class GalleryService(
 
     fun getPhotoStream(fileId: String, thumbnail: Boolean): Pair<ByteArray, String> {
         val file = drive.files().get(fileId)
-            .setFields("id, name, mimeType, thumbnailLink")
+            .setFields("id, name, mimeType, parents")
             .execute()
 
-        if (thumbnail) {
-            // Get a resized version using Drive's thumbnail export
-            val stream = drive.files().get(fileId).executeMediaAsInputStream()
-            return Pair(stream.readBytes(), file.mimeType ?: "image/jpeg")
+        // Prevent IDOR: this endpoint is public, so only ever serve images that live
+        // directly in the configured gallery folder. Without this check, any Drive file
+        // readable by the service account could be exfiltrated via a guessed/leaked fileId.
+        if (folderId !in (file.parents ?: emptyList())) {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Photo not found")
+        }
+        if (file.mimeType?.startsWith("image/") != true) {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Photo not found")
         }
 
+        // thumbnail vs full currently stream the same bytes; folder scoping above applies to both.
         val stream = drive.files().get(fileId).executeMediaAsInputStream()
         return Pair(stream.readBytes(), file.mimeType ?: "image/jpeg")
     }
