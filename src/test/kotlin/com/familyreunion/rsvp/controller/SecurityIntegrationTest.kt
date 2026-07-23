@@ -192,4 +192,29 @@ class SecurityIntegrationTest @Autowired constructor(
         )
             .andExpect(status().isOk)
     }
+
+    // --- Tributes ---
+
+    @Test
+    fun `GET tributes should be public`() {
+        mockMvc.perform(get("/api/tributes"))
+            .andExpect(status().isOk)
+    }
+
+    @Test
+    fun `POST tributes should be public`() {
+        // Unknown sibling id → 404 (not 401), proving the endpoint is reachable without auth
+        mockMvc.perform(
+            post("/api/tributes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"siblingId":999999,"authorId":999999,"story":"A story"}""")
+        )
+            .andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `DELETE tribute should return 401 without auth`() {
+        mockMvc.perform(delete("/api/tributes/1"))
+            .andExpect(status().isUnauthorized)
+    }
 }

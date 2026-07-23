@@ -30,6 +30,8 @@ import type {
   MeetingResponse,
   AdminUserResponse,
   AgeGroup,
+  TributeRequest,
+  TributeResponse,
 } from './types';
 
 // --- Type shape validators ---
@@ -560,3 +562,47 @@ describe('API Client Endpoint Contracts', () => {
     expect(fetchCalls[0].method).toBe('DELETE');
   });
 });
+
+describe('Tribute API Contracts', () => {
+  it('fetchTributes calls GET /api/tributes', async () => {
+    mockFetch([]);
+    const { fetchTributes } = await import('./api');
+    await fetchTributes();
+    expect(fetchCalls[0].url).toBe('/api/tributes');
+    expect(fetchCalls[0].method).toBe('GET');
+  });
+
+  it('submitTribute calls POST /api/tributes with JSON body', async () => {
+    mockFetch({
+      id: 1, siblingId: 2, siblingName: 'Cheryl', authorId: 10, authorName: 'Derrick',
+      story: 'A story', createdAt: '2026-07-22T10:00:00', updatedAt: '2026-07-22T10:00:00',
+    }, 201);
+    const { submitTribute } = await import('./api');
+    const body: TributeRequest = { siblingId: 2, authorId: 10, story: 'A story' };
+    const result = await submitTribute(body);
+    expect(fetchCalls[0].url).toBe('/api/tributes');
+    expect(fetchCalls[0].method).toBe('POST');
+    expect(JSON.parse(fetchCalls[0].body!)).toEqual(body);
+    assertTributeResponse(result);
+  });
+
+  it('deleteTribute calls DELETE /api/tributes/{id}', async () => {
+    mockFetch(undefined, 204);
+    const { deleteTribute } = await import('./api');
+    await deleteTribute(7);
+    expect(fetchCalls[0].url).toBe('/api/tributes/7');
+    expect(fetchCalls[0].method).toBe('DELETE');
+  });
+});
+
+function assertTributeResponse(obj: unknown): asserts obj is TributeResponse {
+  const o = obj as Record<string, unknown>;
+  expect(typeof o.id).toBe('number');
+  expect(typeof o.siblingId).toBe('number');
+  expect(typeof o.siblingName).toBe('string');
+  expect(typeof o.authorId).toBe('number');
+  expect(typeof o.authorName).toBe('string');
+  expect(typeof o.story).toBe('string');
+  expect(typeof o.createdAt).toBe('string');
+  expect(typeof o.updatedAt).toBe('string');
+}

@@ -258,3 +258,20 @@ export interface SloganVoteRequest {
   sloganId: number;
   familyMemberId: number;
 }
+
+export interface TributeResponse {
+  id: number;
+  siblingId: number;
+  siblingName: string;
+  authorId: number;
+  authorName: string;
+  story: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TributeRequest {
+  siblingId: number;
+  authorId: number;
+  story: string;
+}

@@ -1,4 +1,4 @@
-import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, PaymentDetailResponse, CheckoutRequest, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse, AngelContributor, SloganResponse, SloganVoteRequest } from './types';
+import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, PaymentDetailResponse, CheckoutRequest, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse, AngelContributor, SloganResponse, SloganVoteRequest, TributeResponse, TributeRequest } from './types';
 
 const BASE_URL = '/api/rsvp';
 
@@ -344,5 +344,31 @@ export async function voteForSlogan(data: SloganVoteRequest): Promise<SloganResp
 
 export async function fetchMyVote(familyMemberId: number): Promise<{ sloganId: number | null }> {
   const res = await fetch(`${SLOGANS_URL}/my-vote?familyMemberId=${familyMemberId}`);
+  return handleResponse(res);
+}
+
+// --- Tributes ---
+
+const TRIBUTES_URL = '/api/tributes';
+
+export async function fetchTributes(): Promise<TributeResponse[]> {
+  const res = await fetch(TRIBUTES_URL);
+  return handleResponse(res);
+}
+
+export async function submitTribute(data: TributeRequest): Promise<TributeResponse> {
+  const res = await fetch(TRIBUTES_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
+export async function deleteTribute(id: number): Promise<void> {
+  const res = await fetch(`${TRIBUTES_URL}/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
   return handleResponse(res);
 }
