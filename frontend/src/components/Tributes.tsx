@@ -9,7 +9,7 @@ import './Tributes.css';
 // (Gildan 5000 color chart). Branch heads in the DB use full names — some with
 // married surnames (e.g. "Cheryl Johnson", "Gail Creecy") — so pillars are
 // matched by first name, which is unique among the 11 siblings.
-export interface Pillar {
+interface Pillar {
   firstName: string;
   displayName: string;
   colorName: string;
@@ -17,7 +17,7 @@ export interface Pillar {
   ink: string; // darker variant for legible text on cream
 }
 
-export const PILLARS: Pillar[] = [
+const PILLARS: Pillar[] = [
   { firstName: 'Cheryl', displayName: 'Cheryl', colorName: 'Red', hex: '#C8102E', ink: '#A50D26' },
   { firstName: 'Kendra', displayName: 'Kendra', colorName: 'Military Green', hex: '#5E6737', ink: '#4C5329' },
   { firstName: 'Stephen', displayName: 'Stephen', colorName: 'Sapphire Blue', hex: '#1D6FC9', ink: '#1859A3' },

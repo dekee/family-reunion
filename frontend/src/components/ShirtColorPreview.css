@@ -6,7 +6,7 @@
 
 .shirt-preview-header {
   text-align: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .shirt-preview-header h3 {
@@ -46,53 +46,51 @@
   font-weight: 600;
 }
 
-.shirt-preview-grid {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-}
-
-.shirt-preview-card {
-  background: var(--color-bg-card);
+.shirt-preview-image {
+  display: block;
+  width: 100%;
+  padding: 0;
   border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
-  padding: 0.8rem 0.7rem 0.65rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: none;
+  cursor: zoom-in;
   box-shadow: var(--shadow-card);
 }
 
-.shirt-preview-card svg {
+.shirt-preview-image img {
   width: 100%;
-  height: auto;
   display: block;
 }
 
-.shirt-preview-caption {
+.shirt-preview-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  min-width: 0;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.85);
+  cursor: zoom-out;
+  overflow: auto;
 }
 
-.shirt-preview-chip {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  flex-shrink: 0;
-  border: 1px solid var(--color-border-light);
+.shirt-preview-lightbox img {
+  max-width: 96vw;
+  max-height: 92vh;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 
-.shirt-preview-who {
-  font-weight: 600;
-  font-size: 0.85rem;
-  color: var(--color-text-primary);
-}
-
-.shirt-preview-colorname {
-  color: var(--color-text-secondary);
-  font-size: 0.72rem;
-  margin-left: auto;
-  text-align: right;
+.shirt-preview-lightbox-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 1rem;
+  border: none;
+  background: none;
+  color: #fff;
+  font-size: 2.2rem;
+  line-height: 1;
+  cursor: pointer;
 }
