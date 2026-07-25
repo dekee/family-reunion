@@ -217,4 +217,35 @@ class SecurityIntegrationTest @Autowired constructor(
         mockMvc.perform(delete("/api/tributes/1"))
             .andExpect(status().isUnauthorized)
     }
+
+    // --- T-shirt designs ---
+
+    @Test
+    fun `GET designs should be public`() {
+        mockMvc.perform(get("/api/designs"))
+            .andExpect(status().isOk)
+    }
+
+    @Test
+    fun `POST design vote should be public`() {
+        // Unknown family member id → 404 (not 401), proving the endpoint is reachable without auth
+        mockMvc.perform(
+            post("/api/designs/vote")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"designId":1,"familyMemberId":999999}""")
+        )
+            .andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `GET design my-vote should be public`() {
+        mockMvc.perform(get("/api/designs/my-vote").param("familyMemberId", "999999"))
+            .andExpect(status().isOk)
+    }
+
+    @Test
+    fun `DELETE design should return 401 without auth`() {
+        mockMvc.perform(delete("/api/designs/1"))
+            .andExpect(status().isUnauthorized)
+    }
 }

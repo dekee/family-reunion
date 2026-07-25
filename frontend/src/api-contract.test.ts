@@ -32,6 +32,8 @@ import type {
   AgeGroup,
   TributeRequest,
   TributeResponse,
+  DesignResponse,
+  DesignVoteRequest,
 } from './types';
 
 // --- Type shape validators ---
@@ -594,6 +596,43 @@ describe('Tribute API Contracts', () => {
     expect(fetchCalls[0].method).toBe('DELETE');
   });
 });
+
+describe('T-Shirt Design API Contracts', () => {
+  it('fetchDesigns calls GET /api/designs', async () => {
+    mockFetch([]);
+    const { fetchDesigns } = await import('./api');
+    await fetchDesigns();
+    expect(fetchCalls[0].url).toBe('/api/designs');
+    expect(fetchCalls[0].method).toBe('GET');
+  });
+
+  it('voteForDesign calls POST /api/designs/vote with JSON body', async () => {
+    mockFetch({ id: 1, name: 'Legacy Tree', imageUrl: '/designs/design-legacy-tree.jpg', voteCount: 3 });
+    const { voteForDesign } = await import('./api');
+    const body: DesignVoteRequest = { designId: 1, familyMemberId: 42 };
+    const result = await voteForDesign(body);
+    expect(fetchCalls[0].url).toBe('/api/designs/vote');
+    expect(fetchCalls[0].method).toBe('POST');
+    expect(JSON.parse(fetchCalls[0].body!)).toEqual(body);
+    assertDesignResponse(result);
+  });
+
+  it('fetchMyDesignVote calls GET /api/designs/my-vote with familyMemberId', async () => {
+    mockFetch({ designId: null });
+    const { fetchMyDesignVote } = await import('./api');
+    await fetchMyDesignVote(42);
+    expect(fetchCalls[0].url).toBe('/api/designs/my-vote?familyMemberId=42');
+    expect(fetchCalls[0].method).toBe('GET');
+  });
+});
+
+function assertDesignResponse(obj: unknown): asserts obj is DesignResponse {
+  const o = obj as Record<string, unknown>;
+  expect(typeof o.id).toBe('number');
+  expect(typeof o.name).toBe('string');
+  expect(typeof o.imageUrl).toBe('string');
+  expect(typeof o.voteCount).toBe('number');
+}
 
 function assertTributeResponse(obj: unknown): asserts obj is TributeResponse {
   const o = obj as Record<string, unknown>;

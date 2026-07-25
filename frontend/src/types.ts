@@ -259,6 +259,18 @@ export interface SloganVoteRequest {
   familyMemberId: number;
 }
 
+export interface DesignResponse {
+  id: number;
+  name: string;
+  imageUrl: string;
+  voteCount: number;
+}
+
+export interface DesignVoteRequest {
+  designId: number;
+  familyMemberId: number;
+}
+
 export interface TributeResponse {
   id: number;
   siblingId: number;

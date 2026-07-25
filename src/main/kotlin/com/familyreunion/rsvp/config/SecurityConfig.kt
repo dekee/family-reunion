@@ -52,6 +52,7 @@ class SecurityConfig(
                 auth.requestMatchers(HttpMethod.GET, "/api/checkin/ticket/**").permitAll()
                 auth.requestMatchers(HttpMethod.GET, "/api/checkin/capabilities").permitAll()
                 auth.requestMatchers(HttpMethod.GET, "/api/slogans/**").permitAll()
+                auth.requestMatchers(HttpMethod.GET, "/api/designs/**").permitAll()
                 auth.requestMatchers(HttpMethod.GET, "/api/tributes/**").permitAll()
 
                 // Public mutations (specific paths before parameterized patterns)
@@ -62,6 +63,7 @@ class SecurityConfig(
                 auth.requestMatchers(HttpMethod.DELETE, "/api/events/*/register/**").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/checkin/send").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/slogans/vote").permitAll()
+                auth.requestMatchers(HttpMethod.POST, "/api/designs/vote").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/tributes").permitAll()
 
                 // Admin check-in (after /api/checkin/send to avoid {token} matching "send")

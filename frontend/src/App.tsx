@@ -19,6 +19,7 @@ import CheckinDashboard from './components/CheckinDashboard';
 import Gallery from './components/Gallery';
 import ThankYou from './components/ThankYou';
 import TshirtSurvey from './components/TshirtSurvey';
+import TshirtDesignVote from './components/TshirtDesignVote';
 import Tributes from './components/Tributes';
 import CommandPalette from './components/CommandPalette';
 import { ToastProvider } from './components/Toast';
@@ -171,6 +172,7 @@ function App() {
               <NavLink to="/family-tree" onClick={closeMenu}>Family Tree</NavLink>
               <NavLink to="/gallery" onClick={closeMenu}>Gallery</NavLink>
               <NavLink to="/tshirt-survey" onClick={closeMenu}>T-Shirt Vote</NavLink>
+              <NavLink to="/tshirt-design" onClick={closeMenu}>T-Shirt Design</NavLink>
               <NavLink to="/tributes" onClick={closeMenu}>Tributes</NavLink>
               <NavLink to="/thank-you" onClick={closeMenu}>Thank You</NavLink>
               {isAdmin && <NavLink to="/rsvp" className="nav-admin" onClick={closeMenu}>RSVP</NavLink>}
@@ -194,6 +196,7 @@ function App() {
               <Route path="/family-tree" element={<FamilyTree />} />
               <Route path="/gallery" element={<Gallery />} />
               <Route path="/tshirt-survey" element={<TshirtSurvey />} />
+              <Route path="/tshirt-design" element={<TshirtDesignVote />} />
               <Route path="/tributes" element={<Tributes />} />
               <Route path="/thank-you" element={<ThankYou />} />
               {isAdmin && <Route path="/checkin" element={<CheckinDashboard />} />}

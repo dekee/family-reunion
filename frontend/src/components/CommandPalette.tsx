@@ -19,6 +19,7 @@ const ALL_ITEMS: NavItem[] = [
   { label: 'Family Tree', path: '/family-tree' },
   { label: 'Gallery', path: '/gallery' },
   { label: 'T-Shirt Vote', path: '/tshirt-survey' },
+  { label: 'T-Shirt Design Vote', path: '/tshirt-design' },
   { label: 'Tributes', path: '/tributes' },
   { label: 'RSVP', path: '/rsvp', admin: true },
   { label: 'Check-In', path: '/checkin', admin: true },
