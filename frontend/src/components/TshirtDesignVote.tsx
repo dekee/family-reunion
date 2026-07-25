@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { fetchDesigns, voteForDesign, fetchMyDesignVote, fetchFamilyTree } from '../api';
 import { useToast } from './Toast';
 import { getBranchColor } from '../branchColors';
+import ShirtColorPreview from './ShirtColorPreview';
 import type { DesignResponse, FamilyTreeNode } from '../types';
 import './TshirtSurvey.css';
 import './TshirtDesignVote.css';
@@ -380,6 +381,8 @@ export default function TshirtDesignVote() {
           )}
         </>
       )}
+
+      {!loading && <ShirtColorPreview />}
 
       {zoomedDesign && (
         <div className="design-lightbox" onClick={() => setZoomedDesign(null)}>

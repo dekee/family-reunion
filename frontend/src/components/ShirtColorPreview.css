@@ -1,0 +1,98 @@
+.shirt-preview {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.shirt-preview-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.shirt-preview-header h3 {
+  margin: 0 0 0.4rem;
+  color: var(--color-text-heading);
+}
+
+.shirt-preview-header p {
+  margin: 0 auto;
+  max-width: 34rem;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.shirt-preview-toggle {
+  display: inline-flex;
+  margin-top: 1rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--color-bg-card);
+}
+
+.shirt-preview-toggle button {
+  font-family: inherit;
+  font-size: 0.88rem;
+  padding: 0.5rem 1.2rem;
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.shirt-preview-toggle button[aria-pressed='true'] {
+  background: var(--color-gold);
+  color: #23180a;
+  font-weight: 600;
+}
+
+.shirt-preview-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+.shirt-preview-card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  padding: 0.8rem 0.7rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  box-shadow: var(--shadow-card);
+}
+
+.shirt-preview-card svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.shirt-preview-caption {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.shirt-preview-chip {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border-light);
+}
+
+.shirt-preview-who {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--color-text-primary);
+}
+
+.shirt-preview-colorname {
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  margin-left: auto;
+  text-align: right;
+}
