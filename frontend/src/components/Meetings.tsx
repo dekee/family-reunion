@@ -62,12 +62,18 @@ export default function Meetings() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    // datetime-local inputs omit seconds ("2026-07-30T19:00") but the backend
+    // requires yyyy-MM-dd'T'HH:mm:ss — append them if missing.
+    const payload = {
+      ...form,
+      meetingDateTime: form.meetingDateTime.length === 16 ? `${form.meetingDateTime}:00` : form.meetingDateTime,
+    };
     try {
       if (editingId !== null) {
-        await updateMeeting(editingId, form);
+        await updateMeeting(editingId, payload);
         showToast('Meeting updated');
       } else {
-        await createMeeting(form);
+        await createMeeting(payload);
         showToast('Meeting created');
       }
       setForm(emptyForm);
