@@ -106,6 +106,33 @@ export interface EventRegisterRequest {
   familyMemberIds: number[];
 }
 
+export interface VolunteerSignupDto {
+  id: number;
+  familyMemberId: number;
+  familyMemberName: string;
+}
+
+export interface VolunteerTaskRequest {
+  title: string;
+  description?: string;
+  eventId: number;
+}
+
+export interface VolunteerTaskResponse {
+  id: number;
+  title: string;
+  description?: string;
+  eventId: number;
+  eventTitle: string;
+  eventDateTime: string;
+  signups: VolunteerSignupDto[];
+  signupCount: number;
+}
+
+export interface VolunteerSignupRequest {
+  familyMemberIds: number[];
+}
+
 export interface PaymentResponse {
   id: number;
   rsvpId: number;

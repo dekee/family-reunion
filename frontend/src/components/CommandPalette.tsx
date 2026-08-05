@@ -13,6 +13,7 @@ const ALL_ITEMS: NavItem[] = [
   { label: 'Home', path: '/' },
   { label: 'Pay & RSVP', path: '/pay' },
   { label: 'Events', path: '/events' },
+  { label: 'Volunteer', path: '/volunteer' },
   { label: 'Meetings', path: '/meetings' },
   { label: 'Budget', path: '/budget' },
   { label: 'Members', path: '/members' },

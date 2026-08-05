@@ -34,6 +34,10 @@ import type {
   TributeResponse,
   DesignResponse,
   DesignVoteRequest,
+  VolunteerTaskRequest,
+  VolunteerTaskResponse,
+  VolunteerSignupDto,
+  VolunteerSignupRequest,
 } from './types';
 
 // --- Type shape validators ---
@@ -89,6 +93,26 @@ function assertEventResponse(obj: unknown): asserts obj is EventResponse {
 }
 
 function assertEventRegistration(obj: unknown): asserts obj is EventRegistrationDto {
+  const o = obj as Record<string, unknown>;
+  expect(typeof o.id).toBe('number');
+  expect(typeof o.familyMemberId).toBe('number');
+  expect(typeof o.familyMemberName).toBe('string');
+}
+
+function assertVolunteerTaskResponse(obj: unknown): asserts obj is VolunteerTaskResponse {
+  const o = obj as Record<string, unknown>;
+  expect(typeof o.id).toBe('number');
+  expect(typeof o.title).toBe('string');
+  expect(typeof o.eventId).toBe('number');
+  expect(typeof o.eventTitle).toBe('string');
+  expect(typeof o.eventDateTime).toBe('string');
+  expect(Array.isArray(o.signups)).toBe(true);
+  expect(typeof o.signupCount).toBe('number');
+  // eventDateTime must include seconds (backend format: yyyy-MM-dd'T'HH:mm:ss)
+  expect(o.eventDateTime).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/);
+}
+
+function assertVolunteerSignupDto(obj: unknown): asserts obj is VolunteerSignupDto {
   const o = obj as Record<string, unknown>;
   expect(typeof o.id).toBe('number');
   expect(typeof o.familyMemberId).toBe('number');
@@ -242,6 +266,28 @@ describe('API Response Type Contracts', () => {
     assertEventRegistration(sample);
   });
 
+  it('VolunteerTaskResponse shape matches backend VolunteerTaskResponse DTO', () => {
+    const sample: VolunteerTaskResponse = {
+      id: 1,
+      title: 'Set up chairs',
+      eventId: 2,
+      eventTitle: 'Fish Fry',
+      eventDateTime: '2026-10-16T18:00:00',
+      signups: [],
+      signupCount: 0,
+    };
+    assertVolunteerTaskResponse(sample);
+  });
+
+  it('VolunteerSignupDto shape matches backend', () => {
+    const sample: VolunteerSignupDto = {
+      id: 1,
+      familyMemberId: 5,
+      familyMemberName: 'John',
+    };
+    assertVolunteerSignupDto(sample);
+  });
+
   it('PaymentSummaryResponse shape matches backend', () => {
     const sample: PaymentSummaryResponse = {
       rsvpId: 1,
@@ -368,6 +414,23 @@ describe('API Request Type Contracts', () => {
 
   it('EventRegisterRequest familyMemberIds is number array', () => {
     const req: EventRegisterRequest = {
+      familyMemberIds: [1, 2, 3],
+    };
+    expect(Array.isArray(req.familyMemberIds)).toBe(true);
+    expect(req.familyMemberIds.every((id) => typeof id === 'number')).toBe(true);
+  });
+
+  it('VolunteerTaskRequest has all required fields for backend', () => {
+    const req: VolunteerTaskRequest = {
+      title: 'Set up chairs',
+      eventId: 1,
+    };
+    expect(req.title).toBeTruthy();
+    expect(req.eventId).toBeGreaterThan(0);
+  });
+
+  it('VolunteerSignupRequest familyMemberIds is number array', () => {
+    const req: VolunteerSignupRequest = {
       familyMemberIds: [1, 2, 3],
     };
     expect(Array.isArray(req.familyMemberIds)).toBe(true);
@@ -507,6 +570,55 @@ describe('API Client Endpoint Contracts', () => {
     const { unregisterFromEvent } = await import('./api');
     await unregisterFromEvent(5, 3);
     expect(fetchCalls[0].url).toBe('/api/events/5/register/3');
+    expect(fetchCalls[0].method).toBe('DELETE');
+  });
+
+  it('fetchVolunteerTasks calls GET /api/volunteer-tasks', async () => {
+    mockFetch([]);
+    const { fetchVolunteerTasks } = await import('./api');
+    await fetchVolunteerTasks();
+    expect(fetchCalls[0].url).toBe('/api/volunteer-tasks');
+    expect(fetchCalls[0].method).toBe('GET');
+  });
+
+  it('createVolunteerTask calls POST /api/volunteer-tasks', async () => {
+    mockFetch({ id: 1 }, 201);
+    const { createVolunteerTask } = await import('./api');
+    await createVolunteerTask({ title: 'Set up chairs', eventId: 1 });
+    expect(fetchCalls[0].url).toBe('/api/volunteer-tasks');
+    expect(fetchCalls[0].method).toBe('POST');
+  });
+
+  it('updateVolunteerTask calls PUT /api/volunteer-tasks/{id}', async () => {
+    mockFetch({ id: 1 }, 200);
+    const { updateVolunteerTask } = await import('./api');
+    await updateVolunteerTask(1, { title: 'Updated', eventId: 2 });
+    expect(fetchCalls[0].url).toBe('/api/volunteer-tasks/1');
+    expect(fetchCalls[0].method).toBe('PUT');
+  });
+
+  it('deleteVolunteerTask calls DELETE /api/volunteer-tasks/{id}', async () => {
+    mockFetch(undefined, 204);
+    const { deleteVolunteerTask } = await import('./api');
+    await deleteVolunteerTask(1);
+    expect(fetchCalls[0].url).toBe('/api/volunteer-tasks/1');
+    expect(fetchCalls[0].method).toBe('DELETE');
+  });
+
+  it('signUpForTask calls POST /api/volunteer-tasks/{id}/signup', async () => {
+    mockFetch({ id: 1, signups: [], signupCount: 0 });
+    const { signUpForTask } = await import('./api');
+    await signUpForTask(5, { familyMemberIds: [1, 2] });
+    expect(fetchCalls[0].url).toBe('/api/volunteer-tasks/5/signup');
+    expect(fetchCalls[0].method).toBe('POST');
+    expect(JSON.parse(fetchCalls[0].body!).familyMemberIds).toEqual([1, 2]);
+  });
+
+  it('withdrawFromTask calls DELETE /api/volunteer-tasks/{id}/signup/{memberId}', async () => {
+    mockFetch(undefined, 204);
+    const { withdrawFromTask } = await import('./api');
+    await withdrawFromTask(5, 3);
+    expect(fetchCalls[0].url).toBe('/api/volunteer-tasks/5/signup/3');
     expect(fetchCalls[0].method).toBe('DELETE');
   });
 

@@ -13,9 +13,14 @@ interface Props {
   available: FlatMember[];
   onRegister: (memberIds: number[]) => void;
   onClose: () => void;
+  title?: string;
+  actionLabel?: string;
 }
 
-export default function RegistrationModal({ eventTitle, available, onRegister, onClose }: Props) {
+export default function RegistrationModal({
+  eventTitle, available, onRegister, onClose,
+  title = 'Register Members', actionLabel = 'Register',
+}: Props) {
   const [selected, setSelected] = useState<number[]>([]);
   const [search, setSearch] = useState('');
 
@@ -69,7 +74,7 @@ export default function RegistrationModal({ eventTitle, available, onRegister, o
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Register Members</h3>
+          <h3>{title}</h3>
           <p className="modal-subtitle">{eventTitle}</p>
           <button className="modal-close" onClick={onClose}>&times;</button>
         </div>
@@ -133,7 +138,7 @@ export default function RegistrationModal({ eventTitle, available, onRegister, o
             onClick={handleSubmit}
             disabled={selected.length === 0}
           >
-            Register ({selected.length})
+            {actionLabel} ({selected.length})
           </button>
         </div>
       </div>

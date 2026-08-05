@@ -7,11 +7,13 @@ import com.familyreunion.rsvp.model.FamilyMember
 import com.familyreunion.rsvp.model.Meeting
 import com.familyreunion.rsvp.model.Rsvp
 import com.familyreunion.rsvp.model.TshirtSlogan
+import com.familyreunion.rsvp.model.VolunteerTask
 import com.familyreunion.rsvp.repository.EventRepository
 import com.familyreunion.rsvp.repository.FamilyMemberRepository
 import com.familyreunion.rsvp.repository.MeetingRepository
 import com.familyreunion.rsvp.repository.RsvpRepository
 import com.familyreunion.rsvp.repository.TshirtSloganRepository
+import com.familyreunion.rsvp.repository.VolunteerTaskRepository
 import java.time.LocalDateTime
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
@@ -25,7 +27,8 @@ class DataInitializer(
     private val familyMemberRepository: FamilyMemberRepository,
     private val meetingRepository: MeetingRepository,
     private val eventRepository: EventRepository,
-    private val tshirtSloganRepository: TshirtSloganRepository
+    private val tshirtSloganRepository: TshirtSloganRepository,
+    private val volunteerTaskRepository: VolunteerTaskRepository
 ) : ApplicationRunner {
 
     override fun run(args: ApplicationArguments?) {
@@ -168,7 +171,7 @@ class DataInitializer(
         )
 
         // Seed reunion events
-        eventRepository.save(
+        val seafoodParty = eventRepository.save(
             Event(
                 title = "SeaFood Party",
                 description = "Seafood feast to kick off the reunion weekend!",
@@ -178,7 +181,7 @@ class DataInitializer(
                 notes = "Bring your appetite!"
             )
         )
-        eventRepository.save(
+        val andouilleFestiville = eventRepository.save(
             Event(
                 title = "Andouille Festiville",
                 description = "Andouille sausage cookout and family fun.",
@@ -198,7 +201,7 @@ class DataInitializer(
                 notes = null
             )
         )
-        eventRepository.save(
+        val brunch = eventRepository.save(
             Event(
                 title = "Brunch",
                 description = "Family brunch to close out the reunion.",
@@ -206,6 +209,36 @@ class DataInitializer(
                 address = "TBD — Derrick's House",
                 hostName = "Derrick",
                 notes = null
+            )
+        )
+
+        // Seed volunteer tasks
+        volunteerTaskRepository.save(
+            VolunteerTask(
+                title = "Set up chairs and tables",
+                description = "Help set up seating before guests arrive at Byron's.",
+                event = seafoodParty
+            )
+        )
+        volunteerTaskRepository.save(
+            VolunteerTask(
+                title = "Clean up after the party",
+                description = "Stay after to help break down tables and clean up.",
+                event = seafoodParty
+            )
+        )
+        volunteerTaskRepository.save(
+            VolunteerTask(
+                title = "Grill crew",
+                description = "Help man the grills during the cookout.",
+                event = andouilleFestiville
+            )
+        )
+        volunteerTaskRepository.save(
+            VolunteerTask(
+                title = "Clean up after brunch",
+                description = "Help tidy up after the closing brunch.",
+                event = brunch
             )
         )
 

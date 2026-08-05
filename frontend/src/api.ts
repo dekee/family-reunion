@@ -1,4 +1,4 @@
-import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, PaymentDetailResponse, CheckoutRequest, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse, AngelContributor, SloganResponse, SloganVoteRequest, DesignResponse, DesignVoteRequest, TributeResponse, TributeRequest } from './types';
+import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, PaymentDetailResponse, CheckoutRequest, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse, AngelContributor, SloganResponse, SloganVoteRequest, DesignResponse, DesignVoteRequest, TributeResponse, TributeRequest, VolunteerTaskRequest, VolunteerTaskResponse, VolunteerSignupRequest } from './types';
 
 const BASE_URL = '/api/rsvp';
 
@@ -189,6 +189,55 @@ export async function registerForEvent(eventId: number, data: EventRegisterReque
 
 export async function unregisterFromEvent(eventId: number, memberId: number): Promise<void> {
   const res = await fetch(`${EVENTS_URL}/${eventId}/register/${memberId}`, { method: 'DELETE' });
+  return handleResponse(res);
+}
+
+// --- Volunteer Tasks ---
+
+const VOLUNTEER_URL = '/api/volunteer-tasks';
+
+export async function fetchVolunteerTasks(): Promise<VolunteerTaskResponse[]> {
+  const res = await fetch(VOLUNTEER_URL);
+  return handleResponse(res);
+}
+
+export async function createVolunteerTask(data: VolunteerTaskRequest): Promise<VolunteerTaskResponse> {
+  const res = await fetch(VOLUNTEER_URL, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
+export async function updateVolunteerTask(id: number, data: VolunteerTaskRequest): Promise<VolunteerTaskResponse> {
+  const res = await fetch(`${VOLUNTEER_URL}/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
+export async function deleteVolunteerTask(id: number): Promise<void> {
+  const res = await fetch(`${VOLUNTEER_URL}/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+export async function signUpForTask(taskId: number, data: VolunteerSignupRequest): Promise<VolunteerTaskResponse> {
+  const res = await fetch(`${VOLUNTEER_URL}/${taskId}/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
+export async function withdrawFromTask(taskId: number, memberId: number): Promise<void> {
+  const res = await fetch(`${VOLUNTEER_URL}/${taskId}/signup/${memberId}`, { method: 'DELETE' });
   return handleResponse(res);
 }
 

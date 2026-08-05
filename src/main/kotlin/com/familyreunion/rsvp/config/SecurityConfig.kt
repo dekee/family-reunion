@@ -54,6 +54,7 @@ class SecurityConfig(
                 auth.requestMatchers(HttpMethod.GET, "/api/slogans/**").permitAll()
                 auth.requestMatchers(HttpMethod.GET, "/api/designs/**").permitAll()
                 auth.requestMatchers(HttpMethod.GET, "/api/tributes/**").permitAll()
+                auth.requestMatchers(HttpMethod.GET, "/api/volunteer-tasks/**").permitAll()
 
                 // Public mutations (specific paths before parameterized patterns)
                 auth.requestMatchers(HttpMethod.POST, "/api/rsvp").permitAll()
@@ -65,6 +66,8 @@ class SecurityConfig(
                 auth.requestMatchers(HttpMethod.POST, "/api/slogans/vote").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/designs/vote").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/tributes").permitAll()
+                auth.requestMatchers(HttpMethod.POST, "/api/volunteer-tasks/*/signup").permitAll()
+                auth.requestMatchers(HttpMethod.DELETE, "/api/volunteer-tasks/*/signup/**").permitAll()
 
                 // Admin check-in (after /api/checkin/send to avoid {token} matching "send")
                 auth.requestMatchers(HttpMethod.POST, "/api/checkin/{token}").hasRole("ADMIN")

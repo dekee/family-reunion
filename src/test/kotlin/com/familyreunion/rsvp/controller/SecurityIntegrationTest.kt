@@ -218,6 +218,63 @@ class SecurityIntegrationTest @Autowired constructor(
             .andExpect(status().isUnauthorized)
     }
 
+    // --- Volunteer tasks ---
+
+    @Test
+    fun `GET volunteer tasks should be public`() {
+        mockMvc.perform(get("/api/volunteer-tasks"))
+            .andExpect(status().isOk)
+    }
+
+    @Test
+    fun `POST volunteer task should return 401 without auth`() {
+        mockMvc.perform(
+            post("/api/volunteer-tasks")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"title":"Set up chairs","eventId":1}""")
+        )
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `DELETE volunteer task should return 401 without auth`() {
+        mockMvc.perform(delete("/api/volunteer-tasks/1"))
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `POST volunteer task should reach controller with admin token`() {
+        seedAdmin()
+        setupMockToken()
+
+        // Unknown event id → 404 (not 401/403), proving admin auth passed
+        mockMvc.perform(
+            post("/api/volunteer-tasks")
+                .header("Authorization", "Bearer valid-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"title":"Set up chairs","eventId":999999}""")
+        )
+            .andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `POST volunteer signup should be public`() {
+        // Unknown task id → 404 (not 401), proving the endpoint is reachable without auth
+        mockMvc.perform(
+            post("/api/volunteer-tasks/999999/signup")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"familyMemberIds":[1]}""")
+        )
+            .andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `DELETE volunteer signup should be public`() {
+        // Unknown task id → 404 (not 401), proving the endpoint is reachable without auth
+        mockMvc.perform(delete("/api/volunteer-tasks/999999/signup/1"))
+            .andExpect(status().isNotFound)
+    }
+
     // --- T-shirt designs ---
 
     @Test

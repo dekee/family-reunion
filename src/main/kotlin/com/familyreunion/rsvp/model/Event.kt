@@ -26,5 +26,8 @@ class Event(
     var notes: String? = null,
 
     @OneToMany(mappedBy = "event", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val registrations: MutableList<EventRegistration> = mutableListOf()
+    val registrations: MutableList<EventRegistration> = mutableListOf(),
+
+    @OneToMany(mappedBy = "event", cascade = [CascadeType.ALL], orphanRemoval = true)
+    val volunteerTasks: MutableList<VolunteerTask> = mutableListOf()
 )

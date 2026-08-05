@@ -10,6 +10,7 @@ import FamilyTree from './components/FamilyTree';
 import FamilyMembers from './components/FamilyMembers';
 import Meetings from './components/Meetings';
 import Events from './components/Events';
+import Volunteer from './components/Volunteer';
 import Budget from './components/Budget';
 import PayAndRsvp from './components/PayAndRsvp';
 import TicketPage from './components/TicketPage';
@@ -166,6 +167,7 @@ function App() {
               <NavLink to="/" end onClick={closeMenu}>Home</NavLink>
               <NavLink to="/pay" onClick={closeMenu}>Pay & RSVP</NavLink>
               <NavLink to="/events" onClick={closeMenu}>Events</NavLink>
+              <NavLink to="/volunteer" onClick={closeMenu}>Volunteer</NavLink>
               <NavLink to="/meetings" onClick={closeMenu}>Meetings</NavLink>
               {isAdmin && <NavLink to="/budget" className="nav-admin" onClick={closeMenu}>Budget</NavLink>}
               <NavLink to="/members" onClick={closeMenu}>Members</NavLink>
@@ -187,6 +189,7 @@ function App() {
               <Route path="/" element={<HomePage />} />
               {isAdmin && <Route path="/rsvp" element={<RsvpPage />} />}
               <Route path="/events" element={<Events />} />
+              <Route path="/volunteer" element={<Volunteer />} />
               <Route path="/meetings" element={<Meetings />} />
               {isAdmin && <Route path="/budget" element={<Budget />} />}
               <Route path="/pay" element={<PayAndRsvp />} />
