@@ -43,6 +43,11 @@ spec:
                 secretKeyRef:
                   name: google-oauth-secret
                   key: GOOGLE_CLIENT_ID
+            - name: GOOGLE_IOS_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: google-oauth-secret
+                  key: GOOGLE_IOS_CLIENT_ID
             - name: INITIAL_ADMIN_EMAIL
               valueFrom:
                 secretKeyRef:
@@ -97,6 +102,26 @@ spec:
                 secretKeyRef:
                   name: gallery-secret
                   key: GOOGLE_DRIVE_FOLDER_ID
+            # Drive OAuth (folder owner) — needed for photo uploads; optional so the
+            # pod still starts on clusters where the secret lacks these keys.
+            - name: GOOGLE_DRIVE_OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: gallery-secret
+                  key: GOOGLE_DRIVE_OAUTH_CLIENT_ID
+                  optional: true
+            - name: GOOGLE_DRIVE_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gallery-secret
+                  key: GOOGLE_DRIVE_OAUTH_CLIENT_SECRET
+                  optional: true
+            - name: GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: gallery-secret
+                  key: GOOGLE_DRIVE_OAUTH_REFRESH_TOKEN
+                  optional: true
           volumeMounts:
             - name: gallery-credentials
               mountPath: /etc/gallery
