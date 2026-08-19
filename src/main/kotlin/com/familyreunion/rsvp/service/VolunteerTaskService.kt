@@ -26,6 +26,11 @@ class VolunteerTaskService(
     private val familyMemberRepository: FamilyMemberRepository
 ) {
 
+    companion object {
+        const val TRIBUTE_TITLE_PREFIX = "Tribute to"
+        const val MAX_TRIBUTE_SPEAKERS = 2
+    }
+
     fun createTask(request: VolunteerTaskRequest): VolunteerTaskResponse {
         val event = eventRepository.findById(request.eventId)
             .orElseThrow { EventNotFoundException(request.eventId) }
@@ -66,6 +71,18 @@ class VolunteerTaskService(
     fun signUp(taskId: Long, request: VolunteerSignupRequest): VolunteerTaskResponse {
         val task = volunteerTaskRepository.findById(taskId)
             .orElseThrow { VolunteerTaskNotFoundException(taskId) }
+
+        // Banquet tribute tasks are capped at two speakers; the frontend identifies
+        // them the same way (title prefix), so keep the two checks in sync.
+        if (task.title.trim().startsWith(TRIBUTE_TITLE_PREFIX)) {
+            val existingIds = task.signups.mapNotNull { it.familyMember?.id }.toSet()
+            val newIds = request.familyMemberIds.distinct().filter { it !in existingIds }
+            if (existingIds.size + newIds.size > MAX_TRIBUTE_SPEAKERS) {
+                throw IllegalStateException(
+                    "This tribute already has the maximum of $MAX_TRIBUTE_SPEAKERS speakers"
+                )
+            }
+        }
 
         for (memberId in request.familyMemberIds) {
             val member = familyMemberRepository.findById(memberId)

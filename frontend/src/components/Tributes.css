@@ -532,3 +532,169 @@
     justify-content: flex-end;
   }
 }
+
+/* ── Reunion Day (banquet) tribute speaker signups ── */
+.day-tributes {
+  margin-bottom: 2rem;
+}
+
+.day-tributes-header {
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.day-tributes-note {
+  max-width: 720px;
+  margin: 0.75rem auto 0;
+  padding: 0.65rem 1rem;
+  background: var(--tribute-cream);
+  border: 1px solid var(--tribute-border);
+  border-radius: var(--radius-md);
+  color: var(--tribute-brown-soft);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.day-tributes-header h3 {
+  font-size: 1.35rem;
+  color: var(--tribute-brown);
+  margin: 0 0 0.4rem;
+}
+
+.day-tributes-sub {
+  max-width: 640px;
+  margin: 0 auto;
+  color: var(--tribute-brown-soft);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.day-tribute-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 0.75rem;
+}
+
+.day-tribute-card {
+  background: var(--tribute-cream-card);
+  border: 1px solid var(--tribute-border);
+  border-top-width: 4px;
+  border-radius: var(--radius-lg);
+  padding: 0.8rem 0.9rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.day-tribute-card-full {
+  opacity: 0.55;
+}
+
+.day-tribute-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.day-tribute-head h4 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--tribute-brown);
+}
+
+.day-tribute-full-badge {
+  background: var(--tribute-olive);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .day-tribute-full-badge {
+  color: #1d1a12;
+}
+
+.day-tribute-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--tribute-brown-soft);
+}
+
+.day-tribute-slots {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: auto;
+}
+
+.day-tribute-slot {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius-md);
+  font-size: 0.88rem;
+}
+
+.day-tribute-slot-filled {
+  background: rgba(107, 122, 79, 0.12);
+  border: 1px solid rgba(107, 122, 79, 0.35);
+  color: var(--tribute-brown);
+}
+
+.day-tribute-slot-check {
+  color: var(--tribute-olive);
+  font-weight: 700;
+}
+
+.day-tribute-slot-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.day-tribute-slot-open {
+  width: 100%;
+  background: transparent;
+  border: 1px dashed var(--tribute-border);
+  color: var(--tribute-brown-soft);
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.day-tribute-slot-open:hover {
+  border-color: var(--tribute-olive);
+  color: var(--tribute-brown);
+}
+
+.day-tribute-slot-plus {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.day-tribute-slot-remove {
+  border: none;
+  background: transparent;
+  color: var(--color-error);
+  cursor: pointer;
+  font-size: 1.05rem;
+  line-height: 1;
+  padding: 0 0.15rem;
+}
+
+@media (max-width: 480px) {
+  .day-tribute-slots {
+    flex-direction: column;
+  }
+}

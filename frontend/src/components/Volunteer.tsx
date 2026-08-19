@@ -18,6 +18,9 @@ const emptyForm: VolunteerTaskRequest = {
   eventId: 0,
 };
 
+// Banquet tribute signups live on the Tributes page, not here
+const isTributeTask = (title: string) => title.trim().startsWith('Tribute to');
+
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleString('en-US', {
@@ -195,7 +198,7 @@ export default function Volunteer() {
     }
   };
 
-  const eventGroups = groupByEvent(tasks);
+  const eventGroups = groupByEvent(tasks.filter((t) => !isTributeTask(t.title)));
 
   return (
     <div className="volunteer-page">

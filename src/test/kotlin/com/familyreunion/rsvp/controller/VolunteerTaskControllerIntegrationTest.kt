@@ -217,6 +217,56 @@ class VolunteerTaskControllerIntegrationTest @Autowired constructor(
     }
 
     @Test
+    fun `POST signup on tribute task is capped at two speakers`() {
+        val eventId = createEvent("Banquet")
+        val taskId = objectMapper.readTree(
+            postTask(sampleTask(eventId, "Tribute to Norris:"))
+        ).get("id").asLong()
+        val member1 = createMember("Speaker One")
+        val member2 = createMember("Speaker Two")
+        val member3 = createMember("Speaker Three")
+
+        mockMvc.perform(
+            post("/api/volunteer-tasks/$taskId/signup")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(VolunteerSignupRequest(listOf(member1, member2))))
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.signupCount").value(2))
+
+        mockMvc.perform(
+            post("/api/volunteer-tasks/$taskId/signup")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(VolunteerSignupRequest(listOf(member3))))
+        )
+            .andExpect(status().isBadRequest)
+
+        // Re-sending an existing speaker is still fine (no new signup added)
+        mockMvc.perform(
+            post("/api/volunteer-tasks/$taskId/signup")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(VolunteerSignupRequest(listOf(member1))))
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.signupCount").value(2))
+    }
+
+    @Test
+    fun `POST signup on non-tribute task is not capped`() {
+        val eventId = createEvent()
+        val taskId = objectMapper.readTree(postTask(sampleTask(eventId))).get("id").asLong()
+        val ids = (1..3).map { createMember("Helper $it") }
+
+        mockMvc.perform(
+            post("/api/volunteer-tasks/$taskId/signup")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(VolunteerSignupRequest(ids)))
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.signupCount").value(3))
+    }
+
+    @Test
     fun `POST signup is idempotent for duplicate member`() {
         val eventId = createEvent()
         val taskId = objectMapper.readTree(postTask(sampleTask(eventId))).get("id").asLong()

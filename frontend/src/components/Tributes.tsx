@@ -1,9 +1,23 @@
 import { useEffect, useState, useRef } from 'react';
-import { fetchTributes, submitTribute, deleteTribute, fetchFamilyTree } from '../api';
+import {
+  fetchTributes, submitTribute, deleteTribute, fetchFamilyTree,
+  fetchVolunteerTasks, signUpForTask, withdrawFromTask,
+} from '../api';
 import { useAuth } from '../AuthContext';
 import { useToast } from './Toast';
-import type { TributeResponse, FamilyTreeNode } from '../types';
+import type { TributeResponse, FamilyTreeNode, VolunteerTaskResponse } from '../types';
+import RegistrationModal from './RegistrationModal';
+import './RegistrationModal.css';
 import './Tributes.css';
+
+// Banquet tribute signups (moved here from the Volunteer page). Tasks are
+// matched by title prefix — the backend enforces the same prefix for the
+// two-speaker cap.
+const MAX_SPEAKERS = 2;
+const isTributeTask = (title: string) => title.trim().startsWith('Tribute to');
+// "Tribute to Norris:" → "Norris"
+const honoreeFromTitle = (title: string) =>
+  title.trim().replace(/^Tribute to\s*/i, '').replace(/:$/, '').trim();
 
 // The 11 pillars and the shirt colors each picked to represent their family
 // (Gildan 5000 color chart). Branch heads in the DB use full names — some with
@@ -34,6 +48,17 @@ const PILLARS: Pillar[] = [
 // "Cheryl Johnson" → pillar with firstName "Cheryl"
 const pillarByName = (name: string) =>
   PILLARS.find((p) => p.firstName === name.split(' ')[0]);
+
+// Tolerant match for task honorees: "Steve" → Stephen, "Wesley" → Wesley.
+// Returns undefined for non-pillar honorees (e.g. "Penny").
+const pillarForHonoree = (honoree: string) => {
+  const first = honoree.split(' ')[0].toLowerCase();
+  if (!first) return undefined;
+  return PILLARS.find((p) => {
+    const pf = p.firstName.toLowerCase();
+    return pf.startsWith(first) || first.startsWith(pf);
+  });
+};
 
 function Leaf({ fill, size = 84 }: { fill: string; size?: number }) {
   return (
@@ -94,6 +119,8 @@ export default function Tributes() {
   const [tributes, setTributes] = useState<TributeResponse[]>([]);
   const [members, setMembers] = useState<FlatMember[]>([]);
   const [siblingIds, setSiblingIds] = useState<Map<string, number>>(new Map());
+  const [dayTasks, setDayTasks] = useState<VolunteerTaskResponse[]>([]);
+  const [signupTaskId, setSignupTaskId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedPillar, setSelectedPillar] = useState<Pillar | null>(null);
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(() => {
@@ -111,10 +138,18 @@ export default function Tributes() {
   const { showToast } = useToast();
 
   const load = () => {
-    Promise.all([fetchTributes(), fetchFamilyTree()])
-      .then(([t, tree]) => {
+    Promise.all([fetchTributes(), fetchFamilyTree(), fetchVolunteerTasks()])
+      .then(([t, tree, tasks]) => {
         setTributes(t);
         setMembers(flattenTree(tree.roots));
+        const tributeTasks = tasks.filter((task) => isTributeTask(task.title));
+        // Show in pillar order; honorees that aren't pillars go last
+        const pillarIndex = (task: VolunteerTaskResponse) => {
+          const p = pillarForHonoree(honoreeFromTitle(task.title));
+          return p ? PILLARS.indexOf(p) : PILLARS.length;
+        };
+        tributeTasks.sort((a, b) => pillarIndex(a) - pillarIndex(b));
+        setDayTasks(tributeTasks);
         // The 11 pillars are the root founders' children; map pillar first name → member id
         const ids = new Map<string, number>();
         for (const root of tree.roots) {
@@ -229,8 +264,112 @@ export default function Tributes() {
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
 
+  // The tribute tasks all carry the same instructions (modulo small typos),
+  // so show a single copy — the most common wording — in the section header.
+  const descriptionCounts = new Map<string, number>();
+  for (const t of dayTasks) {
+    const d = (t.description || '').trim();
+    if (d) descriptionCounts.set(d, (descriptionCounts.get(d) || 0) + 1);
+  }
+  const commonDescription =
+    [...descriptionCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+  const handleSpeakerSignup = async (task: VolunteerTaskResponse, memberIds: number[]) => {
+    const remaining = MAX_SPEAKERS - task.signupCount;
+    if (memberIds.length > remaining) {
+      showToast(`Only ${remaining} speaker slot${remaining === 1 ? '' : 's'} left for this tribute`, 'error');
+      return;
+    }
+    try {
+      await signUpForTask(task.id, { familyMemberIds: memberIds });
+      showToast('Speaker slot reserved. Thank you!');
+      setSignupTaskId(null);
+      load();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to sign up', 'error');
+    }
+  };
+
+  const handleSpeakerRemove = async (taskId: number, memberId: number) => {
+    try {
+      await withdrawFromTask(taskId, memberId);
+      showToast('Speaker removed');
+      load();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to remove speaker', 'error');
+    }
+  };
+
   return (
     <div className="tributes-page">
+      {!loading && dayTasks.length > 0 && (
+        <div className="day-tributes">
+          <header className="day-tributes-header">
+            <h3>Reunion Day Tributes</h3>
+            <p className="day-tributes-sub">
+              These tributes will be given in person at the Family Reunion Banquet.
+              Each tribute has two speaker slots &mdash; choose a slot to sign up.
+              (Written tributes below are for anyone who doesn&apos;t get a chance to speak.)
+            </p>
+            {commonDescription && <p className="day-tributes-note">{commonDescription}</p>}
+          </header>
+          <div className="day-tribute-grid">
+            {dayTasks.map((task) => {
+              const honoree = honoreeFromTitle(task.title);
+              const pillar = pillarForHonoree(honoree);
+              const hex = pillar?.hex ?? 'var(--color-border)';
+              const full = task.signupCount >= MAX_SPEAKERS;
+              return (
+                <div
+                  key={task.id}
+                  className={`day-tribute-card ${full ? 'day-tribute-card-full' : ''}`}
+                  style={{ borderTopColor: hex }}
+                >
+                  <div className="day-tribute-head">
+                    <h4>Tribute to {pillar?.displayName ?? honoree}</h4>
+                    {full && <span className="day-tribute-full-badge">Speakers Confirmed</span>}
+                  </div>
+                  <div className="day-tribute-slots">
+                    {Array.from({ length: MAX_SPEAKERS }, (_, i) => {
+                      const signup = task.signups[i];
+                      if (signup) {
+                        return (
+                          <div key={i} className="day-tribute-slot day-tribute-slot-filled">
+                            <span className="day-tribute-slot-check">&#10003;</span>
+                            <span className="day-tribute-slot-label">
+                              {isAdmin ? signup.familyMemberName : 'Confirmed'}
+                            </span>
+                            {isAdmin && (
+                              <button
+                                className="day-tribute-slot-remove"
+                                onClick={() => handleSpeakerRemove(task.id, signup.familyMemberId)}
+                                title={`Remove ${signup.familyMemberName}`}
+                              >
+                                &times;
+                              </button>
+                            )}
+                          </div>
+                        );
+                      }
+                      return (
+                        <button
+                          key={i}
+                          className="day-tribute-slot day-tribute-slot-open"
+                          onClick={() => setSignupTaskId(task.id)}
+                        >
+                          <span className="day-tribute-slot-plus">+</span>
+                          <span className="day-tribute-slot-label">Sign up</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="tributes-chart">
         <header className="tributes-header">
           <h2>Pillars of Our Family</h2>
@@ -279,6 +418,23 @@ export default function Tributes() {
         )}
         <p className="tributes-footnote">* Colors are based on the Gildan 5000 color chart.</p>
       </div>
+
+      {signupTaskId !== null && (() => {
+        const task = dayTasks.find((t) => t.id === signupTaskId);
+        if (!task) return null;
+        const signedUpIds = new Set(task.signups.map((s) => s.familyMemberId));
+        const available = members.filter((m) => !signedUpIds.has(m.id));
+        return (
+          <RegistrationModal
+            title="Sign Up to Give a Tribute"
+            actionLabel="Reserve Slot"
+            eventTitle={`Tribute to ${pillarForHonoree(honoreeFromTitle(task.title))?.displayName ?? honoreeFromTitle(task.title)} — ${task.eventTitle}`}
+            available={available}
+            onRegister={(ids) => handleSpeakerSignup(task, ids)}
+            onClose={() => setSignupTaskId(null)}
+          />
+        );
+      })()}
 
       {selectedPillar && (
         <div
