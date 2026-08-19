@@ -5,9 +5,11 @@ import com.familyreunion.rsvp.dto.MoveMemberRequest
 import com.familyreunion.rsvp.exception.FamilyMemberNotFoundException
 import com.familyreunion.rsvp.model.AgeGroup
 import com.familyreunion.rsvp.model.FamilyMember
+import com.familyreunion.rsvp.model.Rsvp
 import com.familyreunion.rsvp.repository.AttendeeRepository
 import com.familyreunion.rsvp.repository.EventRegistrationRepository
 import com.familyreunion.rsvp.repository.FamilyMemberRepository
+import com.familyreunion.rsvp.repository.RsvpRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -16,6 +18,7 @@ import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.util.*
@@ -31,6 +34,9 @@ class FamilyTreeServiceTest {
 
     @Mock
     private lateinit var eventRegistrationRepository: EventRegistrationRepository
+
+    @Mock
+    private lateinit var rsvpRepository: RsvpRepository
 
     @InjectMocks
     private lateinit var familyTreeService: FamilyTreeService
@@ -146,6 +152,61 @@ class FamilyTreeServiceTest {
         assertThat(result.name).isEqualTo("New Root")
         assertThat(result.generation).isEqualTo(0)
         assertThat(result.parentId).isNull()
+    }
+
+    @Test
+    fun `addMember should add new member as attendee on the branch RSVP`() {
+        val wesley = FamilyMember(id = 1L, name = "Wesley Tumblin", ageGroup = AgeGroup.ADULT, generation = 0, isFounder = true)
+        val cheryl = FamilyMember(id = 2L, name = "Cheryl Johnson", ageGroup = AgeGroup.ADULT, generation = 1, parent = wesley)
+        val kiera = FamilyMember(id = 3L, name = "Kiera Robins", ageGroup = AgeGroup.ADULT, generation = 2, parent = cheryl)
+        val saved = FamilyMember(id = 10L, name = "Mike Robins", ageGroup = AgeGroup.SPOUSE, generation = 3, parent = kiera)
+        val cherylRsvp = Rsvp(id = 5L, familyName = "Cheryl", headOfHouseholdName = "Cheryl", email = "c@x.com")
+
+        whenever(familyMemberRepository.findById(3L)).thenReturn(Optional.of(kiera))
+        whenever(familyMemberRepository.save(any<FamilyMember>())).thenReturn(saved)
+        whenever(rsvpRepository.findAll()).thenReturn(listOf(cherylRsvp))
+
+        val request = FamilyMemberRequest(name = "Mike Robins", ageGroup = AgeGroup.SPOUSE, parentId = 3L)
+        familyTreeService.addMember(request)
+
+        assertThat(cherylRsvp.attendees).hasSize(1)
+        assertThat(cherylRsvp.attendees[0].familyMember?.id).isEqualTo(10L)
+        verify(rsvpRepository).save(cherylRsvp)
+    }
+
+    @Test
+    fun `addMember should not create attendee when no RSVP matches the branch`() {
+        val wesley = FamilyMember(id = 1L, name = "Wesley Tumblin", ageGroup = AgeGroup.ADULT, generation = 0, isFounder = true)
+        val cheryl = FamilyMember(id = 2L, name = "Cheryl Johnson", ageGroup = AgeGroup.ADULT, generation = 1, parent = wesley)
+        val saved = FamilyMember(id = 10L, name = "New Member", ageGroup = AgeGroup.ADULT, generation = 2, parent = cheryl)
+
+        whenever(familyMemberRepository.findById(2L)).thenReturn(Optional.of(cheryl))
+        whenever(familyMemberRepository.save(any<FamilyMember>())).thenReturn(saved)
+        whenever(rsvpRepository.findAll()).thenReturn(emptyList())
+
+        val request = FamilyMemberRequest(name = "New Member", ageGroup = AgeGroup.ADULT, parentId = 2L)
+        familyTreeService.addMember(request)
+
+        verify(rsvpRepository, never()).save(any<Rsvp>())
+    }
+
+    @Test
+    fun `addMember should not duplicate an existing attendee`() {
+        val wesley = FamilyMember(id = 1L, name = "Wesley Tumblin", ageGroup = AgeGroup.ADULT, generation = 0, isFounder = true)
+        val cheryl = FamilyMember(id = 2L, name = "Cheryl Johnson", ageGroup = AgeGroup.ADULT, generation = 1, parent = wesley)
+        val saved = FamilyMember(id = 10L, name = "New Member", ageGroup = AgeGroup.ADULT, generation = 2, parent = cheryl)
+        val cherylRsvp = Rsvp(id = 5L, familyName = "Cheryl", headOfHouseholdName = "Cheryl", email = "c@x.com")
+        cherylRsvp.attendees.add(com.familyreunion.rsvp.model.Attendee(rsvp = cherylRsvp, familyMember = saved))
+
+        whenever(familyMemberRepository.findById(2L)).thenReturn(Optional.of(cheryl))
+        whenever(familyMemberRepository.save(any<FamilyMember>())).thenReturn(saved)
+        whenever(rsvpRepository.findAll()).thenReturn(listOf(cherylRsvp))
+
+        val request = FamilyMemberRequest(name = "New Member", ageGroup = AgeGroup.ADULT, parentId = 2L)
+        familyTreeService.addMember(request)
+
+        assertThat(cherylRsvp.attendees).hasSize(1)
+        verify(rsvpRepository, never()).save(any<Rsvp>())
     }
 
     @Test

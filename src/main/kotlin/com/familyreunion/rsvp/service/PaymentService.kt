@@ -273,8 +273,21 @@ class PaymentService(
         val payments = paymentRepository.findByRsvpId(rsvp.id)
         val totalOwed = calculateAmountOwed(rsvp)
         val completedPayments = payments.filter { it.status == PaymentStatus.COMPLETED }
+
+        // Collect paid member IDs and guests from completed payment line items
+        val completedPaymentIds = completedPayments.map { it.id }
+        val lineItems = if (completedPaymentIds.isNotEmpty()) {
+            paymentLineItemRepository.findByCompletedPaymentIds(completedPaymentIds, PaymentStatus.COMPLETED)
+        } else emptyList()
+
+        // Angel contributions are donations — they must not count toward member fees owed
+        val angelTotal = lineItems
+            .filter { it.guestName == "Angel Contribution" }
+            .fold(BigDecimal.ZERO) { acc, li -> acc.add(li.amount) }
+
         val totalPaid = completedPayments
             .fold(BigDecimal.ZERO) { acc, p -> acc.add(p.amount) }
+            .subtract(angelTotal)
         val totalPending = payments
             .filter { it.status == PaymentStatus.PENDING }
             .fold(BigDecimal.ZERO) { acc, p -> acc.add(p.amount) }
@@ -287,12 +300,6 @@ class PaymentService(
             hasPending -> "PENDING"
             else -> "UNPAID"
         }
-
-        // Collect paid member IDs and guests from completed payment line items
-        val completedPaymentIds = completedPayments.map { it.id }
-        val lineItems = if (completedPaymentIds.isNotEmpty()) {
-            paymentLineItemRepository.findByCompletedPaymentIds(completedPaymentIds, PaymentStatus.COMPLETED)
-        } else emptyList()
 
         val paidMemberIds = lineItems.filter { it.familyMemberId != null }.map { it.familyMemberId!! }.distinct()
         val paidGuests = lineItems.filter { it.guestName != null }.map {

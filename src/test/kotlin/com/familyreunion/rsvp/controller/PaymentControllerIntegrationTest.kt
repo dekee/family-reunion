@@ -3,7 +3,13 @@ package com.familyreunion.rsvp.controller
 import com.familyreunion.rsvp.dto.RsvpRequest
 import com.familyreunion.rsvp.model.AgeGroup
 import com.familyreunion.rsvp.dto.AttendeeDto
+import com.familyreunion.rsvp.model.Payment
+import com.familyreunion.rsvp.model.PaymentLineItem
+import com.familyreunion.rsvp.model.PaymentStatus
+import com.familyreunion.rsvp.repository.PaymentRepository
+import com.familyreunion.rsvp.repository.RsvpRepository
 import com.fasterxml.jackson.databind.ObjectMapper
+import java.math.BigDecimal
 import org.hamcrest.Matchers.*
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -24,7 +30,9 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class PaymentControllerIntegrationTest @Autowired constructor(
     private val mockMvc: MockMvc,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val rsvpRepository: RsvpRepository,
+    private val paymentRepository: PaymentRepository
 ) {
 
     private fun createRsvp(familyName: String, adults: Int = 2, children: Int = 1): Long {
@@ -170,6 +178,40 @@ class PaymentControllerIntegrationTest @Autowired constructor(
         // Adult $100 + Infant $15 = $115
         mockMvc.perform(get("/api/payments/summary"))
             .andExpect(jsonPath("$[0].totalOwed").value(115.0))
+    }
+
+    @Test
+    fun `GET summary excludes angel contributions from totalPaid and balance`() {
+        // 2 adults = $200 owed; $200 payment made up of one $100 adult fee + $100 angel donation
+        val rsvpId = createRsvp("AngelFamily", adults = 2, children = 0)
+        val rsvp = rsvpRepository.findById(rsvpId).get()
+
+        val payment = Payment(
+            rsvp = rsvp,
+            amount = BigDecimal("200.00"),
+            stripeSessionId = "sess_angel_test",
+            status = PaymentStatus.COMPLETED
+        )
+        payment.lineItems.add(PaymentLineItem(
+            payment = payment,
+            guestName = "AngelFamily Adult 1",
+            ageGroup = AgeGroup.ADULT,
+            amount = BigDecimal("100.00")
+        ))
+        payment.lineItems.add(PaymentLineItem(
+            payment = payment,
+            guestName = "Angel Contribution",
+            ageGroup = AgeGroup.ADULT,
+            amount = BigDecimal("100.00")
+        ))
+        paymentRepository.save(payment)
+
+        mockMvc.perform(get("/api/payments/summary/$rsvpId"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.totalOwed").value(200.0))
+            .andExpect(jsonPath("$.totalPaid").value(100.0))
+            .andExpect(jsonPath("$.balance").value(100.0))
+            .andExpect(jsonPath("$.status").value("PARTIAL"))
     }
 
     // --- Checkout contract tests ---

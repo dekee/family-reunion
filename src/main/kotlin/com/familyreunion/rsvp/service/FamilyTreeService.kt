@@ -5,10 +5,13 @@ import com.familyreunion.rsvp.dto.FamilyTreeNode
 import com.familyreunion.rsvp.dto.FamilyTreeResponse
 import com.familyreunion.rsvp.dto.MoveMemberRequest
 import com.familyreunion.rsvp.exception.FamilyMemberNotFoundException
+import com.familyreunion.rsvp.model.Attendee
 import com.familyreunion.rsvp.model.FamilyMember
 import com.familyreunion.rsvp.repository.AttendeeRepository
 import com.familyreunion.rsvp.repository.EventRegistrationRepository
 import com.familyreunion.rsvp.repository.FamilyMemberRepository
+import com.familyreunion.rsvp.repository.RsvpRepository
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -17,8 +20,11 @@ import org.springframework.transaction.annotation.Transactional
 class FamilyTreeService(
     private val familyMemberRepository: FamilyMemberRepository,
     private val attendeeRepository: AttendeeRepository,
-    private val eventRegistrationRepository: EventRegistrationRepository
+    private val eventRegistrationRepository: EventRegistrationRepository,
+    private val rsvpRepository: RsvpRepository
 ) {
+
+    private val log = LoggerFactory.getLogger(FamilyTreeService::class.java)
 
     fun buildTree(): FamilyTreeResponse {
         val founders = familyMemberRepository.findByIsFounderTrue()
@@ -47,7 +53,36 @@ class FamilyTreeService(
         )
 
         val saved = familyMemberRepository.save(member)
+        addToBranchRsvp(saved)
         return toNode(saved)
+    }
+
+    // The payment page lists members from the family tree, but checkout validates
+    // against RSVP attendees — a tree member with no attendee row cannot be paid for.
+    private fun addToBranchRsvp(member: FamilyMember) {
+        if (member.excludeFromRsvp) return
+        val branchRoot = branchRootOf(member) ?: return
+        val branchFirstName = branchRoot.name.split(" ").first()
+        val rsvp = rsvpRepository.findAll().find {
+            it.familyName.split(" ").first().equals(branchFirstName, ignoreCase = true)
+        }
+        if (rsvp == null) {
+            log.warn("No RSVP matches branch '${branchRoot.name}'; member '${member.name}' not added as attendee")
+            return
+        }
+        if (rsvp.attendees.none { it.familyMember?.id == member.id }) {
+            rsvp.attendees.add(Attendee(rsvp = rsvp, familyMember = member))
+            rsvpRepository.save(rsvp)
+        }
+    }
+
+    private fun branchRootOf(member: FamilyMember): FamilyMember? {
+        var current = member
+        while (true) {
+            val parent = current.parent ?: return null
+            if (parent.isFounder) return current
+            current = parent
+        }
     }
 
     @Transactional
