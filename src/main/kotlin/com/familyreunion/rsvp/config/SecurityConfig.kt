@@ -63,6 +63,9 @@ class SecurityConfig(
                 auth.requestMatchers(HttpMethod.POST, "/api/events/*/register").permitAll()
                 auth.requestMatchers(HttpMethod.DELETE, "/api/events/*/register/**").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/checkin/send").permitAll()
+                // Gallery upload is public at the HTTP layer; the controller enforces
+                // the shared family upload password.
+                auth.requestMatchers(HttpMethod.POST, "/api/gallery/upload").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/slogans/vote").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/designs/vote").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/tributes").permitAll()

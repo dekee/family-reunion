@@ -267,12 +267,18 @@ export interface GalleryPhoto {
   width: number | null;
   height: number | null;
   createdTime: string | null;
+  dateTaken: string | null;
 }
 
 export interface GalleryResponse {
   photos: GalleryPhoto[];
   nextPageToken: string | null;
   totalCount: number;
+}
+
+export interface GalleryUploadResponse {
+  uploaded: number;
+  photos: GalleryPhoto[];
 }
 
 export interface SloganResponse {

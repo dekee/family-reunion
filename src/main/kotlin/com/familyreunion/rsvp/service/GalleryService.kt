@@ -66,7 +66,8 @@ class GalleryService(
                         fullUrl = "/api/gallery/photo/${file.id}",
                         width = file.imageMediaMetadata?.width,
                         height = file.imageMediaMetadata?.height,
-                        createdTime = file.createdTime?.toStringRfc3339()
+                        createdTime = file.createdTime?.toStringRfc3339(),
+                        dateTaken = parseExifTime(file.imageMediaMetadata?.time)
                     )
                 )
             }
@@ -98,6 +99,45 @@ class GalleryService(
         // thumbnail vs full currently stream the same bytes; folder scoping above applies to both.
         val stream = drive.files().get(fileId).executeMediaAsInputStream()
         return Pair(stream.readBytes(), file.mimeType ?: "image/jpeg")
+    }
+
+    fun uploadPhoto(filename: String, contentType: String, bytes: ByteArray): GalleryPhoto {
+        val metadata = com.google.api.services.drive.model.File().apply {
+            name = filename
+            parents = listOf(folderId)
+        }
+        val content = com.google.api.client.http.ByteArrayContent(contentType, bytes)
+
+        val uploaded = drive.files().create(metadata, content)
+            .setFields("id, name, imageMediaMetadata, createdTime")
+            .setSupportsAllDrives(true)
+            .execute()
+
+        logger.info("Uploaded photo '{}' to gallery folder as file {}", filename, uploaded.id)
+        clearCache()
+
+        return GalleryPhoto(
+            id = uploaded.id,
+            name = uploaded.name,
+            thumbnailUrl = "/api/gallery/photo/${uploaded.id}?size=thumbnail",
+            fullUrl = "/api/gallery/photo/${uploaded.id}",
+            width = uploaded.imageMediaMetadata?.width,
+            height = uploaded.imageMediaMetadata?.height,
+            createdTime = uploaded.createdTime?.toStringRfc3339(),
+            dateTaken = parseExifTime(uploaded.imageMediaMetadata?.time)
+        )
+    }
+
+    // Drive reports EXIF date-taken as "yyyy:MM:dd HH:mm:ss"; convert to ISO-8601
+    private fun parseExifTime(exifTime: String?): String? {
+        if (exifTime.isNullOrBlank()) return null
+        return try {
+            java.time.LocalDateTime
+                .parse(exifTime, java.time.format.DateTimeFormatter.ofPattern("yyyy:MM:dd HH:mm:ss"))
+                .toString()
+        } catch (e: java.time.format.DateTimeParseException) {
+            null
+        }
     }
 
     fun clearCache() {

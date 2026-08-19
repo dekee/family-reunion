@@ -7,7 +7,8 @@ data class GalleryPhoto(
     val fullUrl: String,
     val width: Int?,
     val height: Int?,
-    val createdTime: String?
+    val createdTime: String?,
+    val dateTaken: String?
 )
 
 data class GalleryResponse(

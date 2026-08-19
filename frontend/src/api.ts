@@ -1,4 +1,4 @@
-import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, PaymentDetailResponse, CheckoutRequest, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse, AngelContributor, SloganResponse, SloganVoteRequest, DesignResponse, DesignVoteRequest, TributeResponse, TributeRequest, VolunteerTaskRequest, VolunteerTaskResponse, VolunteerSignupRequest } from './types';
+import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, PaymentDetailResponse, CheckoutRequest, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse, GalleryUploadResponse, AngelContributor, SloganResponse, SloganVoteRequest, DesignResponse, DesignVoteRequest, TributeResponse, TributeRequest, VolunteerTaskRequest, VolunteerTaskResponse, VolunteerSignupRequest } from './types';
 
 const BASE_URL = '/api/rsvp';
 
@@ -371,6 +371,27 @@ export async function fetchGalleryPhotos(pageToken?: string): Promise<GalleryRes
   const url = params.toString() ? `${GALLERY_URL}?${params}` : GALLERY_URL;
   const res = await fetch(url);
   return handleResponse(res);
+}
+
+export async function uploadGalleryPhotos(password: string, files: File[]): Promise<GalleryUploadResponse> {
+  const formData = new FormData();
+  formData.append('password', password);
+  files.forEach((file) => formData.append('files', file));
+  // No Content-Type header — the browser sets the multipart boundary itself.
+  // Not using handleResponse: a wrong upload password returns 403, which would
+  // wrongly clear a logged-in admin's auth token there.
+  const res = await fetch(`${GALLERY_URL}/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (res.status === 403) {
+    throw new Error('Incorrect password');
+  }
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ message: 'Upload failed' }));
+    throw new Error(error.error || error.message || `HTTP ${res.status}`);
+  }
+  return res.json();
 }
 
 // --- T-Shirt Slogans ---

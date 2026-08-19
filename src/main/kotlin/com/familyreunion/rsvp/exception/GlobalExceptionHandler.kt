@@ -70,6 +70,12 @@ class GlobalExceptionHandler {
             .body(mapOf("error" to ex.message))
     }
 
+    @ExceptionHandler(IllegalArgumentException::class)
+    fun handleIllegalArgument(ex: IllegalArgumentException): ResponseEntity<Map<String, String?>> {
+        return ResponseEntity.badRequest()
+            .body(mapOf("error" to ex.message))
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleValidation(ex: MethodArgumentNotValidException): ResponseEntity<Map<String, Any>> {
         val errors = ex.bindingResult.fieldErrors.associate { it.field to (it.defaultMessage ?: "invalid") }

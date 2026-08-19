@@ -637,6 +637,50 @@ describe('API Client Endpoint Contracts', () => {
     expect(fetchCalls[0].method).toBe('POST');
   });
 
+  it('fetchGalleryPhotos calls GET /api/gallery and photos match GalleryPhoto shape', async () => {
+    mockFetch({
+      photos: [{
+        id: 'f1', name: 'a.jpg', thumbnailUrl: '/api/gallery/photo/f1?size=thumbnail',
+        fullUrl: '/api/gallery/photo/f1', width: 800, height: 600,
+        createdTime: '2026-08-05T00:00:00.000Z', dateTaken: '2026-08-01T12:00:00',
+      }],
+      nextPageToken: null,
+      totalCount: 1,
+    });
+    const { fetchGalleryPhotos } = await import('./api');
+    const res = await fetchGalleryPhotos();
+    expect(fetchCalls[0].url).toBe('/api/gallery');
+    const p = res.photos[0] as unknown as Record<string, unknown>;
+    expect(typeof p.id).toBe('string');
+    expect(typeof p.thumbnailUrl).toBe('string');
+    expect(typeof p.fullUrl).toBe('string');
+    expect(typeof p.createdTime).toBe('string');
+    expect(typeof p.dateTaken).toBe('string');
+  });
+
+  it('uploadGalleryPhotos calls POST /api/gallery/upload with multipart form data', async () => {
+    mockFetch({ uploaded: 1, photos: [] });
+    const { uploadGalleryPhotos } = await import('./api');
+    const file = new File([new Uint8Array([1, 2, 3])], 'pic.jpg', { type: 'image/jpeg' });
+    const result = await uploadGalleryPhotos('tumblin2026', [file]);
+    expect(fetchCalls[0].url).toBe('/api/gallery/upload');
+    expect(fetchCalls[0].method).toBe('POST');
+    const body = fetchCalls[0].body as unknown as FormData;
+    expect(body.get('password')).toBe('tumblin2026');
+    expect(body.getAll('files')).toHaveLength(1);
+    expect(result.uploaded).toBe(1);
+  });
+
+  it('uploadGalleryPhotos throws on wrong password without clearing auth token', async () => {
+    localStorage.setItem('auth_token', 'admin-token');
+    mockFetch({ error: 'Forbidden' }, 403);
+    const { uploadGalleryPhotos } = await import('./api');
+    const file = new File([new Uint8Array([1])], 'pic.jpg', { type: 'image/jpeg' });
+    await expect(uploadGalleryPhotos('wrong', [file])).rejects.toThrow('Incorrect password');
+    expect(localStorage.getItem('auth_token')).toBe('admin-token');
+    localStorage.removeItem('auth_token');
+  });
+
   it('fetchPaymentSummaries calls GET /api/payments/summary', async () => {
     mockFetch([]);
     const { fetchPaymentSummaries } = await import('./api');
