@@ -85,7 +85,7 @@ class CheckinService(
             if (lineItem.isAngel) {
                 throw IllegalArgumentException("Angel contributions do not have a T-shirt size")
             }
-            lineItem.tshirtSize = TshirtSize.parseFor(entry.tshirtSize, lineItem.ageGroup, lineItem.displayName)
+            lineItem.tshirtSize = TshirtSize.parse(entry.tshirtSize, lineItem.displayName)
             lineItem
         }
         paymentLineItemRepository.saveAll(changed)

@@ -1,8 +1,11 @@
 import type { AgeGroup, TshirtSize } from '../types';
 
 /**
- * T-shirt sizes offered per age group. Size values are the enum names the backend
+ * T-shirt sizes offered to paid attendees. Size values are the enum names the backend
  * stores and validates (see TshirtSize.kt) — keep both files in sync.
+ *
+ * Anyone may pick any size. Age group only decides which group is listed first in the
+ * dropdown (a big kid may need an adult shirt, a small adult a youth one).
  */
 export type SizeCategory = 'UNISEX' | 'YOUTH' | 'ONESIE';
 
@@ -38,7 +41,7 @@ export const SIZE_LABELS: Record<TshirtSize, string> = {
 };
 
 export const SIZE_CATEGORY_LABELS: Record<SizeCategory, string> = {
-  UNISEX: 'Unisex',
+  UNISEX: 'Adult (Unisex)',
   YOUTH: 'Youth',
   ONESIE: 'Onesie',
 };
@@ -46,7 +49,8 @@ export const SIZE_CATEGORY_LABELS: Record<SizeCategory, string> = {
 /** Pseudo line item the backend creates for angel donations — never has a size. */
 export const ANGEL_LINE_ITEM_NAME = 'Angel Contribution';
 
-export function sizeCategoryFor(ageGroup: string): SizeCategory {
+/** The size group most likely to fit; used only to order the dropdown. */
+export function suggestedCategoryFor(ageGroup: string): SizeCategory {
   switch (ageGroup as AgeGroup) {
     case 'CHILD':
       return 'YOUTH';
@@ -59,8 +63,11 @@ export function sizeCategoryFor(ageGroup: string): SizeCategory {
   }
 }
 
-export function sizesForAgeGroup(ageGroup: string): TshirtSize[] {
-  return SIZES_BY_CATEGORY[sizeCategoryFor(ageGroup)];
+/** All size groups, with the suggested group for this age first. */
+export function sizeGroupsForAgeGroup(ageGroup: string): SizeCategory[] {
+  const suggested = suggestedCategoryFor(ageGroup);
+  const rest: SizeCategory[] = (['UNISEX', 'YOUTH', 'ONESIE'] as SizeCategory[]).filter(c => c !== suggested);
+  return [suggested, ...rest];
 }
 
 export function sizeLabel(size: string | null | undefined): string {
@@ -68,6 +75,6 @@ export function sizeLabel(size: string | null | undefined): string {
   return SIZE_LABELS[size as TshirtSize] ?? size;
 }
 
-export function isValidSizeFor(size: string, ageGroup: string): boolean {
-  return (sizesForAgeGroup(ageGroup) as string[]).includes(size);
+export function isKnownSize(size: string): size is TshirtSize {
+  return (ALL_SIZES as string[]).includes(size);
 }

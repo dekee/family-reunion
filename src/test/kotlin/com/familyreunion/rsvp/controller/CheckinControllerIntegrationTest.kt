@@ -94,7 +94,7 @@ class CheckinControllerIntegrationTest @Autowired constructor(
     }
 
     @Test
-    fun `PUT ticket sizes rejects a size from the wrong category`() {
+    fun `PUT ticket sizes allows an adult size for a child`() {
         val fx = createPayment()
         val json = """{"sizes":[{"lineItemId":${fx.child.id},"tshirtSize":"L"}]}"""
 
@@ -103,8 +103,24 @@ class CheckinControllerIntegrationTest @Autowired constructor(
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json)
         )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.attendees[1].tshirtSize").value("L"))
+
+        assertThat(paymentLineItemRepository.findById(fx.child.id).get().tshirtSize).isEqualTo(TshirtSize.L)
+    }
+
+    @Test
+    fun `PUT ticket sizes rejects an unknown size`() {
+        val fx = createPayment()
+        val json = """{"sizes":[{"lineItemId":${fx.child.id},"tshirtSize":"HUGE"}]}"""
+
+        mockMvc.perform(
+            put("/api/checkin/ticket/${fx.payment.checkinToken}/sizes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+        )
             .andExpect(status().isBadRequest)
-            .andExpect(jsonPath("$.error", containsString("not available")))
+            .andExpect(jsonPath("$.error", containsString("Unknown T-shirt size")))
 
         assertThat(paymentLineItemRepository.findById(fx.child.id).get().tshirtSize).isNull()
     }

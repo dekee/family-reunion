@@ -310,17 +310,40 @@ class PaymentControllerIntegrationTest @Autowired constructor(
     }
 
     @Test
-    fun `PUT line item size rejects a youth size for an adult`() {
-        val rsvpId = createRsvp("SizeWrong", adults = 1, children = 1)
+    fun `PUT line item size allows any size regardless of age group`() {
+        // A small adult may need a youth shirt and a big kid an adult one
+        val rsvpId = createRsvp("SizeAnyGroup", adults = 1, children = 1)
         val fx = createSizedPayment(rsvpId)
 
         mockMvc.perform(
             put("/api/payments/line-items/${fx.member.id}/size")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"rsvpId":$rsvpId,"tshirtSize":"YS"}""")
+                .content("""{"rsvpId":$rsvpId,"tshirtSize":"YXL"}""")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.tshirtSize").value("YXL"))
+
+        mockMvc.perform(
+            put("/api/payments/line-items/${fx.guest.id}/size")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"rsvpId":$rsvpId,"tshirtSize":"XL"}""")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.tshirtSize").value("XL"))
+    }
+
+    @Test
+    fun `PUT line item size rejects an unknown size`() {
+        val rsvpId = createRsvp("SizeUnknown", adults = 1, children = 1)
+        val fx = createSizedPayment(rsvpId)
+
+        mockMvc.perform(
+            put("/api/payments/line-items/${fx.member.id}/size")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"rsvpId":$rsvpId,"tshirtSize":"HUGE"}""")
         )
             .andExpect(status().isBadRequest)
-            .andExpect(jsonPath("$.error", containsString("not available")))
+            .andExpect(jsonPath("$.error", containsString("Unknown T-shirt size")))
 
         mockMvc.perform(get("/api/payments/summary/$rsvpId"))
             .andExpect(jsonPath("$.paidMembers[0].tshirtSize").value("L"))
@@ -389,9 +412,9 @@ class PaymentControllerIntegrationTest @Autowired constructor(
     }
 
     @Test
-    fun `POST checkout rejects an onesie size for a child guest`() {
+    fun `POST checkout rejects an unknown size`() {
         val rsvpId = createRsvp("WrongSize")
-        val json = """{"rsvpId":$rsvpId,"amount":5000,"guests":[{"name":"Cousin","ageGroup":"CHILD","fee":5000,"tshirtSize":"NEWBORN"}]}"""
+        val json = """{"rsvpId":$rsvpId,"amount":5000,"guests":[{"name":"Cousin","ageGroup":"CHILD","fee":5000,"tshirtSize":"HUGE"}]}"""
 
         mockMvc.perform(
             post("/api/payments/checkout")
@@ -399,7 +422,21 @@ class PaymentControllerIntegrationTest @Autowired constructor(
                 .content(json)
         )
             .andExpect(status().isBadRequest)
-            .andExpect(jsonPath("$.error", containsString("not available for Cousin")))
+            .andExpect(jsonPath("$.error", containsString("Unknown T-shirt size 'HUGE' for Cousin")))
+    }
+
+    @Test
+    fun `POST checkout accepts an adult size for a child guest`() {
+        val rsvpId = createRsvp("BigKid")
+        val json = """{"rsvpId":$rsvpId,"amount":5000,"guests":[{"name":"Cousin","ageGroup":"CHILD","fee":5000,"tshirtSize":"L"}]}"""
+
+        // Size validation passes; the request then fails on Stripe not being configured in tests
+        val body = mockMvc.perform(
+            post("/api/payments/checkout")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+        ).andReturn().response.contentAsString
+        assert(body.contains("Stripe")) { "Expected Stripe config error but got: $body" }
     }
 
     @Test

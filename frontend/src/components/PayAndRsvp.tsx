@@ -543,11 +543,11 @@ export default function PayAndRsvp() {
             <span className="pay-legend-item"><span className="pay-legend-pill age-adult">Adult</span> ages 18+ · ${feeForAge('ADULT')} each</span>
             <span className="pay-legend-item"><span className="pay-legend-pill age-spouse">Spouse</span> ages 18+ · ${feeForAge('SPOUSE')} each</span>
             <span className="pay-legend-item"><span className="pay-legend-pill age-child">Child</span> ages 6 to 17 · ${feeForAge('CHILD')} each</span>
-            <span className="pay-legend-item"><span className="pay-legend-pill age-infant">Under 5</span> ages 0 to 5 · ${feeForAge('INFANT')} each (onesie)</span>
+            <span className="pay-legend-item"><span className="pay-legend-pill age-infant">Under 5</span> ages 0 to 5 · ${feeForAge('INFANT')} each (t-shirt)</span>
           </div>
 
           <p className="pay-size-note">
-            Every attendee gets a reunion T-shirt — pick a size for each person you're paying for.
+            Every attendee gets a reunion T-shirt — pick a size for each person you're paying for. Any size is fine for anyone; the group that usually fits is listed first.
             {paidMissingSize > 0 && (
               <strong className="pay-size-note-missing"> {paidMissingSize} paid {paidMissingSize === 1 ? 'person still needs' : 'people still need'} a size.</strong>
             )}
@@ -710,7 +710,7 @@ export default function PayAndRsvp() {
                 {infantCount > 0 && (
                   <div className="pay-summary-line">
                     <span>Under 5:</span>
-                    <span>{infantCount} x {dollars(feeForAge('INFANT'))} (onesie)</span>
+                    <span>{infantCount} x {dollars(feeForAge('INFANT'))} (t-shirt)</span>
                   </div>
                 )}
                 {guests.length > 0 && (

@@ -5,23 +5,17 @@ import {
   SIZE_LABELS,
   UNISEX_SIZES,
   YOUTH_SIZES,
-  isValidSizeFor,
+  isKnownSize,
+  sizeGroupsForAgeGroup,
   sizeLabel,
-  sizesForAgeGroup,
+  suggestedCategoryFor,
 } from './tshirtSizes';
 
 describe('T-shirt size constants (mirror of backend TshirtSize enum)', () => {
-  it('adults and spouses get the seven unisex sizes', () => {
-    expect(sizesForAgeGroup('ADULT')).toEqual(['S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL']);
-    expect(sizesForAgeGroup('SPOUSE')).toEqual(sizesForAgeGroup('ADULT'));
-  });
-
-  it('children get youth sizes', () => {
-    expect(sizesForAgeGroup('CHILD')).toEqual(['YS', 'YM', 'YL', 'YXL']);
-  });
-
-  it('infants get onesie sizes only', () => {
-    expect(sizesForAgeGroup('INFANT')).toEqual(['NEWBORN', 'M0_3', 'M3_6', 'M6_9', 'M9_12']);
+  it('offers seven unisex, four youth and five onesie sizes', () => {
+    expect(UNISEX_SIZES).toEqual(['S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL']);
+    expect(YOUTH_SIZES).toEqual(['YS', 'YM', 'YL', 'YXL']);
+    expect(ONESIE_SIZES).toEqual(['NEWBORN', 'M0_3', 'M3_6', 'M6_9', 'M9_12']);
   });
 
   it('every size appears in exactly one category', () => {
@@ -38,11 +32,21 @@ describe('T-shirt size constants (mirror of backend TshirtSize enum)', () => {
     expect(sizeLabel(null)).toBe('');
   });
 
-  it('validates sizes against the age group', () => {
-    expect(isValidSizeFor('YS', 'ADULT')).toBe(false);
-    expect(isValidSizeFor('L', 'INFANT')).toBe(false);
-    expect(isValidSizeFor('NEWBORN', 'CHILD')).toBe(false);
-    expect(isValidSizeFor('XXXXL', 'SPOUSE')).toBe(true);
-    expect(isValidSizeFor('M9_12', 'INFANT')).toBe(true);
+  it('suggests a group by age but always lists all three groups', () => {
+    expect(suggestedCategoryFor('ADULT')).toBe('UNISEX');
+    expect(suggestedCategoryFor('SPOUSE')).toBe('UNISEX');
+    expect(suggestedCategoryFor('CHILD')).toBe('YOUTH');
+    expect(suggestedCategoryFor('INFANT')).toBe('ONESIE');
+
+    expect(sizeGroupsForAgeGroup('CHILD')).toEqual(['YOUTH', 'UNISEX', 'ONESIE']);
+    expect(sizeGroupsForAgeGroup('INFANT')).toEqual(['ONESIE', 'UNISEX', 'YOUTH']);
+    expect(sizeGroupsForAgeGroup('ADULT')).toEqual(['UNISEX', 'YOUTH', 'ONESIE']);
+  });
+
+  it('accepts any known size for anyone', () => {
+    expect(isKnownSize('YS')).toBe(true);
+    expect(isKnownSize('XXXXL')).toBe(true);
+    expect(isKnownSize('M9_12')).toBe(true);
+    expect(isKnownSize('HUGE')).toBe(false);
   });
 });

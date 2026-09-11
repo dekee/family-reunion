@@ -5,6 +5,9 @@ enum class SizeCategory { UNISEX, YOUTH, ONESIE }
 /**
  * T-shirt sizes offered to paid attendees. Enum names are the wire/DB format;
  * [label] is the human-readable text. Keep in sync with frontend/src/constants/tshirtSizes.ts.
+ *
+ * Any attendee may pick any size — age group only decides which group is suggested first
+ * in the UI (a big kid may need an adult shirt, a small adult a youth one).
  */
 enum class TshirtSize(val label: String, val category: SizeCategory) {
     S("S", SizeCategory.UNISEX),
@@ -15,10 +18,10 @@ enum class TshirtSize(val label: String, val category: SizeCategory) {
     XXXL("3XL", SizeCategory.UNISEX),
     XXXXL("4XL", SizeCategory.UNISEX),
 
-    YS("YS", SizeCategory.YOUTH),
-    YM("YM", SizeCategory.YOUTH),
-    YL("YL", SizeCategory.YOUTH),
-    YXL("YXL", SizeCategory.YOUTH),
+    YS("Youth S", SizeCategory.YOUTH),
+    YM("Youth M", SizeCategory.YOUTH),
+    YL("Youth L", SizeCategory.YOUTH),
+    YXL("Youth XL", SizeCategory.YOUTH),
 
     NEWBORN("Newborn", SizeCategory.ONESIE),
     M0_3("0-3 mths", SizeCategory.ONESIE),
@@ -26,36 +29,25 @@ enum class TshirtSize(val label: String, val category: SizeCategory) {
     M6_9("6-9 mths", SizeCategory.ONESIE),
     M9_12("9-12 mths", SizeCategory.ONESIE);
 
-    fun isValidFor(ageGroup: AgeGroup): Boolean = category == categoryFor(ageGroup)
-
     companion object {
-        fun categoryFor(ageGroup: AgeGroup): SizeCategory = when (ageGroup) {
+        /** The size group most likely to fit an age group; used for UI ordering only, not validation. */
+        fun suggestedCategoryFor(ageGroup: AgeGroup): SizeCategory = when (ageGroup) {
             AgeGroup.ADULT, AgeGroup.SPOUSE -> SizeCategory.UNISEX
             AgeGroup.CHILD -> SizeCategory.YOUTH
             AgeGroup.INFANT -> SizeCategory.ONESIE
         }
 
-        fun allowedFor(ageGroup: AgeGroup): List<TshirtSize> =
-            entries.filter { it.category == categoryFor(ageGroup) }
-
         /**
-         * Parses a size name submitted by a client and checks it is offered for the given age group.
-         * Throws [IllegalArgumentException] (mapped to HTTP 400) when blank, unknown, or wrong category.
+         * Parses a size name submitted by a client.
+         * Throws [IllegalArgumentException] (mapped to HTTP 400) when blank or unknown.
          */
-        fun parseFor(raw: String?, ageGroup: AgeGroup, who: String): TshirtSize {
+        fun parse(raw: String?, who: String): TshirtSize {
             val value = raw?.trim().orEmpty()
             if (value.isEmpty()) {
                 throw IllegalArgumentException("T-shirt size is required for $who")
             }
-            val size = entries.firstOrNull { it.name == value }
+            return entries.firstOrNull { it.name == value }
                 ?: throw IllegalArgumentException("Unknown T-shirt size '$value' for $who")
-            if (!size.isValidFor(ageGroup)) {
-                val allowed = allowedFor(ageGroup).joinToString(", ") { it.label }
-                throw IllegalArgumentException(
-                    "Size ${size.label} is not available for $who (${ageGroup.name}). Choose from: $allowed"
-                )
-            }
-            return size
         }
     }
 }

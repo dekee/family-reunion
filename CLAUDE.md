@@ -4,7 +4,7 @@
 - **Backend build**: `./gradlew build -x test` (from project root)
 - **Backend test**: `./gradlew test` (180 tests across 15 files)
 - **Frontend build**: `cd frontend && npm run build`
-- **Frontend test**: `cd frontend && npx vitest run` (70 tests: API contracts + T-shirt size constants)
+- **Frontend test**: `cd frontend && npx vitest run` (69 tests: API contracts + T-shirt size constants)
 - **Always run tests** after modifying backend security rules or API contracts
 
 ## Deployment
@@ -19,7 +19,7 @@
 - `checkinToken` is acceptable in per-RSVP payment summary (needed for ticket linking).
 - `/api/checkin/send` is rate-limited (3 per token per 10 min) — do not remove this.
 - RSVP creation (POST) is public; RSVP editing (PUT) requires admin auth.
-- T-shirt sizes live on `payment_line_items.tshirt_size` (not on Attendee — those rows are wiped on RSVP edit). Two public PUT endpoints edit them: `/api/payments/line-items/{id}/size` (needs matching `rsvpId`) and `/api/checkin/ticket/{token}/sizes`. Both require a COMPLETED payment and validate size against age group via `TshirtSize.parseFor`.
+- T-shirt sizes live on `payment_line_items.tshirt_size` (not on Attendee — those rows are wiped on RSVP edit). Two public PUT endpoints edit them: `/api/payments/line-items/{id}/size` (needs matching `rsvpId`) and `/api/checkin/ticket/{token}/sizes`. Both require a COMPLETED payment. Any known size is accepted for anyone (`TshirtSize.parse`); age group only orders the dropdown.
 
 ## Secrets
 - Use **SealedSecrets** — never commit plaintext secrets to git.

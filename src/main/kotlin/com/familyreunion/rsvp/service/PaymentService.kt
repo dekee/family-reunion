@@ -67,18 +67,18 @@ class PaymentService(
             familyMemberRepository.findAllById(memberIds).associateBy { it.id }
         } else emptyMap()
 
-        // Every person being paid for needs a T-shirt size valid for their age group.
+        // Every person being paid for needs a T-shirt size (any size — age group is only a UI hint).
         // Validated before touching Stripe so bad input fails fast (and is testable without Stripe).
         val memberSizes: Map<Long, TshirtSize> = memberIds.associateWith { memberId ->
             val member = familyMembers[memberId]
                 ?: throw IllegalArgumentException("Family member $memberId not found")
-            TshirtSize.parseFor(request.memberSizes[memberId], member.ageGroup, member.name)
+            TshirtSize.parse(request.memberSizes[memberId], member.name)
         }
         val guestAgeGroups: List<AgeGroup> = guests.map { guest ->
             try { AgeGroup.valueOf(guest.ageGroup) } catch (_: Exception) { AgeGroup.ADULT }
         }
-        val guestSizes: List<TshirtSize> = guests.mapIndexed { index, guest ->
-            TshirtSize.parseFor(guest.tshirtSize, guestAgeGroups[index], guest.name.ifBlank { "guest" })
+        val guestSizes: List<TshirtSize> = guests.map { guest ->
+            TshirtSize.parse(guest.tshirtSize, guest.name.ifBlank { "guest" })
         }
 
         if (!stripeConfig.isConfigured()) {
@@ -428,7 +428,7 @@ class PaymentService(
         if (lineItem.isAngel) {
             throw IllegalArgumentException("Angel contributions do not have a T-shirt size")
         }
-        lineItem.tshirtSize = TshirtSize.parseFor(request.tshirtSize, lineItem.ageGroup, lineItem.displayName)
+        lineItem.tshirtSize = TshirtSize.parse(request.tshirtSize, lineItem.displayName)
         paymentLineItemRepository.save(lineItem)
         return LineItemSizeResponse(lineItemId = lineItem.id, tshirtSize = lineItem.tshirtSize!!.name)
     }
