@@ -19,7 +19,7 @@ export default function SizeSelect({
   onChange,
   disabled = false,
   className = '',
-  placeholder = 'Size…',
+  placeholder = 'Pick T-shirt size',
   ariaLabel = 'T-shirt size',
 }: SizeSelectProps) {
   const missing = !value;

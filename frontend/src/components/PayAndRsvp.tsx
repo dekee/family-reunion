@@ -583,7 +583,6 @@ export default function PayAndRsvp() {
                     value={m.tshirtSize}
                     disabled={savingLineItem === m.lineItemId}
                     onChange={size => savePaidSize(m.lineItemId!, size)}
-                    placeholder="Pick size"
                     ariaLabel={`T-shirt size for ${m.name}`}
                   />
                 )}
@@ -618,7 +617,6 @@ export default function PayAndRsvp() {
                   value={g.tshirtSize}
                   disabled={savingLineItem === g.lineItemId}
                   onChange={size => savePaidSize(g.lineItemId, size)}
-                  placeholder="Pick size"
                   ariaLabel={`T-shirt size for ${g.name}`}
                 />
                 <span className="pay-member-paid-badge">Paid</span>

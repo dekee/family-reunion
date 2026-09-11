@@ -153,7 +153,6 @@ export default function TicketPage() {
                   value={a.tshirtSize}
                   disabled={savingSizeId === a.lineItemId}
                   onChange={size => handleSizeChange(a.lineItemId, size)}
-                  placeholder="Pick size"
                   ariaLabel={`T-shirt size for ${a.name}`}
                 />
                 <span className="ticket-attendee-size-print">{sizeLabel(a.tshirtSize) || '—'}</span>
