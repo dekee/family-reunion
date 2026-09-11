@@ -125,9 +125,11 @@ class NotificationService(
 
         val lineItemRows = lineItems.joinToString("\n") { li ->
             val name = li.familyMemberName ?: li.guestName ?: "Unknown"
+            val size = li.tshirtSize?.label ?: "—"
             """<tr>
                 <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${name}</td>
                 <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${li.ageGroup.name}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${size}</td>
                 <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">$${li.amount}</td>
             </tr>"""
         }
@@ -147,6 +149,7 @@ class NotificationService(
                         <tr style="background: #edf2f7;">
                             <th style="padding: 8px; text-align: left;">Name</th>
                             <th style="padding: 8px; text-align: left;">Age Group</th>
+                            <th style="padding: 8px; text-align: left;">Size</th>
                             <th style="padding: 8px; text-align: left;">Amount</th>
                         </tr>
                     </thead>

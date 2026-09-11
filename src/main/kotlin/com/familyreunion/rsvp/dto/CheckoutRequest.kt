@@ -12,6 +12,9 @@ data class CheckoutRequest(
 
     val memberIds: List<Long> = emptyList(),
 
+    /** familyMemberId -> TshirtSize name. Required for every id in [memberIds]. */
+    val memberSizes: Map<Long, String> = emptyMap(),
+
     val guests: List<CheckoutGuestInfo> = emptyList(),
 
     val angelAmount: Long = 0

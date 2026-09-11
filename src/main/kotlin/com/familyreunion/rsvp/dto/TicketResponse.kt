@@ -15,7 +15,18 @@ data class TicketResponse(
 data class TicketAttendee(
     val name: String,
     val ageGroup: String,
-    val isGuest: Boolean
+    val isGuest: Boolean,
+    val lineItemId: Long,
+    val tshirtSize: String?
+)
+
+data class TicketSizeEntry(
+    val lineItemId: Long = 0,
+    val tshirtSize: String = ""
+)
+
+data class UpdateTicketSizesRequest(
+    val sizes: List<TicketSizeEntry> = emptyList()
 )
 
 data class CheckinResponse(

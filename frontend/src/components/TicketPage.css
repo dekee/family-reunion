@@ -472,3 +472,55 @@
     flex-direction: column;
   }
 }
+
+/* T-shirt sizes */
+.ticket-size-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  color: #b35c00;
+  font-weight: 500;
+}
+
+[data-theme="dark"] .ticket-size-hint {
+  color: #f0a050;
+}
+
+.ticket-size-error {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  color: var(--color-error);
+}
+
+.ticket-attendee .size-select {
+  margin-left: 0.25rem;
+}
+
+.ticket-attendee-size-print {
+  display: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+@media print {
+  .ticket-attendee .size-select,
+  .ticket-size-hint,
+  .ticket-size-error {
+    display: none !important;
+  }
+
+  .ticket-attendee-size-print {
+    display: inline;
+  }
+}
+
+@media (max-width: 480px) {
+  .ticket-attendee {
+    flex-wrap: wrap;
+  }
+
+  .ticket-attendee .size-select {
+    flex-basis: 100%;
+    max-width: none;
+    margin: 0.25rem 0 0;
+  }
+}

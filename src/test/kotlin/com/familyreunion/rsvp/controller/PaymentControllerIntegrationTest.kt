@@ -6,6 +6,7 @@ import com.familyreunion.rsvp.dto.AttendeeDto
 import com.familyreunion.rsvp.model.Payment
 import com.familyreunion.rsvp.model.PaymentLineItem
 import com.familyreunion.rsvp.model.PaymentStatus
+import com.familyreunion.rsvp.model.TshirtSize
 import com.familyreunion.rsvp.repository.PaymentRepository
 import com.familyreunion.rsvp.repository.RsvpRepository
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -246,5 +247,170 @@ class PaymentControllerIntegrationTest @Autowired constructor(
                 .content(json)
         )
             .andExpect(status().isBadRequest)
+    }
+
+    // --- T-shirt sizes ---
+
+    private data class SizedPayment(val payment: Payment, val member: PaymentLineItem, val guest: PaymentLineItem, val angel: PaymentLineItem)
+
+    /** COMPLETED payment with one family member (ADULT, sized L), one CHILD guest (no size), and an angel donation. */
+    private fun createSizedPayment(rsvpId: Long, status: PaymentStatus = PaymentStatus.COMPLETED): SizedPayment {
+        val rsvp = rsvpRepository.findById(rsvpId).get()
+        val payment = Payment(
+            rsvp = rsvp,
+            amount = BigDecimal("175.00"),
+            stripeSessionId = "sess_sized_$rsvpId",
+            status = status
+        )
+        val member = PaymentLineItem(payment = payment, familyMemberId = 42, familyMemberName = "Sized Adult",
+            ageGroup = AgeGroup.ADULT, amount = BigDecimal("100.00"), tshirtSize = TshirtSize.L)
+        val guest = PaymentLineItem(payment = payment, guestName = "Sized Kid",
+            ageGroup = AgeGroup.CHILD, amount = BigDecimal("50.00"))
+        val angel = PaymentLineItem(payment = payment, guestName = "Angel Contribution",
+            ageGroup = AgeGroup.ADULT, amount = BigDecimal("25.00"))
+        payment.lineItems.addAll(listOf(member, guest, angel))
+        paymentRepository.save(payment)
+        return SizedPayment(payment, member, guest, angel)
+    }
+
+    @Test
+    fun `GET summary exposes paid members and guests with line item ids and sizes, excluding angel`() {
+        val rsvpId = createRsvp("Sized", adults = 1, children = 1)
+        val fx = createSizedPayment(rsvpId)
+
+        mockMvc.perform(get("/api/payments/summary/$rsvpId"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.paidMemberIds", contains(42)))
+            .andExpect(jsonPath("$.paidMembers", hasSize<Any>(1)))
+            .andExpect(jsonPath("$.paidMembers[0].memberId").value(42))
+            .andExpect(jsonPath("$.paidMembers[0].lineItemId").value(fx.member.id))
+            .andExpect(jsonPath("$.paidMembers[0].tshirtSize").value("L"))
+            .andExpect(jsonPath("$.paidGuests", hasSize<Any>(1)))
+            .andExpect(jsonPath("$.paidGuests[0].name").value("Sized Kid"))
+            .andExpect(jsonPath("$.paidGuests[0].lineItemId").value(fx.guest.id))
+            .andExpect(jsonPath("$.paidGuests[0].tshirtSize").value(nullValue()))
+    }
+
+    @Test
+    fun `PUT line item size saves a valid size`() {
+        val rsvpId = createRsvp("SizeSave", adults = 1, children = 1)
+        val fx = createSizedPayment(rsvpId)
+
+        mockMvc.perform(
+            put("/api/payments/line-items/${fx.guest.id}/size")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"rsvpId":$rsvpId,"tshirtSize":"YL"}""")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.lineItemId").value(fx.guest.id))
+            .andExpect(jsonPath("$.tshirtSize").value("YL"))
+
+        mockMvc.perform(get("/api/payments/summary/$rsvpId"))
+            .andExpect(jsonPath("$.paidGuests[0].tshirtSize").value("YL"))
+    }
+
+    @Test
+    fun `PUT line item size rejects a youth size for an adult`() {
+        val rsvpId = createRsvp("SizeWrong", adults = 1, children = 1)
+        val fx = createSizedPayment(rsvpId)
+
+        mockMvc.perform(
+            put("/api/payments/line-items/${fx.member.id}/size")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"rsvpId":$rsvpId,"tshirtSize":"YS"}""")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("not available")))
+
+        mockMvc.perform(get("/api/payments/summary/$rsvpId"))
+            .andExpect(jsonPath("$.paidMembers[0].tshirtSize").value("L"))
+    }
+
+    @Test
+    fun `PUT line item size rejects the angel contribution`() {
+        val rsvpId = createRsvp("SizeAngel", adults = 1, children = 1)
+        val fx = createSizedPayment(rsvpId)
+
+        mockMvc.perform(
+            put("/api/payments/line-items/${fx.angel.id}/size")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"rsvpId":$rsvpId,"tshirtSize":"L"}""")
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `PUT line item size returns 404 for a mismatched rsvpId or unknown line item`() {
+        val rsvpId = createRsvp("SizeMismatch", adults = 1, children = 1)
+        val otherRsvpId = createRsvp("SizeOther", adults = 1, children = 0)
+        val fx = createSizedPayment(rsvpId)
+
+        mockMvc.perform(
+            put("/api/payments/line-items/${fx.guest.id}/size")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"rsvpId":$otherRsvpId,"tshirtSize":"YS"}""")
+        )
+            .andExpect(status().isNotFound)
+
+        mockMvc.perform(
+            put("/api/payments/line-items/999999/size")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"rsvpId":$rsvpId,"tshirtSize":"YS"}""")
+        )
+            .andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `PUT line item size rejects a pending payment`() {
+        val rsvpId = createRsvp("SizePending", adults = 1, children = 1)
+        val fx = createSizedPayment(rsvpId, status = PaymentStatus.PENDING)
+
+        mockMvc.perform(
+            put("/api/payments/line-items/${fx.guest.id}/size")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"rsvpId":$rsvpId,"tshirtSize":"YS"}""")
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `POST checkout rejects a guest without a T-shirt size`() {
+        val rsvpId = createRsvp("NoSize")
+        val json = """{"rsvpId":$rsvpId,"amount":5000,"guests":[{"name":"Cousin","ageGroup":"CHILD","fee":5000}]}"""
+
+        // Size validation runs before the Stripe check, so this fails on the size, not on Stripe config
+        mockMvc.perform(
+            post("/api/payments/checkout")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("size is required for Cousin")))
+    }
+
+    @Test
+    fun `POST checkout rejects an onesie size for a child guest`() {
+        val rsvpId = createRsvp("WrongSize")
+        val json = """{"rsvpId":$rsvpId,"amount":5000,"guests":[{"name":"Cousin","ageGroup":"CHILD","fee":5000,"tshirtSize":"NEWBORN"}]}"""
+
+        mockMvc.perform(
+            post("/api/payments/checkout")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("not available for Cousin")))
+    }
+
+    @Test
+    fun `GET history line items include lineItemId and tshirtSize`() {
+        val rsvpId = createRsvp("HistorySize", adults = 1, children = 1)
+        val fx = createSizedPayment(rsvpId)
+
+        mockMvc.perform(get("/api/payments/history"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].lineItems[0].lineItemId").value(fx.member.id))
+            .andExpect(jsonPath("$[0].lineItems[0].tshirtSize").value("L"))
+            .andExpect(jsonPath("$[0].lineItems[1].tshirtSize").value(nullValue()))
     }
 }

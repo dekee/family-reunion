@@ -1,4 +1,4 @@
-import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, PaymentDetailResponse, CheckoutRequest, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse, GalleryUploadResponse, AngelContributor, SloganResponse, SloganVoteRequest, DesignResponse, DesignVoteRequest, TributeResponse, TributeRequest, VolunteerTaskRequest, VolunteerTaskResponse, VolunteerSignupRequest } from './types';
+import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, PaymentDetailResponse, CheckoutRequest, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse, GalleryUploadResponse, AngelContributor, SloganResponse, SloganVoteRequest, DesignResponse, DesignVoteRequest, TributeResponse, TributeRequest, VolunteerTaskRequest, VolunteerTaskResponse, VolunteerSignupRequest, UpdateLineItemSizeRequest, LineItemSizeResponse, UpdateTicketSizesRequest } from './types';
 
 const BASE_URL = '/api/rsvp';
 
@@ -276,6 +276,19 @@ export async function createCheckoutSession(data: CheckoutRequest): Promise<{ ur
   return handleResponse(res);
 }
 
+/** Public: pay-page edit of a paid attendee's T-shirt size (server checks rsvpId matches the line item). */
+export async function updateLineItemSize(
+  lineItemId: number,
+  data: UpdateLineItemSizeRequest,
+): Promise<LineItemSizeResponse> {
+  const res = await fetch(`${PAYMENTS_URL}/line-items/${lineItemId}/size`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
 export async function fetchAngelContributors(): Promise<AngelContributor[]> {
   const res = await fetch(`${PAYMENTS_URL}/angels`);
   return handleResponse(res);
@@ -331,6 +344,16 @@ const CHECKIN_URL = '/api/checkin';
 
 export async function fetchTicket(token: string): Promise<TicketResponse> {
   const res = await fetch(`${CHECKIN_URL}/ticket/${token}`);
+  return handleResponse(res);
+}
+
+/** Public, token-scoped: ticket-page edit of T-shirt sizes for the party on a completed ticket. */
+export async function updateTicketSizes(token: string, data: UpdateTicketSizesRequest): Promise<TicketResponse> {
+  const res = await fetch(`${CHECKIN_URL}/ticket/${token}/sizes`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
   return handleResponse(res);
 }
 

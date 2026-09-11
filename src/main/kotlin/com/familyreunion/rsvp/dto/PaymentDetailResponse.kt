@@ -21,5 +21,7 @@ data class LineItemResponse(
     val name: String,
     val ageGroup: String,
     val amount: BigDecimal,
-    val isGuest: Boolean
+    val isGuest: Boolean,
+    val lineItemId: Long,
+    val tshirtSize: String?
 )

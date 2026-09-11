@@ -305,4 +305,34 @@ class SecurityIntegrationTest @Autowired constructor(
         mockMvc.perform(delete("/api/designs/1"))
             .andExpect(status().isUnauthorized)
     }
+
+    // --- T-shirt size edits are public (pay page + ticket page) ---
+
+    @Test
+    fun `PUT payment line item size should be public`() {
+        // Unknown line item → 404 (not 401), proving the endpoint is reachable without auth
+        mockMvc.perform(
+            put("/api/payments/line-items/999999/size")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"rsvpId":1,"tshirtSize":"M"}""")
+        )
+            .andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `PUT checkin ticket sizes should be public`() {
+        // Bogus token → 400 (not 401), proving the endpoint is reachable without auth
+        mockMvc.perform(
+            put("/api/checkin/ticket/bogus-token/sizes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"sizes":[]}""")
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `POST checkin by token should still return 401 without auth`() {
+        mockMvc.perform(post("/api/checkin/bogus-token"))
+            .andExpect(status().isUnauthorized)
+    }
 }

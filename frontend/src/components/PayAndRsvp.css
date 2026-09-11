@@ -1089,3 +1089,70 @@
     height: 70px;
   }
 }
+
+/* T-shirt sizes */
+.pay-member-main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.pay-member-row .size-select {
+  flex-shrink: 0;
+}
+
+.pay-size-note {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.pay-size-note-missing {
+  color: #b35c00;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .pay-size-note-missing {
+  color: #f0a050;
+}
+
+.pay-size-error {
+  margin: 0 0 0.75rem;
+}
+
+.pay-size-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #b35c00;
+  text-align: center;
+}
+
+[data-theme="dark"] .pay-size-hint {
+  color: #f0a050;
+}
+
+.pay-guest-size-select {
+  padding: 0.45rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 600px) {
+  .pay-member-row {
+    flex-wrap: wrap;
+  }
+
+  .pay-member-row .size-select {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+    margin-top: 0.25rem;
+  }
+
+  .pay-guest-size-select {
+    width: 100%;
+  }
+}

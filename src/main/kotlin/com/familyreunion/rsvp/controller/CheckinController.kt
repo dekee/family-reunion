@@ -4,6 +4,7 @@ import com.familyreunion.rsvp.dto.CheckinResponse
 import com.familyreunion.rsvp.dto.CheckinStatusResponse
 import com.familyreunion.rsvp.dto.SendTicketRequest
 import com.familyreunion.rsvp.dto.TicketResponse
+import com.familyreunion.rsvp.dto.UpdateTicketSizesRequest
 import com.familyreunion.rsvp.service.CheckinService
 import com.familyreunion.rsvp.service.NotificationService
 import org.springframework.http.HttpStatus
@@ -33,6 +34,15 @@ class CheckinController(
         } catch (e: IllegalArgumentException) {
             ResponseEntity.notFound().build()
         }
+    }
+
+    /** Public, token-scoped: lets the ticket holder pick/change T-shirt sizes for their party. */
+    @PutMapping("/ticket/{token}/sizes")
+    fun updateTicketSizes(
+        @PathVariable token: String,
+        @RequestBody request: UpdateTicketSizesRequest
+    ): ResponseEntity<TicketResponse> {
+        return ResponseEntity.ok(checkinService.updateTicketSizes(token, request))
     }
 
     @PostMapping("/{token}")

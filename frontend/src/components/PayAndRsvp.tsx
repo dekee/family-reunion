@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useParams, useNavigate, Link } from 'react-router-dom';
-import { fetchFamilyTree, fetchPaymentSummaries, createCheckoutSession, fetchFees, fetchAngelContributors } from '../api';
+import { fetchFamilyTree, fetchPaymentSummaries, createCheckoutSession, fetchFees, fetchAngelContributors, updateLineItemSize } from '../api';
 import { getBranchColor } from '../branchColors';
 import { feeForAge, ageLabel, ageLabelWithFee, setFees } from '../constants/ageGroups';
+import { ANGEL_LINE_ITEM_NAME } from '../constants/tshirtSizes';
 import { dollars } from '../utils/formatting';
-import type { FamilyTreeNode, PaymentSummaryResponse, PaidGuestInfo, AngelContributor } from '../types';
+import type { FamilyTreeNode, PaymentSummaryResponse, PaidGuestInfo, PaidMemberInfo, AngelContributor, TshirtSize } from '../types';
 import { SkeletonCard } from './Skeleton';
+import SizeSelect from './SizeSelect';
 import './PayAndRsvp.css';
 
 type GuestAgeGroup = 'ADULT' | 'CHILD' | 'INFANT';
@@ -17,6 +19,9 @@ interface FlatMember {
   fee: number;
   depth: number;
   paid?: boolean;
+  /** Set when paid: the payment line item that holds this member's T-shirt size */
+  lineItemId?: number;
+  tshirtSize?: TshirtSize | null;
 }
 
 interface Guest {
@@ -24,6 +29,7 @@ interface Guest {
   name: string;
   ageGroup: GuestAgeGroup;
   fee: number;
+  tshirtSize: TshirtSize;
 }
 
 function flattenBranch(node: FamilyTreeNode, depth: number): FlatMember[] {
@@ -43,9 +49,18 @@ function flattenBranch(node: FamilyTreeNode, depth: number): FlatMember[] {
   return result;
 }
 
-function markPaidMembers(members: FlatMember[], paidMemberIds: number[]): FlatMember[] {
+function markPaidMembers(members: FlatMember[], paidMemberIds: number[], paidMembers: PaidMemberInfo[]): FlatMember[] {
   const paidSet = new Set(paidMemberIds);
-  return members.map(m => ({ ...m, paid: paidSet.has(m.id) }));
+  const infoById = new Map(paidMembers.map(pm => [pm.memberId, pm]));
+  return members.map(m => {
+    const info = infoById.get(m.id);
+    return {
+      ...m,
+      paid: paidSet.has(m.id) || info !== undefined,
+      lineItemId: info?.lineItemId,
+      tshirtSize: info?.tshirtSize ?? null,
+    };
+  });
 }
 
 interface BranchData {
@@ -76,6 +91,12 @@ export default function PayAndRsvp() {
   const [showGuestForm, setShowGuestForm] = useState(false);
   const [guestName, setGuestName] = useState('');
   const [guestAgeGroup, setGuestAgeGroup] = useState<GuestAgeGroup>('ADULT');
+  const [guestSize, setGuestSize] = useState<TshirtSize | ''>('');
+
+  // T-shirt size state: sizes for members being paid for now, and save status for already-paid edits
+  const [memberSizes, setMemberSizes] = useState<Record<number, TshirtSize>>({});
+  const [savingLineItem, setSavingLineItem] = useState<number | null>(null);
+  const [sizeError, setSizeError] = useState('');
 
   // Angel contributor state
   const [angelAmount, setAngelAmount] = useState('');
@@ -102,8 +123,11 @@ export default function PayAndRsvp() {
               return branchKey.startsWith(payName) || payName.startsWith(branchKey.split(' ')[0]);
             });
             const paidMemberIds = payment?.paidMemberIds ?? [];
-            const markedMembers = paidMemberIds.length > 0 ? markPaidMembers(members, paidMemberIds) : members;
-            const paidGuests = payment?.paidGuests ?? [];
+            const paidMembers = payment?.paidMembers ?? [];
+            const markedMembers = paidMemberIds.length > 0 || paidMembers.length > 0
+              ? markPaidMembers(members, paidMemberIds, paidMembers)
+              : members;
+            const paidGuests = (payment?.paidGuests ?? []).filter(g => g.name !== ANGEL_LINE_ITEM_NAME);
             branchList.push({ node: child, members: markedMembers, payment, paidGuests });
           }
         }
@@ -147,6 +171,9 @@ export default function PayAndRsvp() {
     setAngelAmount('');
     setShowAngelForm(false);
     setError('');
+    setMemberSizes({});
+    setGuestSize('');
+    setSizeError('');
   };
 
   const toggleMember = (id: number) => {
@@ -168,22 +195,57 @@ export default function PayAndRsvp() {
 
   const handleAddGuest = () => {
     const name = guestName.trim();
-    if (!name) return;
+    if (!name || !guestSize) return;
     const guest: Guest = {
       tempId: nextGuestId,
       name,
       ageGroup: guestAgeGroup,
       fee: feeForAge(guestAgeGroup),
+      tshirtSize: guestSize,
     };
     setGuests(prev => [...prev, guest]);
     setNextGuestId(id => id + 1);
     setGuestName('');
     setGuestAgeGroup('ADULT');
+    setGuestSize('');
     setShowGuestForm(false);
   };
 
   const removeGuest = (tempId: number) => {
     setGuests(prev => prev.filter(g => g.tempId !== tempId));
+  };
+
+  const setGuestSizeFor = (tempId: number, size: TshirtSize) => {
+    setGuests(prev => prev.map(g => (g.tempId === tempId ? { ...g, tshirtSize: size } : g)));
+  };
+
+  // Age group change invalidates the chosen size (different size set per group)
+  const handleGuestAgeGroupChange = (ageGroup: GuestAgeGroup) => {
+    setGuestAgeGroup(ageGroup);
+    setGuestSize('');
+  };
+
+  /** Save a size for someone who has already paid (member or guest) — persists immediately. */
+  const savePaidSize = async (lineItemId: number, size: TshirtSize) => {
+    const rsvpId = activeBranch?.payment?.rsvpId;
+    if (!rsvpId) return;
+    setSavingLineItem(lineItemId);
+    setSizeError('');
+    try {
+      const res = await updateLineItemSize(lineItemId, { rsvpId, tshirtSize: size });
+      setBranches(prev => prev.map(b => {
+        if (b.node.id !== activeBranch?.node.id) return b;
+        return {
+          ...b,
+          members: b.members.map(m => (m.lineItemId === res.lineItemId ? { ...m, tshirtSize: res.tshirtSize } : m)),
+          paidGuests: b.paidGuests.map(g => (g.lineItemId === res.lineItemId ? { ...g, tshirtSize: res.tshirtSize } : g)),
+        };
+      }));
+    } catch (err: any) {
+      setSizeError(err.message || 'Could not save T-shirt size. Please try again.');
+    } finally {
+      setSavingLineItem(null);
+    }
   };
 
   const activeBranch = branches.find(b => b.node.id === expandedBranch);
@@ -204,6 +266,15 @@ export default function PayAndRsvp() {
   const infantCount = selectedMembers.filter(m => m.ageGroup === 'INFANT').length
     + guests.filter(g => g.ageGroup === 'INFANT').length;
 
+  // Every selected member and every guest needs a T-shirt size before checkout
+  const membersMissingSize = selectedMembers.filter(m => !memberSizes[m.id]);
+  const guestsMissingSize = guests.filter(g => !g.tshirtSize);
+  const missingSizes = membersMissingSize.length > 0 || guestsMissingSize.length > 0;
+  const paidMissingSize = activeBranch
+    ? activeBranch.members.filter(m => m.paid && m.lineItemId && !m.tshirtSize).length
+      + activeBranch.paidGuests.filter(g => !g.tshirtSize).length
+    : 0;
+
   const handleCheckout = async () => {
     if (!activeBranch?.payment) {
       setError('No payment record found for this branch. Contact admin.');
@@ -213,6 +284,10 @@ export default function PayAndRsvp() {
       setError('Please select at least one paid member or add a guest.');
       return;
     }
+    if (missingSizes) {
+      setError('Choose a T-shirt size for everyone you are paying for.');
+      return;
+    }
     setCheckingOut(true);
     setError('');
     try {
@@ -220,7 +295,8 @@ export default function PayAndRsvp() {
         rsvpId: activeBranch.payment.rsvpId,
         amount: Math.round(selectedTotal * 100),
         memberIds: selectedMembers.map(m => m.id),
-        guests: guests.map(g => ({ name: g.name, ageGroup: g.ageGroup, fee: g.fee * 100 })),
+        memberSizes: Object.fromEntries(selectedMembers.map(m => [m.id, memberSizes[m.id]])),
+        guests: guests.map(g => ({ name: g.name, ageGroup: g.ageGroup, fee: g.fee * 100, tshirtSize: g.tshirtSize })),
         angelAmount: angelCents > 0 ? angelCents : undefined,
       });
       window.location.href = url;
@@ -380,7 +456,7 @@ export default function PayAndRsvp() {
         </>
       ) : activeBranch && (
         <div className="pay-detail-view">
-          <button className="pay-back-btn" onClick={() => { navigate('/pay'); setSelected(new Set()); setGuests([]); setAngelAmount(''); setShowAngelForm(false); }}>
+          <button className="pay-back-btn" onClick={() => { navigate('/pay'); setSelected(new Set()); setGuests([]); setAngelAmount(''); setShowAngelForm(false); setMemberSizes({}); setGuestSize(''); setSizeError(''); }}>
             &larr; Back to all branches
           </button>
 
@@ -467,30 +543,58 @@ export default function PayAndRsvp() {
             <span className="pay-legend-item"><span className="pay-legend-pill age-adult">Adult</span> ages 18+ · ${feeForAge('ADULT')} each</span>
             <span className="pay-legend-item"><span className="pay-legend-pill age-spouse">Spouse</span> ages 18+ · ${feeForAge('SPOUSE')} each</span>
             <span className="pay-legend-item"><span className="pay-legend-pill age-child">Child</span> ages 6 to 17 · ${feeForAge('CHILD')} each</span>
-            <span className="pay-legend-item"><span className="pay-legend-pill age-infant">Under 5</span> ages 0 to 5 · ${feeForAge('INFANT')} each (t-shirt)</span>
+            <span className="pay-legend-item"><span className="pay-legend-pill age-infant">Under 5</span> ages 0 to 5 · ${feeForAge('INFANT')} each (onesie)</span>
           </div>
 
+          <p className="pay-size-note">
+            Every attendee gets a reunion T-shirt — pick a size for each person you're paying for.
+            {paidMissingSize > 0 && (
+              <strong className="pay-size-note-missing"> {paidMissingSize} paid {paidMissingSize === 1 ? 'person still needs' : 'people still need'} a size.</strong>
+            )}
+          </p>
+          {sizeError && <p className="pay-error pay-size-error">{sizeError}</p>}
+
           <div className="pay-members-list">
-            {activeBranch.members.every(m => m.paid) && (
-              <div className="pay-all-paid-notice">All members are paid — nothing to do here!</div>
+            {activeBranch.members.every(m => m.paid) && paidMissingSize === 0 && (
+              <div className="pay-all-paid-notice">All members are paid and sized — nothing to do here!</div>
             )}
             {activeBranch.members.map(m => (
-              <label
+              <div
                 key={m.id}
                 className={`pay-member-row ${m.paid ? 'paid' : ''} ${!m.paid && selected.has(m.id) ? 'selected' : ''}`}
                 style={{ paddingLeft: `${1 + m.depth * 1.5}rem` }}
               >
-                {m.paid ? (
-                  <span className="pay-member-check-icon">&#10003;</span>
-                ) : (
-                  <input
-                    type="checkbox"
-                    checked={selected.has(m.id)}
-                    onChange={() => toggleMember(m.id)}
+                <label className="pay-member-main">
+                  {m.paid ? (
+                    <span className="pay-member-check-icon">&#10003;</span>
+                  ) : (
+                    <input
+                      type="checkbox"
+                      checked={selected.has(m.id)}
+                      onChange={() => toggleMember(m.id)}
+                    />
+                  )}
+                  <span className="pay-member-name">{m.name}</span>
+                  <span className={`pay-member-age age-${m.ageGroup.toLowerCase()}`}>{ageLabel(m.ageGroup)}</span>
+                </label>
+                {m.paid && m.lineItemId !== undefined && (
+                  <SizeSelect
+                    ageGroup={m.ageGroup}
+                    value={m.tshirtSize}
+                    disabled={savingLineItem === m.lineItemId}
+                    onChange={size => savePaidSize(m.lineItemId!, size)}
+                    placeholder="Pick size"
+                    ariaLabel={`T-shirt size for ${m.name}`}
                   />
                 )}
-                <span className="pay-member-name">{m.name}</span>
-                <span className={`pay-member-age age-${m.ageGroup.toLowerCase()}`}>{ageLabel(m.ageGroup)}</span>
+                {!m.paid && selected.has(m.id) && (
+                  <SizeSelect
+                    ageGroup={m.ageGroup}
+                    value={memberSizes[m.id] ?? ''}
+                    onChange={size => setMemberSizes(prev => ({ ...prev, [m.id]: size }))}
+                    ariaLabel={`T-shirt size for ${m.name}`}
+                  />
+                )}
                 {m.paid ? (
                   <span className="pay-member-paid-badge">Paid</span>
                 ) : (
@@ -498,17 +602,25 @@ export default function PayAndRsvp() {
                     {m.fee > 0 ? dollars(m.fee) : 'Free'}
                   </span>
                 )}
-              </label>
+              </div>
             ))}
 
             {(guests.length > 0 || activeBranch.paidGuests.length > 0) && (
               <div className="pay-guests-divider">Guests</div>
             )}
-            {activeBranch.paidGuests.map((g, i) => (
-              <div key={`paid-guest-${i}`} className="pay-member-row paid pay-guest-row">
+            {activeBranch.paidGuests.map(g => (
+              <div key={`paid-guest-${g.lineItemId}`} className="pay-member-row paid pay-guest-row">
                 <span className="pay-guest-icon">+</span>
                 <span className="pay-member-name">{g.name}</span>
                 <span className={`pay-member-age age-${g.ageGroup.toLowerCase()}`}>{ageLabel(g.ageGroup)}</span>
+                <SizeSelect
+                  ageGroup={g.ageGroup}
+                  value={g.tshirtSize}
+                  disabled={savingLineItem === g.lineItemId}
+                  onChange={size => savePaidSize(g.lineItemId, size)}
+                  placeholder="Pick size"
+                  ariaLabel={`T-shirt size for ${g.name}`}
+                />
                 <span className="pay-member-paid-badge">Paid</span>
               </div>
             ))}
@@ -517,6 +629,12 @@ export default function PayAndRsvp() {
                 <span className="pay-guest-icon">+</span>
                 <span className="pay-member-name">{g.name}</span>
                 <span className={`pay-member-age age-${g.ageGroup.toLowerCase()}`}>{ageLabel(g.ageGroup)}</span>
+                <SizeSelect
+                  ageGroup={g.ageGroup}
+                  value={g.tshirtSize}
+                  onChange={size => setGuestSizeFor(g.tempId, size)}
+                  ariaLabel={`T-shirt size for ${g.name}`}
+                />
                 <span className="pay-member-fee">
                   {g.fee > 0 ? dollars(g.fee) : 'Free'}
                 </span>
@@ -546,17 +664,24 @@ export default function PayAndRsvp() {
                 />
                 <select
                   value={guestAgeGroup}
-                  onChange={e => setGuestAgeGroup(e.target.value as GuestAgeGroup)}
+                  onChange={e => handleGuestAgeGroupChange(e.target.value as GuestAgeGroup)}
                   className="pay-guest-age-select"
                 >
                   <option value="ADULT">{ageLabelWithFee('ADULT')}</option>
                   <option value="CHILD">{ageLabelWithFee('CHILD')}</option>
                   <option value="INFANT">{ageLabelWithFee('INFANT')}</option>
                 </select>
-                <button className="pay-guest-add-btn" onClick={handleAddGuest} disabled={!guestName.trim()}>
+                <SizeSelect
+                  ageGroup={guestAgeGroup}
+                  value={guestSize}
+                  onChange={setGuestSize}
+                  className="pay-guest-size-select"
+                  ariaLabel="Guest T-shirt size"
+                />
+                <button className="pay-guest-add-btn" onClick={handleAddGuest} disabled={!guestName.trim() || !guestSize}>
                   Add
                 </button>
-                <button className="pay-guest-cancel-btn" onClick={() => { setShowGuestForm(false); setGuestName(''); }}>
+                <button className="pay-guest-cancel-btn" onClick={() => { setShowGuestForm(false); setGuestName(''); setGuestSize(''); }}>
                   Cancel
                 </button>
               </div>
@@ -585,7 +710,7 @@ export default function PayAndRsvp() {
                 {infantCount > 0 && (
                   <div className="pay-summary-line">
                     <span>Under 5:</span>
-                    <span>{infantCount} x {dollars(feeForAge('INFANT'))} (t-shirt)</span>
+                    <span>{infantCount} x {dollars(feeForAge('INFANT'))} (onesie)</span>
                   </div>
                 )}
                 {guests.length > 0 && (
@@ -608,10 +733,15 @@ export default function PayAndRsvp() {
               <button
                 className="pay-checkout-btn"
                 onClick={handleCheckout}
-                disabled={selectedTotal <= 0 || checkingOut}
+                disabled={selectedTotal <= 0 || checkingOut || missingSizes}
               >
                 {checkingOut ? 'Redirecting...' : `Pay ${dollars(selectedTotal)} Now`}
               </button>
+              {missingSizes && (
+                <p className="pay-size-hint">
+                  Choose a T-shirt size for {[...membersMissingSize.map(m => m.name), ...guestsMissingSize.map(g => g.name)].join(', ')} to continue.
+                </p>
+              )}
               {error && <p className="pay-error">{error}</p>}
             </div>
           )}

@@ -2,6 +2,7 @@ package com.familyreunion.rsvp.service
 
 import com.familyreunion.rsvp.dto.*
 import com.familyreunion.rsvp.model.PaymentStatus
+import com.familyreunion.rsvp.model.TshirtSize
 import com.familyreunion.rsvp.repository.PaymentLineItemRepository
 import com.familyreunion.rsvp.repository.PaymentRepository
 import org.springframework.stereotype.Service
@@ -68,13 +69,39 @@ class CheckinService(
         )
     }
 
+    /** Token-scoped edit of T-shirt sizes for the attendees on a completed ticket. */
+    fun updateTicketSizes(token: String, request: UpdateTicketSizesRequest): TicketResponse {
+        val payment = paymentRepository.findByCheckinToken(token)
+            ?: throw IllegalArgumentException("Invalid ticket token")
+
+        if (payment.status != PaymentStatus.COMPLETED) {
+            throw IllegalArgumentException("Payment not completed")
+        }
+
+        val lineItemsById = paymentLineItemRepository.findByPaymentId(payment.id).associateBy { it.id }
+        val changed = request.sizes.map { entry ->
+            val lineItem = lineItemsById[entry.lineItemId]
+                ?: throw IllegalArgumentException("Attendee ${entry.lineItemId} is not on this ticket")
+            if (lineItem.isAngel) {
+                throw IllegalArgumentException("Angel contributions do not have a T-shirt size")
+            }
+            lineItem.tshirtSize = TshirtSize.parseFor(entry.tshirtSize, lineItem.ageGroup, lineItem.displayName)
+            lineItem
+        }
+        paymentLineItemRepository.saveAll(changed)
+
+        return toTicketResponse(payment)
+    }
+
     private fun toTicketResponse(payment: com.familyreunion.rsvp.model.Payment): TicketResponse {
         val lineItems = paymentLineItemRepository.findByPaymentId(payment.id)
         val attendees = lineItems.map { li ->
             TicketAttendee(
-                name = li.familyMemberName ?: li.guestName ?: "Unknown",
+                name = li.displayName,
                 ageGroup = li.ageGroup.name,
-                isGuest = li.guestName != null
+                isGuest = li.guestName != null,
+                lineItemId = li.id,
+                tshirtSize = li.tshirtSize?.name
             )
         }
 

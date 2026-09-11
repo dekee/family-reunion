@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { fetchTicket, sendTicket, performCheckin, fetchCheckinCapabilities } from '../api';
+import { fetchTicket, sendTicket, performCheckin, fetchCheckinCapabilities, updateTicketSizes } from '../api';
 import { useAuth } from '../AuthContext';
 import { ageLabel } from '../constants/ageGroups';
+import { ANGEL_LINE_ITEM_NAME, sizeLabel } from '../constants/tshirtSizes';
 import { dollars } from '../utils/formatting';
-import type { TicketResponse } from '../types';
+import type { TicketResponse, TshirtSize } from '../types';
+import SizeSelect from './SizeSelect';
 import './TicketPage.css';
 
 export default function TicketPage() {
@@ -22,6 +24,9 @@ export default function TicketPage() {
 
   const [capabilities, setCapabilities] = useState({ email: false, sms: false });
   const [checkingIn, setCheckingIn] = useState(false);
+
+  const [savingSizeId, setSavingSizeId] = useState<number | null>(null);
+  const [sizeError, setSizeError] = useState('');
 
   useEffect(() => {
     if (!token) return;
@@ -69,6 +74,20 @@ export default function TicketPage() {
     }
   };
 
+  const handleSizeChange = async (lineItemId: number, size: TshirtSize) => {
+    if (!token) return;
+    setSavingSizeId(lineItemId);
+    setSizeError('');
+    try {
+      const updated = await updateTicketSizes(token, { sizes: [{ lineItemId, tshirtSize: size }] });
+      setTicket(updated);
+    } catch (err: any) {
+      setSizeError(err.message || 'Could not save T-shirt size. Please try again.');
+    } finally {
+      setSavingSizeId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="ticket-page">
@@ -86,6 +105,8 @@ export default function TicketPage() {
   }
 
   const ticketUrl = `${window.location.origin}/ticket/${token}`;
+  const partyAttendees = ticket.attendees.filter(a => !(a.isGuest && a.name === ANGEL_LINE_ITEM_NAME));
+  const missingSizeCount = partyAttendees.filter(a => !a.tshirtSize).length;
 
   return (
     <div className="ticket-page">
@@ -112,15 +133,30 @@ export default function TicketPage() {
         )}
 
         <div className="ticket-attendees">
-          <h3>Party ({ticket.attendees.length})</h3>
+          <h3>Party ({partyAttendees.length})</h3>
+          {missingSizeCount > 0 && (
+            <p className="ticket-size-hint">
+              Pick a T-shirt size for {missingSizeCount === 1 ? 'the attendee' : `${missingSizeCount} attendees`} below — it saves automatically.
+            </p>
+          )}
+          {sizeError && <p className="ticket-size-error">{sizeError}</p>}
           <ul>
-            {ticket.attendees.map((a, i) => (
-              <li key={i} className="ticket-attendee">
+            {partyAttendees.map(a => (
+              <li key={a.lineItemId} className="ticket-attendee">
                 <span className="ticket-attendee-name">{a.name}</span>
                 <span className={`ticket-attendee-age age-${a.ageGroup.toLowerCase()}`}>
                   {ageLabel(a.ageGroup)}
                 </span>
                 {a.isGuest && <span className="ticket-guest-tag">Guest</span>}
+                <SizeSelect
+                  ageGroup={a.ageGroup}
+                  value={a.tshirtSize}
+                  disabled={savingSizeId === a.lineItemId}
+                  onChange={size => handleSizeChange(a.lineItemId, size)}
+                  placeholder="Pick size"
+                  ariaLabel={`T-shirt size for ${a.name}`}
+                />
+                <span className="ticket-attendee-size-print">{sizeLabel(a.tshirtSize) || '—'}</span>
               </li>
             ))}
           </ul>

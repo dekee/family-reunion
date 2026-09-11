@@ -63,6 +63,10 @@ class SecurityConfig(
                 auth.requestMatchers(HttpMethod.POST, "/api/events/*/register").permitAll()
                 auth.requestMatchers(HttpMethod.DELETE, "/api/events/*/register/**").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/checkin/send").permitAll()
+                // T-shirt size edits: pay page uses the public rsvpId + lineItemId (same trust level as
+                // checkout); ticket page is scoped by the checkin token. Both require a COMPLETED payment.
+                auth.requestMatchers(HttpMethod.PUT, "/api/payments/line-items/*/size").permitAll()
+                auth.requestMatchers(HttpMethod.PUT, "/api/checkin/ticket/*/sizes").permitAll()
                 // Gallery upload is public at the HTTP layer; the controller enforces
                 // the shared family upload password.
                 auth.requestMatchers(HttpMethod.POST, "/api/gallery/upload").permitAll()

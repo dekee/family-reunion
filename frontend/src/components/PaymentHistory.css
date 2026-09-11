@@ -334,3 +334,216 @@
     gap: 0.5rem;
   }
 }
+
+/* T-shirt size tally */
+.ph-sizes-section {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.ph-sizes-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.85rem 1.25rem;
+  background: none;
+  border: none;
+  font-family: inherit;
+  color: var(--color-text-heading);
+  cursor: pointer;
+  text-align: left;
+}
+
+.ph-sizes-toggle:hover {
+  background: var(--color-bg-hover);
+}
+
+.ph-sizes-title {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.ph-sizes-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.ph-sizes-chevron {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.ph-sizes-body {
+  padding: 0 1.25rem 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.ph-sizes-empty {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.ph-sizes-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.85rem;
+}
+
+.ph-sizes-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ph-sizes-group-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ph-size-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.ph-size-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  background: var(--color-bg-card-alt);
+  font-size: 0.8rem;
+  color: var(--color-text-primary);
+}
+
+.ph-size-chip-label {
+  font-weight: 600;
+}
+
+.ph-size-chip-count {
+  font-weight: 700;
+  color: var(--color-navy-primary);
+  min-width: 1.25rem;
+  text-align: center;
+  padding: 0 0.35rem;
+  border-radius: 10px;
+  background: var(--color-bg-badge);
+}
+
+[data-theme="dark"] .ph-size-chip-count {
+  color: var(--color-gold);
+}
+
+.ph-size-chip-zero {
+  opacity: 0.45;
+}
+
+.ph-size-missing-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-sm);
+  background: rgba(230, 126, 34, 0.14);
+  color: #b35c00;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+[data-theme="dark"] .ph-size-missing-badge {
+  background: rgba(230, 126, 34, 0.25);
+  color: #f0a050;
+}
+
+.ph-sizes-list-toggle {
+  margin-top: 0.85rem;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.ph-sizes-list-toggle:hover {
+  border-color: var(--color-navy-primary);
+}
+
+.ph-sizes-table-wrap {
+  margin-top: 0.75rem;
+  overflow-x: auto;
+}
+
+.ph-sizes-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.ph-sizes-table th,
+.ph-sizes-table td {
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border-light, var(--color-border));
+  white-space: nowrap;
+}
+
+.ph-sizes-table th {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ph-sizes-table td .ph-guest-tag {
+  margin-left: 0.35rem;
+}
+
+.ph-sizes-row-missing td {
+  background: rgba(230, 126, 34, 0.05);
+}
+
+[data-theme="dark"] .ph-sizes-row-missing td {
+  background: rgba(230, 126, 34, 0.1);
+}
+
+/* Per-line-item size on payment cards */
+.ph-li-size {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-badge);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.ph-li-size-missing {
+  background: rgba(230, 126, 34, 0.14);
+  color: #b35c00;
+}
+
+[data-theme="dark"] .ph-li-size-missing {
+  background: rgba(230, 126, 34, 0.25);
+  color: #f0a050;
+}

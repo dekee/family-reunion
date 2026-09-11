@@ -5,16 +5,22 @@ import com.familyreunion.rsvp.config.StripeConfig
 import com.familyreunion.rsvp.dto.AngelContributorResponse
 import com.familyreunion.rsvp.dto.CheckoutRequest
 import com.familyreunion.rsvp.dto.LineItemResponse
+import com.familyreunion.rsvp.dto.LineItemSizeResponse
 import com.familyreunion.rsvp.dto.PaidGuestInfo
+import com.familyreunion.rsvp.dto.PaidMemberInfo
 import com.familyreunion.rsvp.dto.PaymentDetailResponse
 import com.familyreunion.rsvp.dto.PaymentResponse
 import com.familyreunion.rsvp.dto.PaymentSummaryResponse
+import com.familyreunion.rsvp.dto.UpdateLineItemSizeRequest
+import com.familyreunion.rsvp.exception.LineItemNotFoundException
 import com.familyreunion.rsvp.exception.RsvpNotFoundException
+import com.familyreunion.rsvp.model.ANGEL_CONTRIBUTION_NAME
 import com.familyreunion.rsvp.model.AgeGroup
 import com.familyreunion.rsvp.model.Payment
 import com.familyreunion.rsvp.model.PaymentLineItem
 import com.familyreunion.rsvp.model.PaymentStatus
 import com.familyreunion.rsvp.model.Rsvp
+import com.familyreunion.rsvp.model.TshirtSize
 import com.familyreunion.rsvp.repository.FamilyMemberRepository
 import com.familyreunion.rsvp.repository.PaymentLineItemRepository
 import com.familyreunion.rsvp.repository.PaymentRepository
@@ -40,10 +46,6 @@ class PaymentService(
 ) {
 
     fun createCheckoutSession(request: CheckoutRequest): String {
-        if (!stripeConfig.isConfigured()) {
-            throw IllegalStateException("Stripe is not configured. Please set STRIPE_SECRET_KEY.")
-        }
-
         val rsvpId = request.rsvpId
         val memberIds = request.memberIds
         val guests = request.guests
@@ -65,13 +67,30 @@ class PaymentService(
             familyMemberRepository.findAllById(memberIds).associateBy { it.id }
         } else emptyMap()
 
+        // Every person being paid for needs a T-shirt size valid for their age group.
+        // Validated before touching Stripe so bad input fails fast (and is testable without Stripe).
+        val memberSizes: Map<Long, TshirtSize> = memberIds.associateWith { memberId ->
+            val member = familyMembers[memberId]
+                ?: throw IllegalArgumentException("Family member $memberId not found")
+            TshirtSize.parseFor(request.memberSizes[memberId], member.ageGroup, member.name)
+        }
+        val guestAgeGroups: List<AgeGroup> = guests.map { guest ->
+            try { AgeGroup.valueOf(guest.ageGroup) } catch (_: Exception) { AgeGroup.ADULT }
+        }
+        val guestSizes: List<TshirtSize> = guests.mapIndexed { index, guest ->
+            TshirtSize.parseFor(guest.tshirtSize, guestAgeGroups[index], guest.name.ifBlank { "guest" })
+        }
+
+        if (!stripeConfig.isConfigured()) {
+            throw IllegalStateException("Stripe is not configured. Please set STRIPE_SECRET_KEY.")
+        }
+
         var calculatedAmountCents = 0L
         for (memberId in memberIds) {
             val member = familyMembers[memberId] ?: continue
             calculatedAmountCents += feeForAgeGroup(member.ageGroup)
         }
-        for (guest in guests) {
-            val ageGroup = try { AgeGroup.valueOf(guest.ageGroup) } catch (_: Exception) { AgeGroup.ADULT }
+        for (ageGroup in guestAgeGroups) {
             calculatedAmountCents += feeForAgeGroup(ageGroup)
         }
 
@@ -142,19 +161,21 @@ class PaymentService(
                 familyMemberId = memberId,
                 familyMemberName = member.name,
                 ageGroup = member.ageGroup,
-                amount = BigDecimal.valueOf(fee).divide(BigDecimal(100))
+                amount = BigDecimal.valueOf(fee).divide(BigDecimal(100)),
+                tshirtSize = memberSizes[memberId]
             )
             payment.lineItems.add(lineItem)
         }
 
-        for (guest in guests) {
-            val ageGroup = try { AgeGroup.valueOf(guest.ageGroup) } catch (_: Exception) { AgeGroup.ADULT }
+        guests.forEachIndexed { index, guest ->
+            val ageGroup = guestAgeGroups[index]
             val fee = feeForAgeGroup(ageGroup)
             val lineItem = PaymentLineItem(
                 payment = payment,
                 guestName = guest.name,
                 ageGroup = ageGroup,
-                amount = BigDecimal.valueOf(fee).divide(BigDecimal(100))
+                amount = BigDecimal.valueOf(fee).divide(BigDecimal(100)),
+                tshirtSize = guestSizes[index]
             )
             payment.lineItems.add(lineItem)
         }
@@ -162,7 +183,7 @@ class PaymentService(
         if (angelAmount > 0) {
             val angelLineItem = PaymentLineItem(
                 payment = payment,
-                guestName = "Angel Contribution",
+                guestName = ANGEL_CONTRIBUTION_NAME,
                 ageGroup = AgeGroup.ADULT,
                 amount = BigDecimal.valueOf(angelAmount).divide(BigDecimal(100))
             )
@@ -282,7 +303,7 @@ class PaymentService(
 
         // Angel contributions are donations — they must not count toward member fees owed
         val angelTotal = lineItems
-            .filter { it.guestName == "Angel Contribution" }
+            .filter { it.isAngel }
             .fold(BigDecimal.ZERO) { acc, li -> acc.add(li.amount) }
 
         val totalPaid = completedPayments
@@ -301,9 +322,21 @@ class PaymentService(
             else -> "UNPAID"
         }
 
-        val paidMemberIds = lineItems.filter { it.familyMemberId != null }.map { it.familyMemberId!! }.distinct()
-        val paidGuests = lineItems.filter { it.guestName != null }.map {
-            PaidGuestInfo(name = it.guestName!!, ageGroup = it.ageGroup.name, amount = it.amount)
+        // Angel contributions are donations, not people — never list them as paid attendees
+        val personItems = lineItems.filter { !it.isAngel }
+        val paidMemberItems = personItems.filter { it.familyMemberId != null }.distinctBy { it.familyMemberId }
+        val paidMemberIds = paidMemberItems.map { it.familyMemberId!! }
+        val paidMembers = paidMemberItems.map {
+            PaidMemberInfo(memberId = it.familyMemberId!!, lineItemId = it.id, tshirtSize = it.tshirtSize?.name)
+        }
+        val paidGuests = personItems.filter { it.guestName != null }.map {
+            PaidGuestInfo(
+                name = it.guestName!!,
+                ageGroup = it.ageGroup.name,
+                amount = it.amount,
+                lineItemId = it.id,
+                tshirtSize = it.tshirtSize?.name
+            )
         }
 
         return PaymentSummaryResponse(
@@ -315,7 +348,8 @@ class PaymentService(
             status = status,
             payments = payments.map { toPaymentResponse(it, rsvp) },
             paidMemberIds = paidMemberIds,
-            paidGuests = paidGuests
+            paidGuests = paidGuests,
+            paidMembers = paidMembers
         )
     }
 
@@ -364,14 +398,39 @@ class PaymentService(
                 checkedInAt = payment.checkedInAt?.toString(),
                 lineItems = lineItems.map { li ->
                     LineItemResponse(
-                        name = li.familyMemberName ?: li.guestName ?: "Unknown",
+                        name = li.displayName,
                         ageGroup = li.ageGroup.name,
                         amount = li.amount,
-                        isGuest = li.guestName != null
+                        isGuest = li.guestName != null,
+                        lineItemId = li.id,
+                        tshirtSize = li.tshirtSize?.name
                     )
                 }
             )
         }.sortedByDescending { it.createdAt }
+    }
+
+    /**
+     * Public pay-page edit of a paid person's T-shirt size. The caller proves it is looking at the
+     * right family by supplying the (public) rsvpId; a mismatch is reported as not-found so the
+     * endpoint cannot be used to probe which line item ids exist.
+     */
+    fun updateLineItemSize(lineItemId: Long, request: UpdateLineItemSizeRequest): LineItemSizeResponse {
+        val lineItem = paymentLineItemRepository.findById(lineItemId)
+            .orElseThrow { LineItemNotFoundException(lineItemId) }
+        val payment = lineItem.payment ?: throw LineItemNotFoundException(lineItemId)
+        if (payment.rsvp?.id != request.rsvpId) {
+            throw LineItemNotFoundException(lineItemId)
+        }
+        if (payment.status != PaymentStatus.COMPLETED) {
+            throw IllegalArgumentException("Payment not completed")
+        }
+        if (lineItem.isAngel) {
+            throw IllegalArgumentException("Angel contributions do not have a T-shirt size")
+        }
+        lineItem.tshirtSize = TshirtSize.parseFor(request.tshirtSize, lineItem.ageGroup, lineItem.displayName)
+        paymentLineItemRepository.save(lineItem)
+        return LineItemSizeResponse(lineItemId = lineItem.id, tshirtSize = lineItem.tshirtSize!!.name)
     }
 
     @Transactional(readOnly = true)
@@ -380,7 +439,7 @@ class PaymentService(
         val angels = mutableListOf<AngelContributorResponse>()
         for (payment in completedPayments) {
             val lineItems = paymentLineItemRepository.findByPaymentId(payment.id)
-            val angelItem = lineItems.find { it.guestName == "Angel Contribution" }
+            val angelItem = lineItems.find { it.isAngel }
             if (angelItem != null) {
                 angels.add(AngelContributorResponse(
                     payerName = payment.payerName ?: "Anonymous",

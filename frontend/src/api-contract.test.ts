@@ -38,6 +38,9 @@ import type {
   VolunteerTaskResponse,
   VolunteerSignupDto,
   VolunteerSignupRequest,
+  TicketResponse,
+  PaymentLineItemResponse,
+  TshirtSize,
 } from './types';
 
 // --- Type shape validators ---
@@ -129,6 +132,36 @@ function assertPaymentSummary(obj: unknown): asserts obj is PaymentSummaryRespon
   expect(typeof o.status).toBe('string');
   expect(['PAID', 'PARTIAL', 'PENDING', 'UNPAID']).toContain(o.status);
   expect(Array.isArray(o.payments)).toBe(true);
+  expect(Array.isArray(o.paidMemberIds)).toBe(true);
+  expect(Array.isArray(o.paidGuests)).toBe(true);
+  expect(Array.isArray(o.paidMembers)).toBe(true);
+}
+
+function assertTicketResponse(obj: unknown): asserts obj is TicketResponse {
+  const o = obj as Record<string, unknown>;
+  expect(typeof o.checkinToken).toBe('string');
+  expect(typeof o.familyName).toBe('string');
+  expect(typeof o.payerName).toBe('string');
+  expect(typeof o.amount).toBe('number');
+  expect(typeof o.checkedIn).toBe('boolean');
+  expect(Array.isArray(o.attendees)).toBe(true);
+  for (const a of o.attendees as Record<string, unknown>[]) {
+    expect(typeof a.name).toBe('string');
+    expect(typeof a.ageGroup).toBe('string');
+    expect(typeof a.isGuest).toBe('boolean');
+    expect(typeof a.lineItemId).toBe('number');
+    expect(a.tshirtSize === null || typeof a.tshirtSize === 'string').toBe(true);
+  }
+}
+
+function assertPaymentLineItem(obj: unknown): asserts obj is PaymentLineItemResponse {
+  const o = obj as Record<string, unknown>;
+  expect(typeof o.name).toBe('string');
+  expect(typeof o.ageGroup).toBe('string');
+  expect(typeof o.amount).toBe('number');
+  expect(typeof o.isGuest).toBe('boolean');
+  expect(typeof o.lineItemId).toBe('number');
+  expect(o.tshirtSize === null || typeof o.tshirtSize === 'string').toBe(true);
 }
 
 function assertPaymentResponse(obj: unknown): asserts obj is PaymentResponse {
@@ -297,10 +330,44 @@ describe('API Response Type Contracts', () => {
       balance: 250,
       status: 'UNPAID',
       payments: [],
-      paidMemberIds: [],
-      paidGuests: [],
+      paidMemberIds: [7],
+      paidGuests: [{ name: 'Cousin', ageGroup: 'CHILD', amount: 50, lineItemId: 12, tshirtSize: null }],
+      paidMembers: [{ memberId: 7, lineItemId: 11, tshirtSize: 'L' }],
     };
     assertPaymentSummary(sample);
+    expect(sample.paidMembers[0].lineItemId).toBe(11);
+  });
+
+  it('TicketResponse shape matches backend', () => {
+    const sample: TicketResponse = {
+      checkinToken: 'abc-123',
+      familyName: 'Tumblin',
+      payerName: 'Derrick',
+      amount: 150,
+      checkedIn: false,
+      attendees: [
+        { name: 'Derrick', ageGroup: 'ADULT', isGuest: false, lineItemId: 1, tshirtSize: 'XL' },
+        { name: 'Baby', ageGroup: 'INFANT', isGuest: true, lineItemId: 2, tshirtSize: null },
+      ],
+    };
+    assertTicketResponse(sample);
+  });
+
+  it('PaymentLineItemResponse shape matches backend', () => {
+    const sample: PaymentLineItemResponse = {
+      name: 'Derrick', ageGroup: 'ADULT', amount: 100, isGuest: false, lineItemId: 1, tshirtSize: 'M',
+    };
+    assertPaymentLineItem(sample);
+  });
+
+  it('TshirtSize union matches backend enum', () => {
+    const sizes: TshirtSize[] = [
+      'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL',
+      'YS', 'YM', 'YL', 'YXL',
+      'NEWBORN', 'M0_3', 'M3_6', 'M6_9', 'M9_12',
+    ];
+    expect(sizes).toHaveLength(16);
+    // Backend TshirtSize.kt has 7 unisex + 4 youth + 5 onesie sizes
   });
 
   it('PaymentResponse shape matches backend', () => {
@@ -395,10 +462,14 @@ describe('API Request Type Contracts', () => {
       rsvpId: 1,
       amount: 10000,
       memberIds: [1, 2, 3],
-      guests: [{ name: 'Guest 1', ageGroup: 'ADULT', fee: 10000 }],
+      memberSizes: { 1: 'M', 2: 'YL', 3: 'M3_6' },
+      guests: [{ name: 'Guest 1', ageGroup: 'ADULT', fee: 10000, tshirtSize: 'XXL' }],
     };
     expect(req.rsvpId).toBeGreaterThan(0);
     expect(req.amount).toBeGreaterThanOrEqual(100); // @Min(100) in backend
+    // Backend requires a size for every memberId and every guest
+    for (const id of req.memberIds) expect(req.memberSizes[id]).toBeTruthy();
+    for (const g of req.guests) expect(g.tshirtSize).toBeTruthy();
   });
 
   it('MeetingRequest has all required fields for backend', () => {
@@ -691,10 +762,44 @@ describe('API Client Endpoint Contracts', () => {
   it('createCheckoutSession calls POST /api/payments/checkout', async () => {
     mockFetch({ url: 'https://checkout.stripe.com/session' });
     const { createCheckoutSession } = await import('./api');
-    const result = await createCheckoutSession({ rsvpId: 1, amount: 10000, memberIds: [1], guests: [] });
+    const result = await createCheckoutSession({
+      rsvpId: 1,
+      amount: 15000,
+      memberIds: [1],
+      memberSizes: { 1: 'M' },
+      guests: [{ name: 'Cousin', ageGroup: 'CHILD', fee: 5000, tshirtSize: 'YS' }],
+    });
     expect(fetchCalls[0].url).toBe('/api/payments/checkout');
     expect(fetchCalls[0].method).toBe('POST');
+    const body = JSON.parse(fetchCalls[0].body as string);
+    expect(body.memberSizes).toEqual({ '1': 'M' });
+    expect(body.guests[0].tshirtSize).toBe('YS');
     expect(result.url).toBe('https://checkout.stripe.com/session');
+  });
+
+  it('updateLineItemSize calls PUT /api/payments/line-items/{id}/size without auth', async () => {
+    mockFetch({ lineItemId: 42, tshirtSize: 'L' });
+    const { updateLineItemSize } = await import('./api');
+    const result = await updateLineItemSize(42, { rsvpId: 1, tshirtSize: 'L' });
+    expect(fetchCalls[0].url).toBe('/api/payments/line-items/42/size');
+    expect(fetchCalls[0].method).toBe('PUT');
+    expect(JSON.parse(fetchCalls[0].body as string)).toEqual({ rsvpId: 1, tshirtSize: 'L' });
+    expect((fetchCalls[0].headers as Record<string, string>)?.Authorization).toBeUndefined();
+    expect(result.tshirtSize).toBe('L');
+  });
+
+  it('updateTicketSizes calls PUT /api/checkin/ticket/{token}/sizes without auth', async () => {
+    mockFetch({
+      checkinToken: 'tok', familyName: 'Tumblin', payerName: 'D', amount: 100, checkedIn: false,
+      attendees: [{ name: 'D', ageGroup: 'ADULT', isGuest: false, lineItemId: 5, tshirtSize: 'XL' }],
+    });
+    const { updateTicketSizes } = await import('./api');
+    const result = await updateTicketSizes('tok', { sizes: [{ lineItemId: 5, tshirtSize: 'XL' }] });
+    expect(fetchCalls[0].url).toBe('/api/checkin/ticket/tok/sizes');
+    expect(fetchCalls[0].method).toBe('PUT');
+    expect((fetchCalls[0].headers as Record<string, string>)?.Authorization).toBeUndefined();
+    assertTicketResponse(result);
+    expect(result.attendees[0].tshirtSize).toBe('XL');
   });
 
   it('fetchAdminUsers calls GET /api/admin/users', async () => {

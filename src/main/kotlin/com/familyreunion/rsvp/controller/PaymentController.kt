@@ -3,8 +3,10 @@ package com.familyreunion.rsvp.controller
 import com.familyreunion.rsvp.config.FeeConfig
 import com.familyreunion.rsvp.dto.AngelContributorResponse
 import com.familyreunion.rsvp.dto.CheckoutRequest
+import com.familyreunion.rsvp.dto.LineItemSizeResponse
 import com.familyreunion.rsvp.dto.PaymentDetailResponse
 import com.familyreunion.rsvp.dto.PaymentSummaryResponse
+import com.familyreunion.rsvp.dto.UpdateLineItemSizeRequest
 import com.familyreunion.rsvp.service.PaymentService
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
@@ -71,6 +73,15 @@ class PaymentController(
     @GetMapping("/history")
     fun getPaymentHistory(): ResponseEntity<List<PaymentDetailResponse>> {
         return ResponseEntity.ok(paymentService.getPaymentHistory())
+    }
+
+    /** Public: lets a paid attendee pick/change their T-shirt size from the pay page. */
+    @PutMapping("/line-items/{id}/size")
+    fun updateLineItemSize(
+        @PathVariable id: Long,
+        @Valid @RequestBody request: UpdateLineItemSizeRequest
+    ): ResponseEntity<LineItemSizeResponse> {
+        return ResponseEntity.ok(paymentService.updateLineItemSize(id, request))
     }
 
     @GetMapping("/angels")

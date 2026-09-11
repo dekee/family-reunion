@@ -1,0 +1,163 @@
+package com.familyreunion.rsvp.controller
+
+import com.familyreunion.rsvp.model.AgeGroup
+import com.familyreunion.rsvp.model.Payment
+import com.familyreunion.rsvp.model.PaymentLineItem
+import com.familyreunion.rsvp.model.PaymentStatus
+import com.familyreunion.rsvp.model.Rsvp
+import com.familyreunion.rsvp.model.TshirtSize
+import com.familyreunion.rsvp.repository.PaymentLineItemRepository
+import com.familyreunion.rsvp.repository.PaymentRepository
+import com.familyreunion.rsvp.repository.RsvpRepository
+import java.math.BigDecimal
+import org.assertj.core.api.Assertions.assertThat
+import org.hamcrest.Matchers.*
+import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.http.MediaType
+import org.springframework.security.test.context.support.WithMockUser
+import org.springframework.test.annotation.DirtiesContext
+import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@WithMockUser(roles = ["ADMIN"])
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+class CheckinControllerIntegrationTest @Autowired constructor(
+    private val mockMvc: MockMvc,
+    private val rsvpRepository: RsvpRepository,
+    private val paymentRepository: PaymentRepository,
+    private val paymentLineItemRepository: PaymentLineItemRepository
+) {
+
+    private data class Fixture(val payment: Payment, val adult: PaymentLineItem, val child: PaymentLineItem, val angel: PaymentLineItem)
+
+    private fun createPayment(status: PaymentStatus = PaymentStatus.COMPLETED, familyName: String = "Ticket"): Fixture {
+        val rsvp = rsvpRepository.save(Rsvp(
+            familyName = familyName,
+            headOfHouseholdName = "$familyName Head",
+            email = "${familyName.lowercase()}@example.com"
+        ))
+        val payment = Payment(
+            rsvp = rsvp,
+            amount = BigDecimal("175.00"),
+            stripeSessionId = "sess_${familyName.lowercase()}",
+            status = status
+        )
+        val adult = PaymentLineItem(payment = payment, familyMemberId = 42, familyMemberName = "$familyName Adult",
+            ageGroup = AgeGroup.ADULT, amount = BigDecimal("100.00"), tshirtSize = TshirtSize.L)
+        val child = PaymentLineItem(payment = payment, guestName = "$familyName Kid",
+            ageGroup = AgeGroup.CHILD, amount = BigDecimal("50.00"))
+        val angel = PaymentLineItem(payment = payment, guestName = "Angel Contribution",
+            ageGroup = AgeGroup.ADULT, amount = BigDecimal("25.00"))
+        payment.lineItems.addAll(listOf(adult, child, angel))
+        paymentRepository.save(payment)
+        return Fixture(payment, adult, child, angel)
+    }
+
+    @Test
+    fun `GET ticket returns attendees with lineItemId and tshirtSize`() {
+        val fx = createPayment()
+
+        mockMvc.perform(get("/api/checkin/ticket/${fx.payment.checkinToken}"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.attendees", hasSize<Any>(3)))
+            .andExpect(jsonPath("$.attendees[0].lineItemId").value(fx.adult.id))
+            .andExpect(jsonPath("$.attendees[0].tshirtSize").value("L"))
+            .andExpect(jsonPath("$.attendees[1].lineItemId").value(fx.child.id))
+            .andExpect(jsonPath("$.attendees[1].tshirtSize").value(nullValue()))
+    }
+
+    @Test
+    fun `PUT ticket sizes saves sizes and returns the updated ticket`() {
+        val fx = createPayment()
+        val json = """{"sizes":[{"lineItemId":${fx.child.id},"tshirtSize":"YM"},{"lineItemId":${fx.adult.id},"tshirtSize":"XL"}]}"""
+
+        mockMvc.perform(
+            put("/api/checkin/ticket/${fx.payment.checkinToken}/sizes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.checkinToken").value(fx.payment.checkinToken))
+            .andExpect(jsonPath("$.attendees[0].tshirtSize").value("XL"))
+            .andExpect(jsonPath("$.attendees[1].tshirtSize").value("YM"))
+
+        assertThat(paymentLineItemRepository.findById(fx.child.id).get().tshirtSize).isEqualTo(TshirtSize.YM)
+        assertThat(paymentLineItemRepository.findById(fx.adult.id).get().tshirtSize).isEqualTo(TshirtSize.XL)
+    }
+
+    @Test
+    fun `PUT ticket sizes rejects a size from the wrong category`() {
+        val fx = createPayment()
+        val json = """{"sizes":[{"lineItemId":${fx.child.id},"tshirtSize":"L"}]}"""
+
+        mockMvc.perform(
+            put("/api/checkin/ticket/${fx.payment.checkinToken}/sizes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("not available")))
+
+        assertThat(paymentLineItemRepository.findById(fx.child.id).get().tshirtSize).isNull()
+    }
+
+    @Test
+    fun `PUT ticket sizes rejects the angel contribution line item`() {
+        val fx = createPayment()
+        val json = """{"sizes":[{"lineItemId":${fx.angel.id},"tshirtSize":"L"}]}"""
+
+        mockMvc.perform(
+            put("/api/checkin/ticket/${fx.payment.checkinToken}/sizes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `PUT ticket sizes rejects a line item from another payment`() {
+        val mine = createPayment(familyName = "Mine")
+        val theirs = createPayment(familyName = "Theirs")
+        val json = """{"sizes":[{"lineItemId":${theirs.child.id},"tshirtSize":"YS"}]}"""
+
+        mockMvc.perform(
+            put("/api/checkin/ticket/${mine.payment.checkinToken}/sizes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+        )
+            .andExpect(status().isBadRequest)
+
+        assertThat(paymentLineItemRepository.findById(theirs.child.id).get().tshirtSize).isNull()
+    }
+
+    @Test
+    fun `PUT ticket sizes rejects a pending payment`() {
+        val fx = createPayment(status = PaymentStatus.PENDING)
+        val json = """{"sizes":[{"lineItemId":${fx.child.id},"tshirtSize":"YS"}]}"""
+
+        mockMvc.perform(
+            put("/api/checkin/ticket/${fx.payment.checkinToken}/sizes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `PUT ticket sizes rejects an unknown token`() {
+        mockMvc.perform(
+            put("/api/checkin/ticket/not-a-real-token/sizes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"sizes":[]}""")
+        )
+            .andExpect(status().isBadRequest)
+    }
+}

@@ -1,5 +1,11 @@
 export type AgeGroup = 'ADULT' | 'CHILD' | 'INFANT' | 'SPOUSE';
 
+/** Backend TshirtSize enum names. Unisex S–4XL, Youth S–XL, onesies Newborn–12 mths. */
+export type TshirtSize =
+  | 'S' | 'M' | 'L' | 'XL' | 'XXL' | 'XXXL' | 'XXXXL'
+  | 'YS' | 'YM' | 'YL' | 'YXL'
+  | 'NEWBORN' | 'M0_3' | 'M3_6' | 'M6_9' | 'M9_12';
+
 export interface AttendeeDto {
   id?: number;
   familyMemberId?: number;
@@ -147,6 +153,8 @@ export interface PaymentLineItemResponse {
   ageGroup: string;
   amount: number;
   isGuest: boolean;
+  lineItemId: number;
+  tshirtSize: TshirtSize | null;
 }
 
 export interface PaymentDetailResponse {
@@ -168,6 +176,17 @@ export interface TicketAttendee {
   name: string;
   ageGroup: string;
   isGuest: boolean;
+  lineItemId: number;
+  tshirtSize: TshirtSize | null;
+}
+
+export interface TicketSizeEntry {
+  lineItemId: number;
+  tshirtSize: TshirtSize;
+}
+
+export interface UpdateTicketSizesRequest {
+  sizes: TicketSizeEntry[];
 }
 
 export interface TicketResponse {
@@ -196,6 +215,14 @@ export interface PaidGuestInfo {
   name: string;
   ageGroup: string;
   amount: number;
+  lineItemId: number;
+  tshirtSize: TshirtSize | null;
+}
+
+export interface PaidMemberInfo {
+  memberId: number;
+  lineItemId: number;
+  tshirtSize: TshirtSize | null;
 }
 
 export interface PaymentSummaryResponse {
@@ -208,20 +235,34 @@ export interface PaymentSummaryResponse {
   payments: PaymentResponse[];
   paidMemberIds: number[];
   paidGuests: PaidGuestInfo[];
+  paidMembers: PaidMemberInfo[];
 }
 
 export interface CheckoutGuestInfo {
   name: string;
   ageGroup: string;
   fee: number;
+  tshirtSize: TshirtSize;
 }
 
 export interface CheckoutRequest {
   rsvpId: number;
   amount: number;
   memberIds: number[];
+  /** familyMemberId -> size; required for every id in memberIds */
+  memberSizes: Record<number, TshirtSize>;
   guests: CheckoutGuestInfo[];
   angelAmount?: number;
+}
+
+export interface UpdateLineItemSizeRequest {
+  rsvpId: number;
+  tshirtSize: TshirtSize;
+}
+
+export interface LineItemSizeResponse {
+  lineItemId: number;
+  tshirtSize: TshirtSize;
 }
 
 export interface AngelContributor {

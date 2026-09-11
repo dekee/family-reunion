@@ -58,6 +58,12 @@ class GlobalExceptionHandler {
             .body(mapOf("error" to ex.message))
     }
 
+    @ExceptionHandler(LineItemNotFoundException::class)
+    fun handleLineItemNotFound(ex: LineItemNotFoundException): ResponseEntity<Map<String, String?>> {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(mapOf("error" to ex.message))
+    }
+
     @ExceptionHandler(StripeException::class)
     fun handleStripeError(ex: StripeException): ResponseEntity<Map<String, String?>> {
         return ResponseEntity.badRequest()
