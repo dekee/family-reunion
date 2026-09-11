@@ -547,7 +547,7 @@ export default function PayAndRsvp() {
           </div>
 
           <p className="pay-size-note">
-            Every paid attendee gets a reunion T-shirt — pick a size for each person you're paying for. Any size is fine for anyone; the group that usually fits is listed first.
+            Every paid attendee gets a reunion T-shirt — please pick a T-shirt size.
             {paidMissingSize > 0 && (
               <strong className="pay-size-note-missing"> {paidMissingSize} paid {paidMissingSize === 1 ? 'person still needs' : 'people still need'} a size.</strong>
             )}
