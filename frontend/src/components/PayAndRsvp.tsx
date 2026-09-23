@@ -355,7 +355,11 @@ export default function PayAndRsvp() {
             const totalContributed = angels.reduce((s, a) => s + a.amount, 0);
             const pct = Math.min(100, Math.round((totalContributed / ANGEL_GOAL) * 100));
             const goalReached = totalContributed >= ANGEL_GOAL;
-            const overallTotal = branches.reduce((s, b) => s + b.members.reduce((ms, m) => ms + m.fee, 0), 0);
+            // Guests count toward the total everywhere, for the same reason as the branch cards:
+            // overallPaid includes what was paid for them.
+            const overallTotal = branches.reduce((s, b) =>
+              s + b.members.reduce((ms, m) => ms + m.fee, 0)
+                + b.paidGuests.reduce((gs, g) => gs + g.amount, 0), 0);
             const overallPaid = branches.reduce((s, b) => s + (b.payment?.totalPaid ?? 0), 0);
             const overallRemaining = Math.max(0, overallTotal - overallPaid);
             const peoplePaid = branches.reduce((s, b) => s + b.members.filter(m => m.paid).length + b.paidGuests.length, 0);
@@ -427,7 +431,10 @@ export default function PayAndRsvp() {
             {branches.map(b => {
               const branchName = b.node.name.replace(/ - Done$/, '');
               const branchColor = getBranchColor(branchName);
-              const totalCost = b.members.reduce((sum, m) => sum + m.fee, 0);
+              // Guests must be in the total: totalPaid counts their money, so leaving them out of
+              // the denominator makes guest payments look like they cleared member fees.
+              const guestCost = b.paidGuests.reduce((sum, g) => sum + g.amount, 0);
+              const totalCost = b.members.reduce((sum, m) => sum + m.fee, 0) + guestCost;
               const paid = b.payment?.totalPaid ?? 0;
               const balance = Math.max(0, totalCost - paid);
               const paidPercent = totalCost > 0 ? Math.min(100, Math.round((paid / totalCost) * 100)) : 0;
@@ -479,7 +486,10 @@ export default function PayAndRsvp() {
             <h3>{activeBranch.node.name.replace(/ - Done$/, '')} Family</h3>
             <p>{activeBranch.members.length} members</p>
             {(() => {
-              const detailTotal = activeBranch.members.reduce((sum, m) => sum + m.fee, 0);
+              // Same as the branch card: paid guests belong in the total, because detailPaid
+              // (totalPaid) already includes what was paid for them.
+              const detailGuestCost = activeBranch.paidGuests.reduce((sum, g) => sum + g.amount, 0);
+              const detailTotal = activeBranch.members.reduce((sum, m) => sum + m.fee, 0) + detailGuestCost;
               const detailPaid = activeBranch.payment?.totalPaid ?? 0;
               const detailBalance = Math.max(0, detailTotal - detailPaid);
               return (

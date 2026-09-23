@@ -3,10 +3,14 @@ package com.familyreunion.rsvp.controller
 import com.familyreunion.rsvp.dto.RsvpRequest
 import com.familyreunion.rsvp.model.AgeGroup
 import com.familyreunion.rsvp.dto.AttendeeDto
+import com.familyreunion.rsvp.model.Attendee
+import com.familyreunion.rsvp.model.FamilyMember
 import com.familyreunion.rsvp.model.Payment
 import com.familyreunion.rsvp.model.PaymentLineItem
 import com.familyreunion.rsvp.model.PaymentStatus
 import com.familyreunion.rsvp.model.TshirtSize
+import com.familyreunion.rsvp.model.Rsvp
+import com.familyreunion.rsvp.repository.FamilyMemberRepository
 import com.familyreunion.rsvp.repository.PaymentRepository
 import com.familyreunion.rsvp.repository.RsvpRepository
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -33,7 +37,8 @@ class PaymentControllerIntegrationTest @Autowired constructor(
     private val mockMvc: MockMvc,
     private val objectMapper: ObjectMapper,
     private val rsvpRepository: RsvpRepository,
-    private val paymentRepository: PaymentRepository
+    private val paymentRepository: PaymentRepository,
+    private val familyMemberRepository: FamilyMemberRepository
 ) {
 
     private fun createRsvp(familyName: String, adults: Int = 2, children: Int = 1): Long {
@@ -598,5 +603,31 @@ class PaymentControllerIntegrationTest @Autowired constructor(
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"rsvpId":1,"tshirtSize":"L"}""")
         ).andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `GET summary does not bill for a member excluded from the RSVP`() {
+        // An excluded member is hidden from the pay page, so nobody can ever pay their fee.
+        // Billing for them would leave a balance no one can clear.
+        val included = familyMemberRepository.save(
+            FamilyMember(name = "Billed Adult", ageGroup = AgeGroup.ADULT)
+        )
+        val excluded = familyMemberRepository.save(
+            FamilyMember(name = "Excluded Adult", ageGroup = AgeGroup.ADULT, excludeFromRsvp = true)
+        )
+        val rsvp = Rsvp(
+            familyName = "Excludes",
+            headOfHouseholdName = "Excludes Head",
+            email = "excludes@example.com"
+        )
+        rsvp.attendees.add(Attendee(rsvp = rsvp, familyMember = included))
+        rsvp.attendees.add(Attendee(rsvp = rsvp, familyMember = excluded))
+        val saved = rsvpRepository.save(rsvp)
+
+        mockMvc.perform(get("/api/payments/summary/${saved.id}"))
+            .andExpect(status().isOk)
+            // $100 for the included adult only — not $200.
+            .andExpect(jsonPath("$.totalOwed").value(100.00))
+            .andExpect(jsonPath("$.balance").value(100.00))
     }
 }

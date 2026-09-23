@@ -450,6 +450,10 @@ class PaymentService(
     fun calculateAmountOwed(rsvp: Rsvp): BigDecimal {
         var totalCents = 0L
         for (attendee in rsvp.attendees) {
+            // A member excluded from the RSVP is hidden from the pay page and can never be paid
+            // for, so billing for them leaves a balance nobody can clear. Their attendee row is
+            // left in place — this is the one place the exclusion has to be honoured.
+            if (attendee.familyMember?.excludeFromRsvp == true) continue
             totalCents += feeForAgeGroup(attendee.ageGroup)
         }
         return BigDecimal.valueOf(totalCents).divide(BigDecimal(100))
