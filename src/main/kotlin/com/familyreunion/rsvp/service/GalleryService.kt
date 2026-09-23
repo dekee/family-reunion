@@ -30,8 +30,16 @@ class GalleryService(
     /** Rendered thumbnails, so the grid doesn't re-fetch from Drive on every view. */
     private val thumbnailCache = ThumbnailCache()
 
-    /** Width Drive is asked to render thumbnails at; large enough for a retina grid tile. */
-    private val thumbnailPx = 400
+    /**
+     * Width Drive is asked to render thumbnails at.
+     *
+     * Width, not longest side: the grid is a masonry column layout, so width is the constraint and
+     * height flows. Sizing the longest side leaves tall photos too narrow — a 1290x2796 phone photo
+     * came out 184px wide and got upscaled into a ~291px tile.
+     *
+     * 291px is the widest tile (1200px page, 4 columns); 600 covers that at 2x for retina.
+     */
+    private val thumbnailPx = 600
 
     fun getPhotos(pageToken: String?, pageSize: Int = 50): GalleryResponse {
         val allPhotos = loadPhotos()
@@ -219,10 +227,13 @@ class GalleryService(
     companion object {
         /** Drive renders thumbnails as JPEG regardless of the original's format. */
         private const val THUMBNAIL_MIME = "image/jpeg"
-        private val SIZE_SUFFIX = Regex("=s\\d+(-c)?$")
+        private val SIZE_SUFFIX = Regex("=[swh]\\d+(-c)?$")
 
-        /** Drive thumbnail links end in a size hint such as "=s220"; ask for the size we want. */
+        /**
+         * Drive thumbnail links end in a size hint such as "=s220". Rewrite it to "=w<px>", which
+         * constrains width rather than the longest side — see [thumbnailPx].
+         */
         internal fun resizeLink(link: String, px: Int): String =
-            if (SIZE_SUFFIX.containsMatchIn(link)) SIZE_SUFFIX.replace(link, "=s$px") else "$link=s$px"
+            if (SIZE_SUFFIX.containsMatchIn(link)) SIZE_SUFFIX.replace(link, "=w$px") else "$link=w$px"
     }
 }

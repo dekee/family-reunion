@@ -8,10 +8,11 @@ package com.familyreunion.rsvp.service
  *
  * Only thumbnails belong here. Gallery originals average ~2 MB and reach 8 MB (phone photos), so
  * the full set is ~740 MB — far too much to hold — and they are viewed one at a time in the
- * lightbox, where the hit rate would not justify it. Thumbnails are ~25 KB, so a 354-photo gallery
- * is roughly 10 MB and sits comfortably inside the default cap.
+ * lightbox, where the hit rate would not justify it. Thumbnails average ~250 KB at the 600px width
+ * the grid needs, so a 354-photo gallery is roughly 85 MB; the default cap leaves headroom for it
+ * to grow without evicting, while staying well inside the container memory limit.
  */
-class ThumbnailCache(private val maxBytes: Long = 64L * 1024 * 1024) {
+class ThumbnailCache(private val maxBytes: Long = 128L * 1024 * 1024) {
 
     // accessOrder = true makes the iteration order least-recently-used first.
     private val entries = LinkedHashMap<String, ByteArray>(64, 0.75f, true)
