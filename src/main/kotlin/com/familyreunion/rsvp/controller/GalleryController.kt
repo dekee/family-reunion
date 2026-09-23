@@ -33,13 +33,24 @@ class GalleryController(
     @GetMapping("/photo/{fileId}")
     fun getPhoto(
         @PathVariable fileId: String,
-        @RequestParam(required = false) size: String?
+        @RequestParam(required = false) size: String?,
+        @RequestHeader(value = "If-None-Match", required = false) ifNoneMatch: String?
     ): ResponseEntity<ByteArray> {
         val thumbnail = size == "thumbnail"
+
+        // A Drive file's bytes never change under a given id — uploads create a new id — so the
+        // rendering is immutable and the ETag can be derived without fetching anything. That lets
+        // a revalidating browser get a 304 for free, with no Drive round trip behind it.
+        val etag = "\"$fileId-${if (thumbnail) "t" else "f"}\""
+        if (ifNoneMatch != null && ifNoneMatch.split(",").any { it.trim() == etag }) {
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(etag).build()
+        }
+
         val (bytes, mimeType) = galleryService.getPhotoStream(fileId, thumbnail)
         return ResponseEntity.ok()
             .contentType(MediaType.parseMediaType(mimeType))
-            .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+            .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic().immutable())
+            .eTag(etag)
             .body(bytes)
     }
 

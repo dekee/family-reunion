@@ -2,6 +2,7 @@ package com.familyreunion.rsvp.service
 
 import com.familyreunion.rsvp.dto.GalleryPhoto
 import com.familyreunion.rsvp.dto.GalleryResponse
+import com.google.api.client.http.GenericUrl
 import com.google.api.services.drive.Drive
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -22,6 +23,15 @@ class GalleryService(
     private var cachedPhotos: List<GalleryPhoto> = emptyList()
     private var cacheExpiry: Long = 0
     private val cacheTtlMs = 5 * 60 * 1000L
+
+    /** Drive-generated thumbnail URL per file id, captured while listing the folder. */
+    private var thumbnailLinks: Map<String, String> = emptyMap()
+
+    /** Rendered thumbnails, so the grid doesn't re-fetch from Drive on every view. */
+    private val thumbnailCache = ThumbnailCache()
+
+    /** Width Drive is asked to render thumbnails at; large enough for a retina grid tile. */
+    private val thumbnailPx = 400
 
     fun getPhotos(pageToken: String?, pageSize: Int = 50): GalleryResponse {
         val allPhotos = loadPhotos()
@@ -46,6 +56,7 @@ class GalleryService(
 
         logger.info("Refreshing gallery cache from Google Drive folder: {}", folderId)
         val photos = mutableListOf<GalleryPhoto>()
+        val links = mutableMapOf<String, String>()
         var drivePageToken: String? = null
 
         do {
@@ -58,6 +69,7 @@ class GalleryService(
                 .execute()
 
             result.files?.forEach { file ->
+                file.thumbnailLink?.let { links[file.id] = it }
                 photos.add(
                     GalleryPhoto(
                         id = file.id,
@@ -76,30 +88,86 @@ class GalleryService(
         } while (drivePageToken != null)
 
         cachedPhotos = photos
+        thumbnailLinks = links
         cacheExpiry = System.currentTimeMillis() + cacheTtlMs
         logger.info("Gallery cache refreshed: {} photos", photos.size)
         return photos
     }
 
     fun getPhotoStream(fileId: String, thumbnail: Boolean): Pair<ByteArray, String> {
-        val file = drive.files().get(fileId)
-            .setFields("id, name, mimeType, parents")
-            .execute()
+        // Serve a cached thumbnail before doing any Drive work at all. Safe to check first: an id
+        // only ever enters this cache after passing the folder check below.
+        if (thumbnail) {
+            thumbnailCache.get(fileId)?.let { return Pair(it, THUMBNAIL_MIME) }
+        }
 
-        // Prevent IDOR: this endpoint is public, so only ever serve images that live
-        // directly in the configured gallery folder. Without this check, any Drive file
-        // readable by the service account could be exfiltrated via a guessed/leaked fileId.
+        requireInGalleryFolder(fileId)
+
+        if (thumbnail) {
+            renderThumbnail(fileId)?.let { bytes ->
+                thumbnailCache.put(fileId, bytes)
+                return Pair(bytes, THUMBNAIL_MIME)
+            }
+            // No Drive thumbnail (unsupported type, or the link failed) — fall through and serve
+            // the original rather than showing the visitor a broken tile.
+            logger.warn("No thumbnail available for {}, serving the original instead", fileId)
+        }
+
+        val mimeType = fileMimeType(fileId)
+        val stream = drive.files().get(fileId).executeMediaAsInputStream()
+        return Pair(stream.readBytes(), mimeType)
+    }
+
+    /**
+     * Prevent IDOR: this endpoint is public, so only ever serve images that live directly in the
+     * configured gallery folder. Without this check, any Drive file readable by the service
+     * account could be exfiltrated via a guessed or leaked fileId.
+     *
+     * The cached folder listing is the fast path. A miss falls back to asking Drive, so a photo
+     * added to the folder out of band still resolves before the 5-minute listing cache expires.
+     */
+    private fun requireInGalleryFolder(fileId: String) {
+        if (cachedPhotos.any { it.id == fileId } && System.currentTimeMillis() < cacheExpiry) return
+
+        val file = drive.files().get(fileId)
+            .setFields("id, mimeType, parents")
+            .execute()
         if (folderId !in (file.parents ?: emptyList())) {
             throw ResponseStatusException(HttpStatus.NOT_FOUND, "Photo not found")
         }
         if (file.mimeType?.startsWith("image/") != true) {
             throw ResponseStatusException(HttpStatus.NOT_FOUND, "Photo not found")
         }
-
-        // thumbnail vs full currently stream the same bytes; folder scoping above applies to both.
-        val stream = drive.files().get(fileId).executeMediaAsInputStream()
-        return Pair(stream.readBytes(), file.mimeType ?: "image/jpeg")
     }
+
+    private fun fileMimeType(fileId: String): String =
+        drive.files().get(fileId).setFields("mimeType").execute().mimeType ?: "image/jpeg"
+
+    /**
+     * Fetches Drive's own rendered thumbnail. Google has already generated it, so this costs us no
+     * image processing and works for formats the JVM cannot decode itself (HEIC, for instance).
+     * The request goes through the Drive client's request factory so it carries our credentials —
+     * the folder is private, and the raw link is not publicly fetchable.
+     */
+    private fun renderThumbnail(fileId: String): ByteArray? {
+        val link = thumbnailLinks[fileId] ?: run {
+            loadPhotos()                 // link may simply be missing from a stale listing
+            thumbnailLinks[fileId]
+        } ?: return null
+
+        return try {
+            val response = drive.requestFactory
+                .buildGetRequest(GenericUrl(resizeLink(link, thumbnailPx)))
+                .execute()
+            response.content.use { it.readBytes() }.takeIf { it.isNotEmpty() }
+        } catch (e: Exception) {
+            logger.warn("Thumbnail fetch failed for {}: {}", fileId, e.message)
+            null
+        }
+    }
+
+
+
 
     fun uploadPhoto(filename: String, contentType: String, bytes: ByteArray): GalleryPhoto {
         val metadata = com.google.api.services.drive.model.File().apply {
@@ -142,7 +210,19 @@ class GalleryService(
 
     fun clearCache() {
         cachedPhotos = emptyList()
+        thumbnailLinks = emptyMap()
         cacheExpiry = 0
+        thumbnailCache.clear()
         logger.info("Gallery cache cleared")
+    }
+
+    companion object {
+        /** Drive renders thumbnails as JPEG regardless of the original's format. */
+        private const val THUMBNAIL_MIME = "image/jpeg"
+        private val SIZE_SUFFIX = Regex("=s\\d+(-c)?$")
+
+        /** Drive thumbnail links end in a size hint such as "=s220"; ask for the size we want. */
+        internal fun resizeLink(link: String, px: Int): String =
+            if (SIZE_SUFFIX.containsMatchIn(link)) SIZE_SUFFIX.replace(link, "=s$px") else "$link=s$px"
     }
 }
