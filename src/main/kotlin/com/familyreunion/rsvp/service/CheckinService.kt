@@ -25,10 +25,14 @@ class CheckinService(
             throw IllegalArgumentException("Payment not completed")
         }
 
-        // A standalone Angel Fund gift has a token but nobody to admit. Report it as an invalid
-        // token (404) rather than "is a donation", so the endpoint can't be used to discover
-        // which tokens belong to gifts.
-        if (isDonationOnly(payment, paymentLineItemRepository.findByPaymentId(payment.id))) {
+        // A standalone gift's donor is never handed this token, so the token resolving at all
+        // would only ever be someone probing. Reported as an invalid token so the endpoint can't
+        // be used to discover which tokens belong to gifts.
+        //
+        // An *in-branch* angel-only payment is different: its payer WAS handed a ticket link on
+        // the pay page, so it keeps resolving and the ticket page thanks them for the gift
+        // instead of listing an empty party.
+        if (payment.rsvp == null) {
             throw IllegalArgumentException("Invalid ticket token")
         }
 
@@ -43,7 +47,7 @@ class CheckinService(
             return CheckinResponse(false, "Payment not completed")
         }
 
-        if (isDonationOnly(payment, paymentLineItemRepository.findByPaymentId(payment.id))) {
+        if (hasNoAttendees(paymentLineItemRepository.findByPaymentId(payment.id))) {
             return CheckinResponse(false, "This payment is an Angel Fund gift — no attendees to check in")
         }
 
@@ -68,18 +72,19 @@ class CheckinService(
 
     @Transactional(readOnly = true)
     fun getCheckinStatus(): CheckinStatusResponse {
-        // Standalone Angel Fund gifts are completed payments with no attendees — they must not
-        // inflate the expected-ticket count. Both counters come off the same filtered list so
-        // total and checkedIn cannot drift.
-        val ticketPayments = paymentRepository.findAll()
-            .filter { it.status == PaymentStatus.COMPLETED && it.rsvp != null }
-
-        val tickets = ticketPayments.map { toTicketResponse(it) }
+        // Angel Fund gifts are completed payments with nobody to admit — whether they are
+        // standalone or were made alongside a branch checkout, they must not inflate the
+        // expected-ticket count. Filtering on the built ticket's attendees covers both, and both
+        // counters come off the same list so total and checkedIn cannot drift.
+        val ticketed = paymentRepository.findAll()
+            .filter { it.status == PaymentStatus.COMPLETED }
+            .map { it to toTicketResponse(it) }
+            .filter { (_, ticket) -> ticket.attendees.isNotEmpty() }
 
         return CheckinStatusResponse(
-            total = tickets.size,
-            checkedIn = ticketPayments.count { it.checkedIn },
-            tickets = tickets
+            total = ticketed.size,
+            checkedIn = ticketed.count { (payment, _) -> payment.checkedIn },
+            tickets = ticketed.map { it.second }
         )
     }
 
@@ -108,15 +113,13 @@ class CheckinService(
     }
 
     /**
-     * True when nothing on this payment is a person: a standalone Angel Fund gift (no RSVP), or a
-     * payment whose only line item is the angel pseudo-row. Takes the line items as a parameter
-     * rather than reading [Payment.lineItems], which is LAZY and would break a non-transactional
-     * caller.
+     * True when no line item on this payment is a person — i.e. the payment is nothing but an
+     * Angel Fund gift. Takes the line items as a parameter rather than reading
+     * [Payment.lineItems], which is LAZY and would break a non-transactional caller.
      */
-    private fun isDonationOnly(
-        payment: com.familyreunion.rsvp.model.Payment,
+    private fun hasNoAttendees(
         lineItems: List<com.familyreunion.rsvp.model.PaymentLineItem>
-    ): Boolean = payment.rsvp == null || lineItems.none { !it.isAngel }
+    ): Boolean = lineItems.none { !it.isAngel }
 
     private fun toTicketResponse(payment: com.familyreunion.rsvp.model.Payment): TicketResponse {
         val lineItems = paymentLineItemRepository.findByPaymentId(payment.id)

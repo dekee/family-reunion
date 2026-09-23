@@ -199,9 +199,34 @@ class CheckinControllerIntegrationTest @Autowired constructor(
         val gift = createStandaloneGift("ticket")
 
         // 404, deliberately indistinguishable from a bad token, so the endpoint cannot be used to
-        // discover which tokens belong to gifts.
+        // discover which tokens belong to gifts. A standalone donor never receives this token.
         mockMvc.perform(get("/api/checkin/ticket/${gift.checkinToken}"))
             .andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `GET ticket still resolves an in-branch angel-only payment, with an empty party`() {
+        // Its payer WAS handed a "View Your Ticket" link on the pay page, so the link must keep
+        // working — the ticket page thanks them for the gift instead of listing an empty party.
+        val rsvp = rsvpRepository.save(Rsvp(
+            familyName = "GiftOnly",
+            headOfHouseholdName = "GiftOnly Head",
+            email = "giftonly@example.com"
+        ))
+        val payment = Payment(
+            rsvp = rsvp,
+            amount = BigDecimal("100.00"),
+            stripeSessionId = "sess_branch_gift_only",
+            status = PaymentStatus.COMPLETED
+        )
+        payment.lineItems.add(PaymentLineItem(payment = payment, guestName = "Angel Contribution",
+            ageGroup = AgeGroup.ADULT, amount = BigDecimal("100.00")))
+        paymentRepository.save(payment)
+
+        mockMvc.perform(get("/api/checkin/ticket/${payment.checkinToken}"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.attendees", hasSize<Any>(0)))
+            .andExpect(jsonPath("$.amount").value(100.00))
     }
 
     @Test
@@ -215,9 +240,26 @@ class CheckinControllerIntegrationTest @Autowired constructor(
     }
 
     @Test
-    fun `GET checkin status excludes standalone gifts from the expected ticket count`() {
+    fun `GET checkin status excludes every attendee-less gift from the expected ticket count`() {
         createPayment(familyName = "Real")
         createStandaloneGift("status")
+
+        // An in-branch angel-only payment has an RSVP but still nobody to admit, so it must not be
+        // counted either — filtering on rsvp alone would have let this one through.
+        val rsvp = rsvpRepository.save(Rsvp(
+            familyName = "BranchGift",
+            headOfHouseholdName = "BranchGift Head",
+            email = "branchgift@example.com"
+        ))
+        val branchGift = Payment(
+            rsvp = rsvp,
+            amount = BigDecimal("100.00"),
+            stripeSessionId = "sess_branch_gift_status",
+            status = PaymentStatus.COMPLETED
+        )
+        branchGift.lineItems.add(PaymentLineItem(payment = branchGift, guestName = "Angel Contribution",
+            ageGroup = AgeGroup.ADULT, amount = BigDecimal("100.00")))
+        paymentRepository.save(branchGift)
 
         mockMvc.perform(get("/api/checkin/status"))
             .andExpect(status().isOk)
