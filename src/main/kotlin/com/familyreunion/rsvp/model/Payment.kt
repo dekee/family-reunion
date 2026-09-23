@@ -12,8 +12,9 @@ class Payment(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,
 
+    /** Null for standalone Angel Fund gifts, which belong to no family branch. */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "rsvp_id", nullable = false)
+    @JoinColumn(name = "rsvp_id")
     var rsvp: Rsvp? = null,
 
     @Column(nullable = false, precision = 10, scale = 2)
@@ -42,6 +43,24 @@ class Payment(
     var payerName: String? = null,
 
     var payerEmail: String? = null,
+
+    /**
+     * Donor-chosen display name for the public Angel Fund leaderboard. Deliberately not
+     * [payerName]: the Stripe webhook overwrites that from the session's customer_details.
+     */
+    @Column(length = 80)
+    var donorName: String? = null,
+
+    @Column(length = 80)
+    var donorFamilyLabel: String? = null,
+
+    /** Anonymity is public-only — admins still see the Stripe cardholder name. */
+    @Column(nullable = false)
+    var donorAnonymous: Boolean = false,
+
+    /** Admin moderation flag: hides the gift from the public leaderboard. */
+    @Column(nullable = false)
+    var donorHidden: Boolean = false,
 
     @OneToMany(mappedBy = "payment", cascade = [CascadeType.ALL], orphanRemoval = true)
     val lineItems: MutableList<PaymentLineItem> = mutableListOf()

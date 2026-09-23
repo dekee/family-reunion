@@ -1,0 +1,170 @@
+/*
+ * Styles are local to this component on purpose: it renders on two different pages, so it must not
+ * depend on another component's stylesheet being imported (the .pay-angel-* classes live in
+ * PayAndRsvp.css). Visual language mirrors the in-branch angel form.
+ */
+
+.angel-give {
+  background: var(--color-bg-card);
+  border: 2px solid var(--color-warning, #e67e22);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+/* On the navy promo card the form sits below it, so square off the join. */
+.angel-give-promo {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.angel-give-intro {
+  margin-bottom: 0.5rem;
+}
+
+.angel-give-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-warning, #e67e22);
+}
+
+.angel-give-intro p {
+  margin: 0.3rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.angel-give-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-top: 0.5rem;
+}
+
+.angel-give-amount-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.angel-give-dollar-sign {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-heading);
+}
+
+.angel-give-amount-input,
+.angel-give-text-input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+}
+
+.angel-give-amount-input {
+  flex: 1;
+  max-width: 140px;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.angel-give-text-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 0.9rem;
+}
+
+.angel-give-amount-input:focus,
+.angel-give-text-input:focus {
+  outline: none;
+  border-color: var(--color-warning, #e67e22);
+  box-shadow: 0 0 0 2px rgba(230, 126, 34, 0.2);
+}
+
+.angel-give-text-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Hide number input spinners */
+.angel-give-amount-input::-webkit-inner-spin-button,
+.angel-give-amount-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.angel-give-amount-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.angel-give-anon {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  font-size: 0.88rem;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.angel-give-anon-note {
+  margin: 0.15rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.angel-give-error {
+  margin: 0.6rem 0 0;
+  font-size: 0.83rem;
+  color: var(--color-danger, #c0392b);
+}
+
+.angel-give-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.angel-give-submit {
+  flex: 1;
+  background: var(--color-warning, #e67e22);
+  color: #fff;
+  border: none;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.angel-give-submit:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.angel-give-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.angel-give-cancel {
+  background: var(--color-bg-cancel);
+  color: var(--color-text-primary);
+  border: none;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.angel-give-cancel:hover:not(:disabled) {
+  background: var(--color-bg-cancel-hover);
+}

@@ -25,6 +25,13 @@ class CheckinService(
             throw IllegalArgumentException("Payment not completed")
         }
 
+        // A standalone Angel Fund gift has a token but nobody to admit. Report it as an invalid
+        // token (404) rather than "is a donation", so the endpoint can't be used to discover
+        // which tokens belong to gifts.
+        if (isDonationOnly(payment, paymentLineItemRepository.findByPaymentId(payment.id))) {
+            throw IllegalArgumentException("Invalid ticket token")
+        }
+
         return toTicketResponse(payment)
     }
 
@@ -34,6 +41,10 @@ class CheckinService(
 
         if (payment.status != PaymentStatus.COMPLETED) {
             return CheckinResponse(false, "Payment not completed")
+        }
+
+        if (isDonationOnly(payment, paymentLineItemRepository.findByPaymentId(payment.id))) {
+            return CheckinResponse(false, "This payment is an Angel Fund gift — no attendees to check in")
         }
 
         if (payment.checkedIn) {
@@ -57,14 +68,17 @@ class CheckinService(
 
     @Transactional(readOnly = true)
     fun getCheckinStatus(): CheckinStatusResponse {
-        val completedPayments = paymentRepository.findAll()
-            .filter { it.status == PaymentStatus.COMPLETED }
+        // Standalone Angel Fund gifts are completed payments with no attendees — they must not
+        // inflate the expected-ticket count. Both counters come off the same filtered list so
+        // total and checkedIn cannot drift.
+        val ticketPayments = paymentRepository.findAll()
+            .filter { it.status == PaymentStatus.COMPLETED && it.rsvp != null }
 
-        val tickets = completedPayments.map { toTicketResponse(it) }
+        val tickets = ticketPayments.map { toTicketResponse(it) }
 
         return CheckinStatusResponse(
             total = tickets.size,
-            checkedIn = completedPayments.count { it.checkedIn },
+            checkedIn = ticketPayments.count { it.checkedIn },
             tickets = tickets
         )
     }
@@ -93,9 +107,21 @@ class CheckinService(
         return toTicketResponse(payment)
     }
 
+    /**
+     * True when nothing on this payment is a person: a standalone Angel Fund gift (no RSVP), or a
+     * payment whose only line item is the angel pseudo-row. Takes the line items as a parameter
+     * rather than reading [Payment.lineItems], which is LAZY and would break a non-transactional
+     * caller.
+     */
+    private fun isDonationOnly(
+        payment: com.familyreunion.rsvp.model.Payment,
+        lineItems: List<com.familyreunion.rsvp.model.PaymentLineItem>
+    ): Boolean = payment.rsvp == null || lineItems.none { !it.isAngel }
+
     private fun toTicketResponse(payment: com.familyreunion.rsvp.model.Payment): TicketResponse {
         val lineItems = paymentLineItemRepository.findByPaymentId(payment.id)
-        val attendees = lineItems.map { li ->
+        // Angel contributions are donations, not people — never list them as ticket attendees.
+        val attendees = lineItems.filter { !it.isAngel }.map { li ->
             TicketAttendee(
                 name = li.displayName,
                 ageGroup = li.ageGroup.name,

@@ -67,7 +67,9 @@ class CheckinControllerIntegrationTest @Autowired constructor(
 
         mockMvc.perform(get("/api/checkin/ticket/${fx.payment.checkinToken}"))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.attendees", hasSize<Any>(3)))
+            // Two, not three: the angel contribution is a donation, not a person on the ticket.
+            .andExpect(jsonPath("$.attendees", hasSize<Any>(2)))
+            .andExpect(jsonPath("$.attendees[*].name").value(not(hasItem("Angel Contribution"))))
             .andExpect(jsonPath("$.attendees[0].lineItemId").value(fx.adult.id))
             .andExpect(jsonPath("$.attendees[0].tshirtSize").value("L"))
             .andExpect(jsonPath("$.attendees[1].lineItemId").value(fx.child.id))
@@ -175,5 +177,52 @@ class CheckinControllerIntegrationTest @Autowired constructor(
                 .content("""{"sizes":[]}""")
         )
             .andExpect(status().isBadRequest)
+    }
+
+    // --- Standalone Angel Fund gifts are not tickets ---
+
+    /** A COMPLETED gift with no RSVP and only an angel line item. */
+    private fun createStandaloneGift(suffix: String): Payment {
+        val payment = Payment(
+            rsvp = null,
+            amount = BigDecimal("50.00"),
+            stripeSessionId = "sess_gift_$suffix",
+            status = PaymentStatus.COMPLETED
+        )
+        payment.lineItems.add(PaymentLineItem(payment = payment, guestName = "Angel Contribution",
+            ageGroup = AgeGroup.ADULT, amount = BigDecimal("50.00")))
+        return paymentRepository.save(payment)
+    }
+
+    @Test
+    fun `GET ticket treats a standalone gift token as invalid`() {
+        val gift = createStandaloneGift("ticket")
+
+        // 404, deliberately indistinguishable from a bad token, so the endpoint cannot be used to
+        // discover which tokens belong to gifts.
+        mockMvc.perform(get("/api/checkin/ticket/${gift.checkinToken}"))
+            .andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `POST checkin explains that a standalone gift has nobody to check in`() {
+        val gift = createStandaloneGift("checkin")
+
+        mockMvc.perform(post("/api/checkin/${gift.checkinToken}"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.message", containsString("Angel Fund gift")))
+    }
+
+    @Test
+    fun `GET checkin status excludes standalone gifts from the expected ticket count`() {
+        createPayment(familyName = "Real")
+        createStandaloneGift("status")
+
+        mockMvc.perform(get("/api/checkin/status"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.total").value(1))
+            .andExpect(jsonPath("$.tickets", hasSize<Any>(1)))
+            .andExpect(jsonPath("$.tickets[0].familyName").value("Real"))
     }
 }

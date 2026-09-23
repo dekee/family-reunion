@@ -4,6 +4,8 @@ import { fetchFamilyTree, fetchPaymentSummaries, createCheckoutSession, fetchFee
 import { getBranchColor } from '../branchColors';
 import { feeForAge, ageLabel, ageLabelWithFee, setFees } from '../constants/ageGroups';
 import { ANGEL_LINE_ITEM_NAME } from '../constants/tshirtSizes';
+import { ANGEL_GOAL } from '../constants/angelFund';
+import AngelGiveForm from './AngelGiveForm';
 import { dollars } from '../utils/formatting';
 import type { FamilyTreeNode, PaymentSummaryResponse, PaidGuestInfo, PaidMemberInfo, AngelContributor, TshirtSize } from '../types';
 import { SkeletonCard } from './Skeleton';
@@ -101,6 +103,7 @@ export default function PayAndRsvp() {
   // Angel contributor state
   const [angelAmount, setAngelAmount] = useState('');
   const [showAngelForm, setShowAngelForm] = useState(false);
+  const [showPromoGive, setShowPromoGive] = useState(false);
   const [angels, setAngels] = useState<AngelContributor[]>([]);
 
   const paymentStatus = searchParams.get('payment');
@@ -349,7 +352,6 @@ export default function PayAndRsvp() {
         <>
           {/* Stats Group: Angel Contributors + Overview */}
           {(() => {
-            const ANGEL_GOAL = 2000;
             const totalContributed = angels.reduce((s, a) => s + a.amount, 0);
             const pct = Math.min(100, Math.round((totalContributed / ANGEL_GOAL) * 100));
             const goalReached = totalContributed >= ANGEL_GOAL;
@@ -360,7 +362,8 @@ export default function PayAndRsvp() {
             const totalPeople = branches.reduce((s, b) => s + b.members.length, 0);
             return (
               <div className="pay-stats-group">
-                <Link to="/thank-you" className="pay-angel-promo">
+                <div className="pay-angel-promo">
+                  <Link to="/thank-you" className="pay-angel-promo-link">
                   <div className="pay-angel-promo-image">
                     <img src="/angel-contributor.png" alt="Angel Contributors" />
                   </div>
@@ -383,10 +386,22 @@ export default function PayAndRsvp() {
                       <span className="pay-angel-promo-goal">Goal: {dollars(ANGEL_GOAL)}</span>
                     </div>
                     <p className="pay-angel-promo-cta">
-                      Add an angel donation when paying to help family members who need support
+                      Give any amount to help family members who need support &mdash; no RSVP or fee payment required
                     </p>
                   </div>
-                </Link>
+                  </Link>
+                  <div className="pay-angel-promo-actions">
+                    <button
+                      className="pay-angel-promo-give-btn"
+                      onClick={() => setShowPromoGive(v => !v)}
+                    >
+                      {showPromoGive ? 'Cancel' : 'Give to the Angel Fund'}
+                    </button>
+                  </div>
+                  {showPromoGive && (
+                    <AngelGiveForm variant="promo" onCancel={() => setShowPromoGive(false)} />
+                  )}
+                </div>
                 {branches.length > 0 && (
                   <div className="pay-overview-grid">
                     <div className="pay-overview-card">

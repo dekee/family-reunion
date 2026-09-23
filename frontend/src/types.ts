@@ -169,6 +169,11 @@ export interface PaymentDetailResponse {
   checkinToken: string | null;
   checkedIn: boolean;
   checkedInAt: string | null;
+  /** True for a standalone Angel Fund gift: no RSVP, no attendees. */
+  donationOnly: boolean;
+  donorName: string | null;
+  donorFamilyLabel: string | null;
+  donorAnonymous: boolean;
   lineItems: PaymentLineItemResponse[];
 }
 
@@ -265,8 +270,18 @@ export interface LineItemSizeResponse {
   tshirtSize: TshirtSize;
 }
 
+/** A standalone Angel Fund gift: no RSVP, no family member, no fees. */
+export interface DonationCheckoutRequest {
+  amountCents: number;
+  donorName?: string;
+  familyLabel?: string;
+  anonymous: boolean;
+}
+
 export interface AngelContributor {
+  /** Donor's chosen name, or "Anonymous". */
   payerName: string;
+  /** Family label, or '' for a standalone gift with no branch — render nothing when blank. */
   familyName: string;
   amount: number;
   date: string;

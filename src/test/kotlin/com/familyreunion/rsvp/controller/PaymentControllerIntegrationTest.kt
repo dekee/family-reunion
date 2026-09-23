@@ -450,4 +450,153 @@ class PaymentControllerIntegrationTest @Autowired constructor(
             .andExpect(jsonPath("$[0].lineItems[0].tshirtSize").value("L"))
             .andExpect(jsonPath("$[0].lineItems[1].tshirtSize").value(nullValue()))
     }
+
+    // --- Standalone Angel Fund gifts ---
+
+    /** A COMPLETED gift with no RSVP behind it: exactly what a standalone donation persists. */
+    private fun createStandaloneGift(
+        sessionSuffix: String,
+        amount: String = "50.00",
+        donorName: String? = "Ada Tumblin",
+        donorFamilyLabel: String? = "Norris",
+        donorAnonymous: Boolean = false,
+        payerName: String? = "Stripe Cardholder"
+    ): Payment {
+        val payment = Payment(
+            rsvp = null,
+            amount = BigDecimal(amount),
+            stripeSessionId = "sess_gift_$sessionSuffix",
+            status = PaymentStatus.COMPLETED,
+            payerName = payerName,
+            donorName = donorName,
+            donorFamilyLabel = donorFamilyLabel,
+            donorAnonymous = donorAnonymous
+        )
+        payment.lineItems.add(PaymentLineItem(payment = payment, guestName = "Angel Contribution",
+            ageGroup = AgeGroup.ADULT, amount = BigDecimal(amount)))
+        return paymentRepository.save(payment)
+    }
+
+    private fun donateJson(amountCents: Long, donorName: String? = "Ada", anonymous: Boolean = false): String {
+        val name = donorName?.let { "\"$it\"" } ?: "null"
+        return """{"amountCents":$amountCents,"donorName":$name,"familyLabel":"Norris","anonymous":$anonymous}"""
+    }
+
+    private fun postDonate(json: String, ip: String) = mockMvc.perform(
+        post("/api/payments/donate")
+            .header("X-Forwarded-For", ip)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(json)
+    )
+
+    @Test
+    fun `POST donate rejects an amount below the one dollar minimum`() {
+        postDonate(donateJson(50), "10.0.0.1")
+            .andExpect(status().isBadRequest)
+            // Asserts the {"error":...} shape, which is the only one the frontend can display.
+            .andExpect(jsonPath("$.error", containsString("Minimum donation is $1")))
+    }
+
+    @Test
+    fun `POST donate rejects a zero or negative amount`() {
+        postDonate(donateJson(0), "10.0.0.2").andExpect(status().isBadRequest)
+        postDonate(donateJson(-500), "10.0.0.3").andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `POST donate rejects an amount above the cap`() {
+        postDonate(donateJson(2_000_000), "10.0.0.4")
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("capped")))
+    }
+
+    @Test
+    fun `POST donate with a valid amount passes validation and reaches Stripe`() {
+        // Stripe is unconfigured under the test profile, so this is the furthest the happy path
+        // can go — which makes it the proof that the DTO bound and every check passed.
+        postDonate(donateJson(2500), "10.0.0.5")
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("Stripe")))
+    }
+
+    @Test
+    fun `POST donate rejects an over-long donor name`() {
+        postDonate(donateJson(2500, donorName = "x".repeat(200)), "10.0.0.6")
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errors.donorName").exists())
+    }
+
+    @Test
+    fun `GET angels reports a standalone gift using the donor-supplied attribution`() {
+        createStandaloneGift("named")
+
+        mockMvc.perform(get("/api/payments/angels"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$", hasSize<Any>(1)))
+            .andExpect(jsonPath("$[0].payerName").value("Ada Tumblin"))
+            .andExpect(jsonPath("$[0].familyName").value("Norris"))
+            .andExpect(jsonPath("$[0].amount").value(50.00))
+    }
+
+    @Test
+    fun `GET angels hides the donor of an anonymous gift even though Stripe supplied a name`() {
+        createStandaloneGift("anon", donorName = null, donorFamilyLabel = null,
+            donorAnonymous = true, payerName = "Real Cardholder Name")
+
+        mockMvc.perform(get("/api/payments/angels"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].payerName").value("Anonymous"))
+            .andExpect(jsonPath("$[0].familyName").value(""))
+    }
+
+    @Test
+    fun `GET angels falls back to the Stripe payer name for a legacy in-branch gift`() {
+        val rsvpId = createRsvp("Legacy", adults = 1, children = 0)
+        val fx = createSizedPayment(rsvpId)
+        fx.payment.payerName = "Branch Payer"
+        paymentRepository.save(fx.payment)
+
+        mockMvc.perform(get("/api/payments/angels"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].payerName").value("Branch Payer"))
+            .andExpect(jsonPath("$[0].familyName").value("Legacy"))
+    }
+
+    @Test
+    fun `GET summary is unaffected by a standalone gift`() {
+        val rsvpId = createRsvp("Untouched", adults = 1, children = 0)
+        createStandaloneGift("untouched", amount = "500.00")
+
+        // A gift has no RSVP, so it must never reach a family's balance.
+        mockMvc.perform(get("/api/payments/summary/$rsvpId"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.totalPaid").value(0))
+            .andExpect(jsonPath("$.totalOwed").value(100.00))
+            .andExpect(jsonPath("$.balance").value(100.00))
+            .andExpect(jsonPath("$.status").value("UNPAID"))
+    }
+
+    @Test
+    fun `GET history labels a standalone gift instead of calling it unknown`() {
+        createStandaloneGift("history")
+
+        mockMvc.perform(get("/api/payments/history"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].familyName").value("Angel Fund"))
+            .andExpect(jsonPath("$[0].rsvpId").value(0))
+            .andExpect(jsonPath("$[0].donationOnly").value(true))
+            .andExpect(jsonPath("$[0].donorName").value("Ada Tumblin"))
+    }
+
+    @Test
+    fun `PUT line item size is not usable on a standalone gift`() {
+        val gift = createStandaloneGift("nosize")
+        val angelId = gift.lineItems.first().id
+
+        mockMvc.perform(
+            put("/api/payments/line-items/$angelId/size")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"rsvpId":1,"tshirtSize":"L"}""")
+        ).andExpect(status().isNotFound)
+    }
 }

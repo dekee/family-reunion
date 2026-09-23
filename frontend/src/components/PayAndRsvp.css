@@ -935,19 +935,48 @@
 
 
 /* Angel Promo Section (branch listing) */
+/* The card holds a link and a Give button as siblings — a button nested inside an anchor is
+   invalid markup and breaks keyboard and screen-reader semantics. */
 .pay-angel-promo {
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, var(--color-navy-primary) 0%, var(--color-navy-dark) 50%, var(--color-navy-secondary) 100%);
+}
+
+.pay-angel-promo-link {
   display: flex;
   align-items: center;
   text-decoration: none;
   color: var(--color-text-on-dark);
   padding: 1.25rem;
   gap: 1.25rem;
-  background: linear-gradient(135deg, var(--color-navy-primary) 0%, var(--color-navy-dark) 50%, var(--color-navy-secondary) 100%);
   transition: opacity var(--transition-fast);
 }
 
-.pay-angel-promo:hover {
+.pay-angel-promo-link:hover {
   opacity: 0.92;
+}
+
+.pay-angel-promo-actions {
+  padding: 0 1.25rem 1.25rem;
+}
+
+.pay-angel-promo-give-btn {
+  width: 100%;
+  background: var(--color-gold);
+  color: var(--color-navy-dark);
+  border: none;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.pay-angel-promo-give-btn:hover {
+  opacity: 0.9;
 }
 
 .pay-angel-promo-image {

@@ -10,7 +10,11 @@ class StripeConfig(
     @Value("\${stripe.secret-key:}") private val secretKey: String,
     @Value("\${stripe.webhook-secret:}") private val webhookSecret: String,
     @Value("\${stripe.success-url:http://localhost:5173/pay?payment=success}") val successUrl: String,
-    @Value("\${stripe.cancel-url:http://localhost:5173/pay?payment=cancelled}") val cancelUrl: String
+    @Value("\${stripe.cancel-url:http://localhost:5173/pay?payment=cancelled}") val cancelUrl: String,
+    // Standalone Angel Fund gifts return to the Thank You page, not the pay page. Used verbatim —
+    // unlike the fee-checkout URLs, nothing is appended, since a gift has no rsvpId or ticket.
+    @Value("\${stripe.donation-success-url:http://localhost:5173/thank-you?payment=success}") val donationSuccessUrl: String,
+    @Value("\${stripe.donation-cancel-url:http://localhost:5173/thank-you?payment=cancelled}") val donationCancelUrl: String
 ) {
     @PostConstruct
     fun init() {

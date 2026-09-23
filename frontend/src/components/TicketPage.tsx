@@ -132,6 +132,16 @@ export default function TicketPage() {
           </div>
         )}
 
+        {partyAttendees.length === 0 ? (
+          /* A gift-only payment has no attendees. Reachable for older angel-only branch payments,
+             whose payer was handed a ticket link on the pay page. */
+          <div className="ticket-attendees">
+            <h3>Thank you for your gift</h3>
+            <p className="ticket-size-hint">
+              This payment is an Angel Fund contribution, so there are no attendees on it.
+            </p>
+          </div>
+        ) : (
         <div className="ticket-attendees">
           <h3>Party ({partyAttendees.length})</h3>
           {missingSizeCount > 0 && (
@@ -160,6 +170,7 @@ export default function TicketPage() {
             ))}
           </ul>
         </div>
+        )}
 
         <div className="ticket-amount">
           <span>Amount Paid</span>
