@@ -59,6 +59,10 @@ class SecurityConfig(
                 // Public mutations (specific paths before parameterized patterns)
                 auth.requestMatchers(HttpMethod.POST, "/api/rsvp").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/payments/checkout").permitAll()
+                // Standalone Angel Fund gift: public, rate-limited in the controller, amount
+                // clamped server-side. Must stay above the /api/** catch-all — a fall-through
+                // returns 403, and the frontend clears auth_token on 403, logging admins out.
+                auth.requestMatchers(HttpMethod.POST, "/api/payments/donate").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/events/*/register").permitAll()
                 auth.requestMatchers(HttpMethod.DELETE, "/api/events/*/register/**").permitAll()

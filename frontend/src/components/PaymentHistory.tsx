@@ -232,6 +232,7 @@ export default function PaymentHistory() {
               <div className="ph-card-header">
                 <div className="ph-card-title">
                   <span className="ph-family-name">{p.familyName}</span>
+                  {p.donationOnly && <span className="ph-angel-tag">Angel</span>}
                   <span className={`ph-status-badge ph-status-${p.status.toLowerCase()}`}>{p.status}</span>
                 </div>
                 <span className="ph-amount">{dollars(p.amount)}</span>
@@ -246,6 +247,16 @@ export default function PaymentHistory() {
                   <div className="ph-detail-row">
                     <span className="ph-detail-label">Email</span>
                     <span className="ph-detail-value">{p.payerEmail}</span>
+                  </div>
+                )}
+                {p.donationOnly && (
+                  /* Admin-only: the donor's chosen public name next to Stripe's cardholder name. */
+                  <div className="ph-detail-row">
+                    <span className="ph-detail-label">Donor</span>
+                    <span className="ph-detail-value">
+                      {p.donorAnonymous ? 'Anonymous' : p.donorName || '—'}
+                      {p.donorFamilyLabel ? ` · ${p.donorFamilyLabel}` : ''}
+                    </span>
                   </div>
                 )}
                 <div className="ph-detail-row">

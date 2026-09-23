@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.mail.javamail.MimeMessageHelper
 import org.springframework.stereotype.Service
+import org.springframework.web.util.HtmlUtils
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -107,7 +108,12 @@ class NotificationService(
         payerEmail: String?,
         amount: BigDecimal,
         lineItems: List<PaymentLineItem>,
-        timestamp: LocalDateTime
+        timestamp: LocalDateTime,
+        /** True for a standalone Angel Fund gift: no family, no attendees, no line-item table. */
+        isDonation: Boolean = false,
+        donorName: String? = null,
+        donorFamilyLabel: String? = null,
+        donorAnonymous: Boolean = false
     ) {
         if (!isEmailConfigured()) {
             log.info("Email not configured, skipping admin payment notification")
@@ -120,11 +126,19 @@ class NotificationService(
             return
         }
 
+        // These strings reach an HTML email body. familyName/payerName come from Stripe and the
+        // donor fields are fully donor-supplied, so escape all of them at the sink.
+        val safeFamilyName = HtmlUtils.htmlEscape(familyName)
+        val safePayerName = payerName?.let { HtmlUtils.htmlEscape(it) }
+        val safePayerEmail = payerEmail?.let { HtmlUtils.htmlEscape(it) }
+        val safeDonorName = donorName?.let { HtmlUtils.htmlEscape(it) }
+        val safeDonorFamilyLabel = donorFamilyLabel?.let { HtmlUtils.htmlEscape(it) }
+
         val formattedAmount = "$${amount}"
         val formattedTime = timestamp.format(DateTimeFormatter.ofPattern("MMM d, yyyy h:mm a"))
 
         val lineItemRows = lineItems.joinToString("\n") { li ->
-            val name = li.familyMemberName ?: li.guestName ?: "Unknown"
+            val name = HtmlUtils.htmlEscape(li.familyMemberName ?: li.guestName ?: "Unknown")
             val size = li.tshirtSize?.label ?: "—"
             """<tr>
                 <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${name}</td>
@@ -134,16 +148,31 @@ class NotificationService(
             </tr>"""
         }
 
-        val htmlBody = """
-            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #2d3748;">Payment Received</h2>
-                <div style="background: #f7fafc; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                    <p style="margin: 4px 0;"><strong>Family:</strong> ${familyName}</p>
-                    <p style="margin: 4px 0;"><strong>Payer:</strong> ${payerName ?: "N/A"}</p>
-                    <p style="margin: 4px 0;"><strong>Email:</strong> ${payerEmail ?: "N/A"}</p>
+        val heading = if (isDonation) "Angel Fund Gift" else "Payment Received"
+
+        val detailRows = if (isDonation) {
+            """
+                    <p style="margin: 4px 0;"><strong>Donor (public name):</strong> ${safeDonorName ?: "Anonymous"}</p>
+                    <p style="margin: 4px 0;"><strong>Anonymous:</strong> ${if (donorAnonymous) "Yes" else "No"}</p>
+                    <p style="margin: 4px 0;"><strong>Family label:</strong> ${safeDonorFamilyLabel ?: "—"}</p>
+                    <p style="margin: 4px 0;"><strong>Stripe name:</strong> ${safePayerName ?: "N/A"}</p>
+                    <p style="margin: 4px 0;"><strong>Email:</strong> ${safePayerEmail ?: "N/A"}</p>
                     <p style="margin: 4px 0;"><strong>Total:</strong> ${formattedAmount}</p>
                     <p style="margin: 4px 0;"><strong>Date:</strong> ${formattedTime}</p>
-                </div>
+            """.trimIndent()
+        } else {
+            """
+                    <p style="margin: 4px 0;"><strong>Family:</strong> ${safeFamilyName}</p>
+                    <p style="margin: 4px 0;"><strong>Payer:</strong> ${safePayerName ?: "N/A"}</p>
+                    <p style="margin: 4px 0;"><strong>Email:</strong> ${safePayerEmail ?: "N/A"}</p>
+                    <p style="margin: 4px 0;"><strong>Total:</strong> ${formattedAmount}</p>
+                    <p style="margin: 4px 0;"><strong>Date:</strong> ${formattedTime}</p>
+            """.trimIndent()
+        }
+
+        // A gift's only line item is the angel pseudo-row (age group ADULT, size "—"), which is
+        // noise rather than information — omit the table entirely.
+        val lineItemTable = if (isDonation) "" else """
                 <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
                     <thead>
                         <tr style="background: #edf2f7;">
@@ -157,10 +186,23 @@ class NotificationService(
                         ${lineItemRows}
                     </tbody>
                 </table>
+        """.trimIndent()
+
+        val htmlBody = """
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #2d3748;">${heading}</h2>
+                <div style="background: #f7fafc; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                    ${detailRows}
+                </div>
+                ${lineItemTable}
             </div>
         """.trimIndent()
 
-        val subject = "Payment Received - $familyName Family - $formattedAmount"
+        val subject = if (isDonation) {
+            "Angel Fund Gift - $formattedAmount"
+        } else {
+            "Payment Received - $safeFamilyName Family - $formattedAmount"
+        }
 
         for (admin in admins) {
             try {

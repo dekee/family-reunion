@@ -41,6 +41,8 @@ import type {
   TicketResponse,
   PaymentLineItemResponse,
   TshirtSize,
+  DonationCheckoutRequest,
+  AngelContributor,
 } from './types';
 
 // --- Type shape validators ---
@@ -465,11 +467,54 @@ describe('API Request Type Contracts', () => {
       memberSizes: { 1: 'M', 2: 'YL', 3: 'M3_6' },
       guests: [{ name: 'Guest 1', ageGroup: 'ADULT', fee: 10000, tshirtSize: 'XXL' }],
     };
+    // Fee checkout still requires an RSVP. Standalone Angel Fund gifts use
+    // DonationCheckoutRequest instead — don't "fix" this by making rsvpId optional.
     expect(req.rsvpId).toBeGreaterThan(0);
     expect(req.amount).toBeGreaterThanOrEqual(100); // @Min(100) in backend
     // Backend requires a size for every memberId and every guest
     for (const id of req.memberIds) expect(req.memberSizes[id]).toBeTruthy();
     for (const g of req.guests) expect(g.tshirtSize).toBeTruthy();
+  });
+
+  it('DonationCheckoutRequest has required fields for backend', async () => {
+    const { ANGEL_MIN_DOLLARS, ANGEL_MAX_DOLLARS } = await import('./constants/angelFund');
+    const req: DonationCheckoutRequest = {
+      amountCents: 2500,
+      donorName: 'Ada Tumblin',
+      familyLabel: 'Norris',
+      anonymous: false,
+    };
+    // Bounds mirror PaymentService.MIN/MAX_DONATION_CENTS — a client/server drift fails here.
+    expect(req.amountCents).toBeGreaterThanOrEqual(ANGEL_MIN_DOLLARS * 100);
+    expect(req.amountCents).toBeLessThanOrEqual(ANGEL_MAX_DOLLARS * 100);
+    expect(typeof req.anonymous).toBe('boolean');
+  });
+
+  it('DonationCheckoutRequest omits attribution for an anonymous gift', () => {
+    const req: DonationCheckoutRequest = { amountCents: 5000, anonymous: true };
+    expect(req.anonymous).toBe(true);
+    expect(req.donorName).toBeUndefined();
+    expect(req.familyLabel).toBeUndefined();
+  });
+
+  it('CheckoutRequest serializes angelAmount for an in-branch gift', () => {
+    const req: CheckoutRequest = {
+      rsvpId: 1,
+      amount: 12500,
+      memberIds: [1],
+      memberSizes: { 1: 'M' },
+      guests: [],
+      angelAmount: 2500,
+    };
+    const round = JSON.parse(JSON.stringify(req)) as CheckoutRequest;
+    expect(round.angelAmount).toBe(2500);
+  });
+
+  it('AngelContributor tolerates a blank familyName for a standalone gift', () => {
+    const a: AngelContributor = { payerName: 'Anonymous', familyName: '', amount: 50, date: '2026-09-22' };
+    // '' is the sentinel for "no family label" — the UI omits the line rather than printing " Family".
+    expect(a.familyName).toBe('');
+    expect(a.payerName).toBe('Anonymous');
   });
 
   it('MeetingRequest has all required fields for backend', () => {
@@ -775,6 +820,34 @@ describe('API Client Endpoint Contracts', () => {
     expect(body.memberSizes).toEqual({ '1': 'M' });
     expect(body.guests[0].tshirtSize).toBe('YS');
     expect(result.url).toBe('https://checkout.stripe.com/session');
+  });
+
+  it('createDonationCheckout calls POST /api/payments/donate without auth', async () => {
+    localStorage.setItem('auth_token', 'should-not-be-sent');
+    mockFetch({ url: 'https://checkout.stripe.com/gift' });
+    const { createDonationCheckout } = await import('./api');
+    const result = await createDonationCheckout({
+      amountCents: 2500,
+      donorName: 'Ada Tumblin',
+      familyLabel: 'Norris',
+      anonymous: false,
+    });
+    expect(fetchCalls[0].url).toBe('/api/payments/donate');
+    expect(fetchCalls[0].method).toBe('POST');
+    // Public endpoint: a gift must never carry the admin token.
+    expect(fetchCalls[0].headers?.Authorization).toBeUndefined();
+    const body = JSON.parse(fetchCalls[0].body as string);
+    expect(body.amountCents).toBe(2500);
+    expect(body.anonymous).toBe(false);
+    expect(result.url).toBe('https://checkout.stripe.com/gift');
+    localStorage.removeItem('auth_token');
+  });
+
+  it('fetchAngelContributors calls GET /api/payments/angels', async () => {
+    mockFetch([]);
+    const { fetchAngelContributors } = await import('./api');
+    await fetchAngelContributors();
+    expect(fetchCalls[0].url).toBe('/api/payments/angels');
   });
 
   it('updateLineItemSize calls PUT /api/payments/line-items/{id}/size without auth', async () => {

@@ -20,8 +20,10 @@ const ALL_ITEMS: NavItem[] = [
   { label: 'Family Tree', path: '/family-tree' },
   { label: 'Gallery', path: '/gallery' },
   { label: 'Tributes', path: '/tributes' },
+  { label: 'Thank You', path: '/thank-you' },
   { label: 'RSVP', path: '/rsvp', admin: true },
   { label: 'Check-In', path: '/checkin', admin: true },
+  { label: 'Payments', path: '/payments', admin: true },
   { label: 'Admin', path: '/admin', admin: true },
 ];
 

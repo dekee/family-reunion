@@ -4,6 +4,7 @@ import com.familyreunion.rsvp.config.FeeConfig
 import com.familyreunion.rsvp.config.StripeConfig
 import com.familyreunion.rsvp.dto.AngelContributorResponse
 import com.familyreunion.rsvp.dto.CheckoutRequest
+import com.familyreunion.rsvp.dto.DonationCheckoutRequest
 import com.familyreunion.rsvp.dto.LineItemResponse
 import com.familyreunion.rsvp.dto.LineItemSizeResponse
 import com.familyreunion.rsvp.dto.PaidGuestInfo
@@ -116,31 +117,14 @@ class PaymentService(
         val successUrlWithRsvp = "${stripeConfig.successUrl}&rsvpId=$rsvpId&token=$checkinToken"
         val cancelUrlWithRsvp = "${stripeConfig.cancelUrl}&rsvpId=$rsvpId"
 
-        val params = SessionCreateParams.builder()
-            .setMode(SessionCreateParams.Mode.PAYMENT)
-            .setSuccessUrl(successUrlWithRsvp)
-            .setCancelUrl(cancelUrlWithRsvp)
-            .putMetadata("rsvpId", rsvpId.toString())
-            .addLineItem(
-                SessionCreateParams.LineItem.builder()
-                    .setQuantity(1L)
-                    .setPriceData(
-                        SessionCreateParams.LineItem.PriceData.builder()
-                            .setCurrency("usd")
-                            .setUnitAmount(calculatedAmountCents)
-                            .setProductData(
-                                SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                    .setName("Tumblin Family Reunion – ${rsvp.familyName} Family")
-                                    .setDescription("Reunion fee payment")
-                                    .build()
-                            )
-                            .build()
-                    )
-                    .build()
-            )
-            .build()
-
-        val session = Session.create(params)
+        val session = createStripeSession(
+            amountCents = calculatedAmountCents,
+            productName = "Tumblin Family Reunion – ${rsvp.familyName} Family",
+            description = "Reunion fee payment",
+            successUrl = successUrlWithRsvp,
+            cancelUrl = cancelUrlWithRsvp,
+            metadata = mapOf("rsvpId" to rsvpId.toString())
+        )
 
         val payment = Payment(
             rsvp = rsvp,
@@ -181,13 +165,7 @@ class PaymentService(
         }
 
         if (angelAmount > 0) {
-            val angelLineItem = PaymentLineItem(
-                payment = payment,
-                guestName = ANGEL_CONTRIBUTION_NAME,
-                ageGroup = AgeGroup.ADULT,
-                amount = BigDecimal.valueOf(angelAmount).divide(BigDecimal(100))
-            )
-            payment.lineItems.add(angelLineItem)
+            payment.lineItems.add(angelLineItem(payment, angelAmount))
         }
 
         if (payment.lineItems.isNotEmpty()) {
@@ -195,6 +173,118 @@ class PaymentService(
         }
 
         return session.url
+    }
+
+    /**
+     * Creates a standalone Angel Fund gift session: no RSVP, no family member, no fees.
+     *
+     * Deliberately separate from [createCheckoutSession]. That method's bulk is RSVP lookup,
+     * member-ownership (IDOR) validation, T-shirt size parsing and fee recomputation, none of which
+     * apply here — and its core anti-tamper control is *rejecting* any client/server amount
+     * mismatch. For a gift the donor's amount is authoritative by design, so the control is
+     * min/max clamping instead. Merging the two would express one as a special case of the other
+     * and weaken the guarantee on the fee path.
+     */
+    fun createDonationCheckoutSession(request: DonationCheckoutRequest): String {
+        val amountCents = request.amountCents
+
+        // Validated before the Stripe guard so the whole validation surface is testable without a key.
+        if (amountCents < MIN_DONATION_CENTS) {
+            throw IllegalArgumentException("Minimum donation is $1.")
+        }
+        if (amountCents > MAX_DONATION_CENTS) {
+            throw IllegalArgumentException(
+                "Online gifts are capped at $10,000 — please contact an admin for a larger gift."
+            )
+        }
+
+        if (!stripeConfig.isConfigured()) {
+            throw IllegalStateException("Stripe is not configured. Please set STRIPE_SECRET_KEY.")
+        }
+
+        // Anonymous gifts store nothing identifying at all, rather than hiding it at render time.
+        val anonymous = request.anonymous
+        val donorName = if (anonymous) null else sanitizeDonorText(request.donorName)
+        val familyLabel = if (anonymous) null else sanitizeDonorText(request.familyLabel)
+
+        // Donor free text is kept out of Stripe product data and metadata: the only sinks for it
+        // are our own DB, React (which escapes), and the admin email (which escapes explicitly).
+        val session = createStripeSession(
+            amountCents = amountCents,
+            productName = "Tumblin Family Reunion – Angel Fund",
+            description = "Angel Fund gift",
+            successUrl = stripeConfig.donationSuccessUrl,
+            cancelUrl = stripeConfig.donationCancelUrl,
+            metadata = mapOf("kind" to "angel_donation")
+        )
+
+        val payment = Payment(
+            rsvp = null,
+            amount = BigDecimal.valueOf(amountCents).divide(BigDecimal(100)),
+            stripeSessionId = session.id,
+            status = PaymentStatus.PENDING,
+            createdAt = LocalDateTime.now(),
+            checkinToken = java.util.UUID.randomUUID().toString(),
+            donorName = donorName,
+            donorFamilyLabel = familyLabel,
+            donorAnonymous = anonymous
+        )
+        paymentRepository.save(payment)
+
+        // The angel line item is required, not cosmetic: getAngelContributors keys off it, and it
+        // preserves the invariant that angel money is never counted as fee money.
+        payment.lineItems.add(angelLineItem(payment, amountCents))
+        paymentRepository.save(payment)
+
+        return session.url
+    }
+
+    private fun angelLineItem(payment: Payment, amountCents: Long) = PaymentLineItem(
+        payment = payment,
+        guestName = ANGEL_CONTRIBUTION_NAME,
+        ageGroup = AgeGroup.ADULT,
+        amount = BigDecimal.valueOf(amountCents).divide(BigDecimal(100))
+    )
+
+    /** Last line of defence for donor free text before it reaches the public page and admin email. */
+    private fun sanitizeDonorText(raw: String?): String? = raw
+        ?.replace(Regex("\\p{Cntrl}"), "")
+        ?.replace(Regex("\\s+"), " ")
+        ?.trim()
+        ?.take(MAX_DONOR_TEXT_LENGTH)
+        ?.ifBlank { null }
+
+    private fun createStripeSession(
+        amountCents: Long,
+        productName: String,
+        description: String,
+        successUrl: String,
+        cancelUrl: String,
+        metadata: Map<String, String>
+    ): Session {
+        val builder = SessionCreateParams.builder()
+            .setMode(SessionCreateParams.Mode.PAYMENT)
+            .setSuccessUrl(successUrl)
+            .setCancelUrl(cancelUrl)
+            .addLineItem(
+                SessionCreateParams.LineItem.builder()
+                    .setQuantity(1L)
+                    .setPriceData(
+                        SessionCreateParams.LineItem.PriceData.builder()
+                            .setCurrency("usd")
+                            .setUnitAmount(amountCents)
+                            .setProductData(
+                                SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                    .setName(productName)
+                                    .setDescription(description)
+                                    .build()
+                            )
+                            .build()
+                    )
+                    .build()
+            )
+        metadata.forEach { (key, value) -> builder.putMetadata(key, value) }
+        return Session.create(builder.build())
     }
 
     fun feeForAgeGroup(ageGroup: AgeGroup): Long = feeConfig.feeForAgeGroup(ageGroup)
@@ -264,7 +354,11 @@ class PaymentService(
             try {
                 val lineItems = paymentLineItemRepository.findByPaymentId(existing.id)
                 notificationService.sendPaymentNotificationToAdmins(
-                    familyName = existing.rsvp?.familyName ?: "Unknown",
+                    familyName = existing.rsvp?.familyName ?: "Angel Fund",
+                    isDonation = existing.rsvp == null,
+                    donorName = existing.donorName,
+                    donorFamilyLabel = existing.donorFamilyLabel,
+                    donorAnonymous = existing.donorAnonymous,
                     payerName = payerName,
                     payerEmail = payerEmail,
                     amount = existing.amount,
@@ -387,7 +481,7 @@ class PaymentService(
             PaymentDetailResponse(
                 id = payment.id,
                 rsvpId = rsvp?.id ?: 0,
-                familyName = rsvp?.familyName ?: "Unknown",
+                familyName = rsvp?.familyName ?: "Angel Fund",
                 amount = payment.amount,
                 status = payment.status.name,
                 createdAt = payment.createdAt.toString(),
@@ -396,6 +490,10 @@ class PaymentService(
                 checkinToken = if (payment.status == PaymentStatus.COMPLETED) payment.checkinToken else null,
                 checkedIn = payment.checkedIn,
                 checkedInAt = payment.checkedInAt?.toString(),
+                donationOnly = rsvp == null,
+                donorName = payment.donorName,
+                donorFamilyLabel = payment.donorFamilyLabel,
+                donorAnonymous = payment.donorAnonymous,
                 lineItems = lineItems.map { li ->
                     LineItemResponse(
                         name = li.displayName,
@@ -438,18 +536,42 @@ class PaymentService(
         val completedPayments = paymentRepository.findAll().filter { it.status == PaymentStatus.COMPLETED }
         val angels = mutableListOf<AngelContributorResponse>()
         for (payment in completedPayments) {
+            if (payment.donorHidden) continue
             val lineItems = paymentLineItemRepository.findByPaymentId(payment.id)
-            val angelItem = lineItems.find { it.isAngel }
-            if (angelItem != null) {
+            // Sum every angel row rather than taking the first, so a payment carrying more than
+            // one gift is reported in full.
+            val angelItems = lineItems.filter { it.isAngel }
+            if (angelItems.isNotEmpty()) {
+                // donorAnonymous is checked before payerName: the webhook writes the Stripe
+                // cardholder name there, which an anonymous donor must not have published.
+                val displayName = when {
+                    payment.donorAnonymous -> "Anonymous"
+                    !payment.donorName.isNullOrBlank() -> payment.donorName!!
+                    !payment.payerName.isNullOrBlank() -> payment.payerName!!
+                    else -> "Anonymous"
+                }
+                // Empty string means "no family label" — a standalone gift has no branch to borrow
+                // one from. The frontend omits the line entirely rather than printing " Family".
+                val familyLabel = when {
+                    payment.donorAnonymous -> ""
+                    !payment.donorFamilyLabel.isNullOrBlank() -> payment.donorFamilyLabel!!
+                    else -> payment.rsvp?.familyName ?: ""
+                }
                 angels.add(AngelContributorResponse(
-                    payerName = payment.payerName ?: "Anonymous",
-                    familyName = payment.rsvp?.familyName ?: "Unknown",
-                    amount = angelItem.amount,
+                    payerName = displayName,
+                    familyName = familyLabel,
+                    amount = angelItems.fold(BigDecimal.ZERO) { acc, li -> acc.add(li.amount) },
                     date = payment.createdAt.toLocalDate().toString()
                 ))
             }
         }
         return angels.sortedByDescending { it.date }
+    }
+
+    companion object {
+        const val MIN_DONATION_CENTS = 100L         // $1
+        const val MAX_DONATION_CENTS = 1_000_000L   // $10,000
+        private const val MAX_DONOR_TEXT_LENGTH = 80
     }
 
     private fun toPaymentResponse(payment: Payment, rsvp: Rsvp) = PaymentResponse(

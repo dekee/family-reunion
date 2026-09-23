@@ -335,4 +335,28 @@ class SecurityIntegrationTest @Autowired constructor(
         mockMvc.perform(post("/api/checkin/bogus-token"))
             .andExpect(status().isUnauthorized)
     }
+
+    // --- Standalone Angel Fund gift endpoint is public ---
+
+    @Test
+    fun `POST payments donate should be public`() {
+        val result = mockMvc.perform(
+            post("/api/payments/donate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"amountCents":2500,"donorName":"Ada","anonymous":false}""")
+        ).andReturn()
+
+        // Must not be 401/403. Beyond access, a 403 here would be a correctness bug: the frontend
+        // clears auth_token on 403, so a misordered rule would log an admin out mid-session.
+        assert(result.response.status != 401) { "donate must not require auth" }
+        assert(result.response.status != 403) { "donate must not 403 — the frontend logs out on 403" }
+        // Stripe is unconfigured in tests, so the request is expected to reach the service and 400.
+        assert(result.response.status == 400) { "expected 400, got ${result.response.status}" }
+    }
+
+    @Test
+    fun `GET payments history should still return 401 without auth`() {
+        mockMvc.perform(get("/api/payments/history"))
+            .andExpect(status().isUnauthorized)
+    }
 }

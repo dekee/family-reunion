@@ -14,6 +14,12 @@ data class PaymentDetailResponse(
     val checkinToken: String?,
     val checkedIn: Boolean,
     val checkedInAt: String?,
+    /** True for a standalone Angel Fund gift: no RSVP, no attendees. */
+    val donationOnly: Boolean = false,
+    /** Admin-only view of the donor's chosen name, alongside Stripe's cardholder name. */
+    val donorName: String? = null,
+    val donorFamilyLabel: String? = null,
+    val donorAnonymous: Boolean = false,
     val lineItems: List<LineItemResponse>
 )
 
