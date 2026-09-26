@@ -302,6 +302,55 @@ export default function Tributes() {
 
   return (
     <div className="tributes-page">
+      <div className="tributes-chart">
+        <header className="tributes-header">
+          <h2>Pillars of Our Family</h2>
+          <div className="tributes-ornament">
+            <span className="ornament-line" />
+            <span className="ornament-heart">&hearts;</span>
+            <span className="ornament-line" />
+          </div>
+          <p className="tributes-caption">The Eleven Children of Wesley &amp; Esther Tumblin &middot; Est. 1948</p>
+          <p className="tributes-sub">
+            Each pillar chose a color to represent their family. Select a pillar to read
+            tributes or share a story of your own.
+          </p>
+        </header>
+
+        {loading ? (
+          <div className="tributes-loading">Loading tributes...</div>
+        ) : (
+          <div className="pillar-grid">
+            {PILLARS.map((p, i) => {
+              const count = tributeCount(p);
+              const selected = selectedPillar?.firstName === p.firstName;
+              return (
+                <button
+                  key={p.firstName}
+                  className={`pillar-card ${selected ? 'selected' : ''}`}
+                  style={{ '--pillar-hex': p.hex, '--pillar-ink': p.ink, ...(selected ? { outlineColor: p.hex } : {}) } as React.CSSProperties}
+                  onClick={() => handleSelectPillar(p)}
+                >
+                  <span className="pillar-number">{i + 1}.</span>
+                  <Leaf fill={p.hex} />
+                  <span className="pillar-name">{p.displayName}</span>
+                  <span className="pillar-color-name">{p.colorName}</span>
+                  <span className="pillar-divider">
+                    <span className="pillar-divider-line" style={{ background: p.hex }} />
+                    <span className="pillar-divider-heart" style={{ color: p.hex }}>&hearts;</span>
+                    <span className="pillar-divider-line" style={{ background: p.hex }} />
+                  </span>
+                  <span className="pillar-count">
+                    {count === 0 ? 'No tributes yet' : `${count} tribute${count !== 1 ? 's' : ''}`}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <p className="tributes-footnote">* Colors are based on the Gildan 5000 color chart.</p>
+      </div>
+
       {!loading && dayTasks.length > 0 && (
         <div className="day-tributes">
           <header className="day-tributes-header">
@@ -309,7 +358,7 @@ export default function Tributes() {
             <p className="day-tributes-sub">
               These tributes will be given in person at the Family Reunion Banquet.
               Each tribute has two speaker slots &mdash; choose a slot to sign up.
-              (Written tributes below are for anyone who doesn&apos;t get a chance to speak.)
+              (Written tributes above are for anyone who doesn&apos;t get a chance to speak.)
             </p>
             {commonDescription && <p className="day-tributes-note">{commonDescription}</p>}
           </header>
@@ -369,55 +418,6 @@ export default function Tributes() {
           </div>
         </div>
       )}
-
-      <div className="tributes-chart">
-        <header className="tributes-header">
-          <h2>Pillars of Our Family</h2>
-          <div className="tributes-ornament">
-            <span className="ornament-line" />
-            <span className="ornament-heart">&hearts;</span>
-            <span className="ornament-line" />
-          </div>
-          <p className="tributes-caption">The Eleven Children of Wesley &amp; Esther Tumblin &middot; Est. 1948</p>
-          <p className="tributes-sub">
-            Each pillar chose a color to represent their family. Select a pillar to read
-            tributes or share a story of your own.
-          </p>
-        </header>
-
-        {loading ? (
-          <div className="tributes-loading">Loading tributes...</div>
-        ) : (
-          <div className="pillar-grid">
-            {PILLARS.map((p, i) => {
-              const count = tributeCount(p);
-              const selected = selectedPillar?.firstName === p.firstName;
-              return (
-                <button
-                  key={p.firstName}
-                  className={`pillar-card ${selected ? 'selected' : ''}`}
-                  style={{ '--pillar-hex': p.hex, '--pillar-ink': p.ink, ...(selected ? { outlineColor: p.hex } : {}) } as React.CSSProperties}
-                  onClick={() => handleSelectPillar(p)}
-                >
-                  <span className="pillar-number">{i + 1}.</span>
-                  <Leaf fill={p.hex} />
-                  <span className="pillar-name">{p.displayName}</span>
-                  <span className="pillar-color-name">{p.colorName}</span>
-                  <span className="pillar-divider">
-                    <span className="pillar-divider-line" style={{ background: p.hex }} />
-                    <span className="pillar-divider-heart" style={{ color: p.hex }}>&hearts;</span>
-                    <span className="pillar-divider-line" style={{ background: p.hex }} />
-                  </span>
-                  <span className="pillar-count">
-                    {count === 0 ? 'No tributes yet' : `${count} tribute${count !== 1 ? 's' : ''}`}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-        <p className="tributes-footnote">* Colors are based on the Gildan 5000 color chart.</p>
-      </div>
 
       {signupTaskId !== null && (() => {
         const task = dayTasks.find((t) => t.id === signupTaskId);
