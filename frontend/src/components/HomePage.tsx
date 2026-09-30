@@ -230,8 +230,8 @@ export default function HomePage() {
         <section className="cta-section">
           <h2>Ready to Join Us?</h2>
           <p>Let us know your family is coming so we can plan the best reunion yet.</p>
-          <button className="cta-button" onClick={() => navigate('/pay')}>
-            Pay & RSVP Now
+          <button className="cta-button" onClick={() => navigate('/donations')}>
+            RSVP &amp; Give Now
           </button>
         </section>
       </div>

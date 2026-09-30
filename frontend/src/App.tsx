@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, NavLink, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Link, Navigate, useLocation } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from './AuthContext';
 import HomePage from './components/HomePage';
@@ -13,6 +13,7 @@ import Events from './components/Events';
 import Volunteer from './components/Volunteer';
 import Budget from './components/Budget';
 import PayAndRsvp from './components/PayAndRsvp';
+import Donations from './components/Donations';
 import TicketPage from './components/TicketPage';
 import AdminPage from './components/AdminPage';
 import PaymentHistory from './components/PaymentHistory';
@@ -165,7 +166,8 @@ function App() {
             </div>
             <nav className={`app-nav ${menuOpen ? 'nav-open' : ''}`}>
               <NavLink to="/" end onClick={closeMenu}>Home</NavLink>
-              <NavLink to="/pay" onClick={closeMenu}>Pay & RSVP</NavLink>
+              {isAdmin && <NavLink to="/pay" className="nav-admin" onClick={closeMenu}>Pay & RSVP</NavLink>}
+              <NavLink to="/donations" onClick={closeMenu}>Give</NavLink>
               <NavLink to="/events" onClick={closeMenu}>Events</NavLink>
               <NavLink to="/volunteer" onClick={closeMenu}>Volunteer</NavLink>
               <NavLink to="/meetings" onClick={closeMenu}>Meetings</NavLink>
@@ -190,8 +192,13 @@ function App() {
               <Route path="/volunteer" element={<Volunteer />} />
               <Route path="/meetings" element={<Meetings />} />
               {isAdmin && <Route path="/budget" element={<Budget />} />}
-              <Route path="/pay" element={<PayAndRsvp />} />
-              <Route path="/pay/:branch" element={<PayAndRsvp />} />
+              <Route path="/pay" element={isAdmin ? <PayAndRsvp /> : <Navigate to="/donations" replace />} />
+              <Route
+                path="/pay/:branch"
+                element={isAdmin ? <PayAndRsvp /> : <Navigate to="/donations" replace />}
+              />
+              <Route path="/donations" element={<Donations />} />
+              <Route path="/donations/:branch" element={<Donations />} />
               <Route path="/ticket/:token" element={<TicketPage />} />
               <Route path="/members" element={<FamilyMembers />} />
               <Route path="/family-tree" element={<FamilyTree />} />

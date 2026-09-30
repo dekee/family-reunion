@@ -11,7 +11,8 @@ interface NavItem {
 
 const ALL_ITEMS: NavItem[] = [
   { label: 'Home', path: '/' },
-  { label: 'Pay & RSVP', path: '/pay' },
+  { label: 'Pay & RSVP', path: '/pay', admin: true },
+  { label: 'Give What You Can', path: '/donations' },
   { label: 'Events', path: '/events' },
   { label: 'Volunteer', path: '/volunteer' },
   { label: 'Meetings', path: '/meetings' },

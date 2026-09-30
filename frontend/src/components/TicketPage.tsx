@@ -241,7 +241,7 @@ export default function TicketPage() {
         </div>
 
         <div className="ticket-back-link">
-          <Link to="/pay">&larr; Back to Pay &amp; RSVP</Link>
+          <Link to="/">&larr; Back to Home</Link>
         </div>
       </div>
     </div>
