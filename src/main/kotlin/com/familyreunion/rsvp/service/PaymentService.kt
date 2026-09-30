@@ -3,6 +3,7 @@ package com.familyreunion.rsvp.service
 import com.familyreunion.rsvp.config.FeeConfig
 import com.familyreunion.rsvp.config.StripeConfig
 import com.familyreunion.rsvp.dto.AngelContributorResponse
+import com.familyreunion.rsvp.dto.ContributionCheckoutRequest
 import com.familyreunion.rsvp.dto.CheckoutRequest
 import com.familyreunion.rsvp.dto.DonationCheckoutRequest
 import com.familyreunion.rsvp.dto.LineItemResponse
@@ -12,10 +13,14 @@ import com.familyreunion.rsvp.dto.PaidMemberInfo
 import com.familyreunion.rsvp.dto.PaymentDetailResponse
 import com.familyreunion.rsvp.dto.PaymentResponse
 import com.familyreunion.rsvp.dto.PaymentSummaryResponse
+import com.familyreunion.rsvp.dto.RevenueBreakdownResponse
 import com.familyreunion.rsvp.dto.UpdateLineItemSizeRequest
 import com.familyreunion.rsvp.exception.LineItemNotFoundException
 import com.familyreunion.rsvp.exception.RsvpNotFoundException
 import com.familyreunion.rsvp.model.ANGEL_CONTRIBUTION_NAME
+import com.familyreunion.rsvp.model.DONATION_LINE_ITEM_NAME
+import com.familyreunion.rsvp.model.LineItemKind
+import com.familyreunion.rsvp.model.NO_SHIRT_MESSAGE
 import com.familyreunion.rsvp.model.AgeGroup
 import com.familyreunion.rsvp.model.Payment
 import com.familyreunion.rsvp.model.PaymentLineItem
@@ -146,7 +151,8 @@ class PaymentService(
                 familyMemberName = member.name,
                 ageGroup = member.ageGroup,
                 amount = BigDecimal.valueOf(fee).divide(BigDecimal(100)),
-                tshirtSize = memberSizes[memberId]
+                tshirtSize = memberSizes[memberId],
+                kind = LineItemKind.FEE
             )
             payment.lineItems.add(lineItem)
         }
@@ -159,7 +165,8 @@ class PaymentService(
                 guestName = guest.name,
                 ageGroup = ageGroup,
                 amount = BigDecimal.valueOf(fee).divide(BigDecimal(100)),
-                tshirtSize = guestSizes[index]
+                tshirtSize = guestSizes[index],
+                kind = LineItemKind.FEE
             )
             payment.lineItems.add(lineItem)
         }
@@ -239,12 +246,228 @@ class PaymentService(
         return session.url
     }
 
+    /**
+     * Creates a pay-what-you-can session for members who have not paid their fee.
+     *
+     * Deliberately a third method rather than a flag on [createCheckoutSession]: that method's
+     * guarantee is that the charge equals the age-group fees exactly, and threading an "except when
+     * it doesn't" branch through it would weaken precisely the control it exists to provide. What is
+     * shared is borrowed explicitly — the RSVP lookup, the IDOR guard, [createStripeSession].
+     *
+     * The split of authority: the donation is the donor's to choose (clamped, like an Angel gift),
+     * the shirt portion is priced here and equality-checked (like a fee).
+     */
+    fun createContributionCheckoutSession(request: ContributionCheckoutRequest): String {
+        val rsvpId = request.rsvpId
+        val attendees = request.attendees
+
+        val rsvp = rsvpRepository.findById(rsvpId)
+            .orElseThrow { RsvpNotFoundException(rsvpId) }
+
+        if (attendees.isEmpty()) {
+            throw IllegalArgumentException("Select at least one person to give for.")
+        }
+
+        // An attendee is a family member or a guest, never both and never neither.
+        val ambiguous = attendees.filter { (it.memberId == null) == (it.guestName == null) }
+        if (ambiguous.isNotEmpty()) {
+            throw IllegalArgumentException("Each person must be either a family member or a named guest.")
+        }
+
+        val memberIds = attendees.mapNotNull { it.memberId }
+        val duplicates = memberIds.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
+        if (duplicates.isNotEmpty()) {
+            throw IllegalArgumentException("Member IDs $duplicates appear more than once")
+        }
+
+        // Same IDOR guard as the fee path: a member must belong to this RSVP.
+        val rsvpMemberIds = rsvp.attendees
+            .mapNotNull { it.familyMember?.id }
+            .toSet()
+        val invalidIds = memberIds.filter { it !in rsvpMemberIds }
+        if (invalidIds.isNotEmpty()) {
+            throw IllegalArgumentException("Member IDs $invalidIds do not belong to RSVP $rsvpId")
+        }
+
+        // The donations page hides people who are already covered, but hiding is not a control:
+        // without this, a stale tab or a crafted request could buy a second shirt for someone who
+        // has already been paid for. Keyed on COMPLETED only, matching how the pay page decides who
+        // counts as paid — a PENDING session still does not reserve anyone.
+        val completedPaymentIds = paymentRepository.findByRsvpId(rsvpId)
+            .filter { it.status == PaymentStatus.COMPLETED }
+            .map { it.id }
+        val alreadyCovered = if (completedPaymentIds.isNotEmpty()) {
+            paymentLineItemRepository
+                .findByCompletedPaymentIds(completedPaymentIds, PaymentStatus.COMPLETED)
+                .filter { it.isPerson }
+                .mapNotNull { it.familyMemberId }
+                .toSet()
+        } else emptySet()
+        val conflicts = memberIds.filter { it in alreadyCovered }
+        if (conflicts.isNotEmpty()) {
+            throw IllegalArgumentException(
+                "Member IDs $conflicts have already been paid for. Please refresh and try again."
+            )
+        }
+
+        val familyMembers = if (memberIds.isNotEmpty()) {
+            familyMemberRepository.findAllById(memberIds).associateBy { it.id }
+        } else emptyMap()
+
+        // Resolve everyone to a name, an age group and an optional size up front. A member's name and
+        // age come from their record; a guest's come from the request, so only a guest's are washed.
+        // Only shirt buyers get a size — unlike the fee path, where everyone is getting one.
+        val resolved: List<ResolvedAttendee> = attendees.map { attendee ->
+            val memberId = attendee.memberId
+            if (memberId != null) {
+                val member = familyMembers[memberId]
+                    ?: throw IllegalArgumentException("Family member $memberId not found")
+                ResolvedAttendee(
+                    memberId = memberId,
+                    name = member.name,
+                    ageGroup = member.ageGroup,
+                    size = if (attendee.wantsShirt) TshirtSize.parse(attendee.tshirtSize, member.name) else null
+                )
+            } else {
+                val guestName = sanitizeGuestName(attendee.guestName)
+                val ageGroup = try {
+                    AgeGroup.valueOf(attendee.ageGroup)
+                } catch (_: Exception) {
+                    AgeGroup.ADULT
+                }
+                ResolvedAttendee(
+                    memberId = null,
+                    name = guestName,
+                    ageGroup = ageGroup,
+                    size = if (attendee.wantsShirt) TshirtSize.parse(attendee.tshirtSize, guestName) else null
+                )
+            }
+        }
+        val shirtCount = resolved.count { it.size != null }
+
+        val donationCents = request.donationCents
+        if (donationCents < 0) {
+            throw IllegalArgumentException("Donation cannot be negative.")
+        }
+        if (donationCents > MAX_DONATION_CENTS) {
+            throw IllegalArgumentException(
+                "Online gifts are capped at $10,000 — please contact an admin for a larger gift."
+            )
+        }
+
+        val shirtPriceCents = feeConfig.shirt
+        val calculatedAmountCents = donationCents + shirtCount * shirtPriceCents
+        if (calculatedAmountCents < MIN_DONATION_CENTS) {
+            throw IllegalArgumentException("Minimum donation is $1.")
+        }
+
+        // The shirt half is recomputed here, so a tampered shirt price is caught even though the
+        // donation half is taken as given.
+        if (request.amount != calculatedAmountCents) {
+            log.warn("Contribution amount mismatch for rsvp $rsvpId: client sent ${request.amount}, server calculated $calculatedAmountCents")
+            throw IllegalArgumentException(
+                "Amount mismatch. Expected $calculatedAmountCents cents, got ${request.amount}. Please refresh and try again."
+            )
+        }
+
+        // Last, so every rule above is testable without a Stripe key — as on the gift path.
+        if (!stripeConfig.isConfigured()) {
+            throw IllegalStateException("Stripe is not configured. Please set STRIPE_SECRET_KEY.")
+        }
+
+        val checkinToken = java.util.UUID.randomUUID().toString()
+
+        val session = createStripeSession(
+            amountCents = calculatedAmountCents,
+            productName = "Tumblin Family Reunion – ${rsvp.familyName} Family",
+            description = if (shirtCount == 0) "Reunion donation" else "Reunion donation + T-shirts",
+            successUrl = "${stripeConfig.contributionSuccessUrl}&rsvpId=$rsvpId&token=$checkinToken",
+            cancelUrl = "${stripeConfig.contributionCancelUrl}&rsvpId=$rsvpId",
+            metadata = mapOf("rsvpId" to rsvpId.toString(), "kind" to "contribution")
+        )
+
+        val payment = Payment(
+            rsvp = rsvp,
+            amount = BigDecimal.valueOf(calculatedAmountCents).divide(BigDecimal(100)),
+            stripeSessionId = session.id,
+            status = PaymentStatus.PENDING,
+            createdAt = LocalDateTime.now(),
+            checkinToken = checkinToken
+        )
+        paymentRepository.save(payment)
+
+        for (person in resolved) {
+            payment.lineItems.add(
+                PaymentLineItem(
+                    payment = payment,
+                    // Which column holds the name is what makes a row a member or a guest
+                    // downstream (paidMembers vs paidGuests, and the isGuest flag on the ticket).
+                    familyMemberId = person.memberId,
+                    familyMemberName = if (person.memberId != null) person.name else null,
+                    guestName = if (person.memberId == null) person.name else null,
+                    ageGroup = person.ageGroup,
+                    // A no-shirt attendee costs nothing; the donation row carries the money. The $0
+                    // row still has to exist — it is what admits them and marks them as covered.
+                    amount = if (person.size != null) {
+                        BigDecimal.valueOf(shirtPriceCents).divide(BigDecimal(100))
+                    } else BigDecimal.ZERO,
+                    tshirtSize = person.size,
+                    kind = if (person.size != null) LineItemKind.SHIRT else LineItemKind.ATTENDEE
+                )
+            )
+        }
+
+        if (donationCents > 0) {
+            payment.lineItems.add(
+                PaymentLineItem(
+                    payment = payment,
+                    guestName = DONATION_LINE_ITEM_NAME,
+                    ageGroup = AgeGroup.ADULT,
+                    amount = BigDecimal.valueOf(donationCents).divide(BigDecimal(100)),
+                    kind = LineItemKind.DONATION
+                )
+            )
+        }
+
+        paymentRepository.save(payment)
+
+        return session.url
+    }
+
     private fun angelLineItem(payment: Payment, amountCents: Long) = PaymentLineItem(
         payment = payment,
         guestName = ANGEL_CONTRIBUTION_NAME,
         ageGroup = AgeGroup.ADULT,
-        amount = BigDecimal.valueOf(amountCents).divide(BigDecimal(100))
+        amount = BigDecimal.valueOf(amountCents).divide(BigDecimal(100)),
+        kind = LineItemKind.ANGEL
     )
+
+    /** One attendee with everything resolved: members from their record, guests from the request. */
+    private data class ResolvedAttendee(
+        val memberId: Long?,
+        val name: String,
+        val ageGroup: AgeGroup,
+        val size: TshirtSize?
+    )
+
+    /**
+     * Guest names arrive from an unauthenticated form and end up on the ticket, the admin page and
+     * the T-shirt list, so they get the same wash as donor text.
+     *
+     * The reserved-name check is not cosmetic: [PaymentLineItem.isAngel] still recognises a pre-V9
+     * angel row by its name, so a guest called "Angel Contribution" would be counted as a gift and
+     * silently dropped from the ticket they just paid for.
+     */
+    private fun sanitizeGuestName(raw: String?): String {
+        val clean = sanitizeDonorText(raw)
+            ?: throw IllegalArgumentException("Every guest needs a name.")
+        if (clean.equals(ANGEL_CONTRIBUTION_NAME, ignoreCase = true) ||
+            clean.equals(DONATION_LINE_ITEM_NAME, ignoreCase = true)
+        ) {
+            throw IllegalArgumentException("\"$clean\" is a reserved name — please use the guest's real name.")
+        }
+        return clean
+    }
 
     /** Last line of defence for donor free text before it reaches the public page and admin email. */
     private fun sanitizeDonorText(raw: String?): String? = raw
@@ -416,8 +639,9 @@ class PaymentService(
             else -> "UNPAID"
         }
 
-        // Angel contributions are donations, not people — never list them as paid attendees
-        val personItems = lineItems.filter { !it.isAngel }
+        // Angel gifts and the freeform portion of a donation checkout are money, not people —
+        // never list them as paid attendees.
+        val personItems = lineItems.filter { it.isPerson }
         val paidMemberItems = personItems.filter { it.familyMemberId != null }.distinctBy { it.familyMemberId }
         val paidMemberIds = paidMemberItems.map { it.familyMemberId!! }
         val paidMembers = paidMemberItems.map {
@@ -505,7 +729,8 @@ class PaymentService(
                         amount = li.amount,
                         isGuest = li.guestName != null,
                         lineItemId = li.id,
-                        tshirtSize = li.tshirtSize?.name
+                        tshirtSize = li.tshirtSize?.name,
+                        kind = li.kind.name
                     )
                 }
             )
@@ -527,12 +752,47 @@ class PaymentService(
         if (payment.status != PaymentStatus.COMPLETED) {
             throw IllegalArgumentException("Payment not completed")
         }
-        if (lineItem.isAngel) {
-            throw IllegalArgumentException("Angel contributions do not have a T-shirt size")
+        // Gated on hasShirt rather than just "not an angel row": a donation checkout can admit
+        // someone without buying them a shirt, and that $0 row must not become a free shirt here.
+        if (!lineItem.hasShirt) {
+            throw IllegalArgumentException(NO_SHIRT_MESSAGE)
         }
         lineItem.tshirtSize = TshirtSize.parse(request.tshirtSize, lineItem.displayName)
         paymentLineItemRepository.save(lineItem)
         return LineItemSizeResponse(lineItemId = lineItem.id, tshirtSize = lineItem.tshirtSize!!.name)
+    }
+
+    /**
+     * Completed income split by what it paid for. Admin-only: it is the books, not a branch balance,
+     * so unlike [buildSummary] it does not exclude Angel money — it reports it as its own bucket.
+     */
+    @Transactional(readOnly = true)
+    fun getRevenueBreakdown(): RevenueBreakdownResponse {
+        val completedPaymentIds = paymentRepository.findAll()
+            .filter { it.status == PaymentStatus.COMPLETED }
+            .map { it.id }
+        val lineItems = if (completedPaymentIds.isNotEmpty()) {
+            paymentLineItemRepository.findByCompletedPaymentIds(completedPaymentIds, PaymentStatus.COMPLETED)
+        } else emptyList()
+
+        fun total(predicate: (PaymentLineItem) -> Boolean) = lineItems
+            .filter(predicate)
+            .fold(BigDecimal.ZERO) { acc, li -> acc.add(li.amount) }
+
+        // isAngel is checked first everywhere below: a pre-V9 angel row defaults to kind = FEE and
+        // is recognised only by its name sentinel, and must not be counted as fee revenue.
+        val fees = total { !it.isAngel && it.kind == LineItemKind.FEE }
+        val shirts = total { !it.isAngel && it.kind == LineItemKind.SHIRT }
+        val donations = total { !it.isAngel && it.kind == LineItemKind.DONATION }
+        val angel = total { it.isAngel }
+
+        return RevenueBreakdownResponse(
+            fees = fees,
+            shirts = shirts,
+            donations = donations,
+            angel = angel,
+            total = fees.add(shirts).add(donations).add(angel)
+        )
     }
 
     @Transactional(readOnly = true)

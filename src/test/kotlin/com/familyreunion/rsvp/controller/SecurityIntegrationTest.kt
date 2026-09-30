@@ -359,4 +359,28 @@ class SecurityIntegrationTest @Autowired constructor(
         mockMvc.perform(get("/api/payments/history"))
             .andExpect(status().isUnauthorized)
     }
+
+    // --- Pay-what-you-can donation endpoint is public; its reporting is not ---
+
+    @Test
+    fun `POST payments contribute should be public`() {
+        val result = mockMvc.perform(
+            post("/api/payments/contribute")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"rsvpId":999999,"amount":1500,"donationCents":0,"attendees":[{"memberId":1,"wantsShirt":true,"tshirtSize":"L"}]}""")
+        ).andReturn()
+
+        assert(result.response.status != 401) { "contribute must not require auth" }
+        assert(result.response.status != 403) { "contribute must not 403 — the frontend logs out on 403" }
+        // The RSVP does not exist, so a reachable endpoint answers 404 rather than an auth error.
+        assert(result.response.status == 404) { "expected 404, got ${result.response.status}" }
+    }
+
+    @Test
+    fun `GET payments revenue should still return 401 without auth`() {
+        // Falls through to the /api/** admin catch-all on purpose — it is aggregate financial
+        // reporting, unlike the public per-branch summary.
+        mockMvc.perform(get("/api/payments/revenue"))
+            .andExpect(status().isUnauthorized)
+    }
 }

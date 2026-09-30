@@ -1,6 +1,7 @@
 package com.familyreunion.rsvp.service
 
 import com.familyreunion.rsvp.dto.*
+import com.familyreunion.rsvp.model.NO_SHIRT_MESSAGE
 import com.familyreunion.rsvp.model.PaymentStatus
 import com.familyreunion.rsvp.model.TshirtSize
 import com.familyreunion.rsvp.repository.PaymentLineItemRepository
@@ -101,8 +102,10 @@ class CheckinService(
         val changed = request.sizes.map { entry ->
             val lineItem = lineItemsById[entry.lineItemId]
                 ?: throw IllegalArgumentException("Attendee ${entry.lineItemId} is not on this ticket")
-            if (lineItem.isAngel) {
-                throw IllegalArgumentException("Angel contributions do not have a T-shirt size")
+            // Not merely "is this an angel row": a donation checkout admits people without
+            // necessarily buying them a shirt, and those $0 rows must not become free shirts here.
+            if (!lineItem.hasShirt) {
+                throw IllegalArgumentException(NO_SHIRT_MESSAGE)
             }
             lineItem.tshirtSize = TshirtSize.parse(entry.tshirtSize, lineItem.displayName)
             lineItem
@@ -113,18 +116,19 @@ class CheckinService(
     }
 
     /**
-     * True when no line item on this payment is a person — i.e. the payment is nothing but an
-     * Angel Fund gift. Takes the line items as a parameter rather than reading
+     * True when no line item on this payment is a person — i.e. the payment is nothing but money
+     * (an Angel Fund gift, or a donation that named nobody). Takes the line items as a parameter
+     * rather than reading
      * [Payment.lineItems], which is LAZY and would break a non-transactional caller.
      */
     private fun hasNoAttendees(
         lineItems: List<com.familyreunion.rsvp.model.PaymentLineItem>
-    ): Boolean = lineItems.none { !it.isAngel }
+    ): Boolean = lineItems.none { it.isPerson }
 
     private fun toTicketResponse(payment: com.familyreunion.rsvp.model.Payment): TicketResponse {
         val lineItems = paymentLineItemRepository.findByPaymentId(payment.id)
-        // Angel contributions are donations, not people — never list them as ticket attendees.
-        val attendees = lineItems.filter { !it.isAngel }.map { li ->
+        // Angel gifts and donation rows are money, not people — never list them as attendees.
+        val attendees = lineItems.filter { it.isPerson }.map { li ->
             TicketAttendee(
                 name = li.displayName,
                 ageGroup = li.ageGroup.name,

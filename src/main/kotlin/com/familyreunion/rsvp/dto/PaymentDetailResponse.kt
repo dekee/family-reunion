@@ -29,5 +29,10 @@ data class LineItemResponse(
     val amount: BigDecimal,
     val isGuest: Boolean,
     val lineItemId: Long,
-    val tshirtSize: String?
+    val tshirtSize: String?,
+    /**
+     * [com.familyreunion.rsvp.model.LineItemKind] name. Lets the admin page tally shirts and label
+     * donation rows from the server's own classification instead of re-deriving it from the name.
+     */
+    val kind: String = "FEE"
 )

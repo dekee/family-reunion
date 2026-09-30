@@ -6,6 +6,7 @@ import com.familyreunion.rsvp.dto.AttendeeDto
 import com.familyreunion.rsvp.model.Attendee
 import com.familyreunion.rsvp.model.FamilyMember
 import com.familyreunion.rsvp.model.Payment
+import com.familyreunion.rsvp.model.LineItemKind
 import com.familyreunion.rsvp.model.PaymentLineItem
 import com.familyreunion.rsvp.model.PaymentStatus
 import com.familyreunion.rsvp.model.TshirtSize
@@ -629,5 +630,532 @@ class PaymentControllerIntegrationTest @Autowired constructor(
             // $100 for the included adult only — not $200.
             .andExpect(jsonPath("$.totalOwed").value(100.00))
             .andExpect(jsonPath("$.balance").value(100.00))
+    }
+
+    // --- Pay-what-you-can donation checkout ---
+
+    private data class MemberRsvp(val rsvpId: Long, val adultId: Long, val childId: Long)
+
+    /**
+     * An RSVP whose attendees are real family members. The guest-based [createRsvp] cannot be used
+     * for contribution tests: with no familyMember behind an attendee, every memberId fails the
+     * ownership guard before any other rule is reached.
+     */
+    private fun createMemberRsvp(familyName: String): MemberRsvp {
+        val adult = familyMemberRepository.save(
+            FamilyMember(name = "$familyName Adult", ageGroup = AgeGroup.ADULT)
+        )
+        val child = familyMemberRepository.save(
+            FamilyMember(name = "$familyName Child", ageGroup = AgeGroup.CHILD)
+        )
+        val rsvp = Rsvp(
+            familyName = familyName,
+            headOfHouseholdName = "$familyName Head",
+            email = "${familyName.lowercase()}@example.com"
+        )
+        rsvp.attendees.add(Attendee(rsvp = rsvp, familyMember = adult))
+        rsvp.attendees.add(Attendee(rsvp = rsvp, familyMember = child))
+        val saved = rsvpRepository.save(rsvp)
+        return MemberRsvp(saved.id, adult.id, child.id)
+    }
+
+    private fun attendeeJson(memberId: Long, size: String? = null): String {
+        val sizeField = size?.let { ""","tshirtSize":"$it"""" } ?: ""
+        return """{"memberId":$memberId,"wantsShirt":${size != null}$sizeField}"""
+    }
+
+    private fun guestJson(name: String, ageGroup: String = "ADULT", size: String? = null): String {
+        val sizeField = size?.let { ""","tshirtSize":"$it"""" } ?: ""
+        return """{"guestName":"$name","ageGroup":"$ageGroup","wantsShirt":${size != null}$sizeField}"""
+    }
+
+    private fun contributeJson(
+        rsvpId: Long,
+        amount: Long,
+        donationCents: Long,
+        vararg attendees: String
+    ) = """{"rsvpId":$rsvpId,"amount":$amount,"donationCents":$donationCents,"attendees":[${attendees.joinToString(",")}]}"""
+
+    private fun postContribute(json: String, ip: String) = mockMvc.perform(
+        post("/api/payments/contribute")
+            .header("X-Forwarded-For", ip)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(json)
+    )
+
+    @Test
+    fun `POST contribute accepts a donation plus shirts and reaches Stripe`() {
+        val fx = createMemberRsvp("GiveBoth")
+        // $40 gift + one $15 shirt = $55. Stripe is unconfigured under the test profile, so this is
+        // the furthest the happy path can go — which makes it the proof every rule above passed.
+        postContribute(
+            contributeJson(fx.rsvpId, 5500, 4000, attendeeJson(fx.adultId, "L"), attendeeJson(fx.childId)),
+            "10.1.0.1"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("Stripe")))
+    }
+
+    @Test
+    fun `POST contribute accepts shirts with no donation at all`() {
+        val fx = createMemberRsvp("GiveShirtsOnly")
+        postContribute(
+            contributeJson(fx.rsvpId, 3000, 0, attendeeJson(fx.adultId, "L"), attendeeJson(fx.childId, "YM")),
+            "10.1.0.2"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("Stripe")))
+    }
+
+    @Test
+    fun `POST contribute accepts a donation with nobody taking a shirt`() {
+        val fx = createMemberRsvp("GiveNoShirts")
+        postContribute(
+            contributeJson(fx.rsvpId, 2000, 2000, attendeeJson(fx.adultId)),
+            "10.1.0.3"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("Stripe")))
+    }
+
+    @Test
+    fun `POST contribute rejects a total that does not match the server price`() {
+        val fx = createMemberRsvp("GiveTamper")
+        // Claims a $5 shirt. The gift half is taken as given, but the shirt half is repriced here.
+        postContribute(
+            contributeJson(fx.rsvpId, 4500, 4000, attendeeJson(fx.adultId, "L")),
+            "10.1.0.4"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("Amount mismatch")))
+    }
+
+    @Test
+    fun `POST contribute rejects an empty attendee list`() {
+        val fx = createMemberRsvp("GiveNobody")
+        postContribute(contributeJson(fx.rsvpId, 4000, 4000), "10.1.0.5")
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("at least one person")))
+    }
+
+    @Test
+    fun `POST contribute rejects a member from another family`() {
+        val fx = createMemberRsvp("GiveMine")
+        val other = createMemberRsvp("GiveTheirs")
+        postContribute(
+            contributeJson(fx.rsvpId, 1500, 0, attendeeJson(other.adultId, "L")),
+            "10.1.0.6"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("do not belong to RSVP")))
+    }
+
+    @Test
+    fun `POST contribute rejects the same member twice`() {
+        val fx = createMemberRsvp("GiveTwice")
+        postContribute(
+            contributeJson(fx.rsvpId, 3000, 0, attendeeJson(fx.adultId, "L"), attendeeJson(fx.adultId, "M")),
+            "10.1.0.7"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("more than once")))
+    }
+
+    @Test
+    fun `POST contribute rejects a member who has already been paid for`() {
+        val fx = createMemberRsvp("GiveAgain")
+        // The page hides people who are already covered; this proves hiding is not the only control.
+        val rsvp = rsvpRepository.findById(fx.rsvpId).get()
+        val paid = Payment(
+            rsvp = rsvp,
+            amount = BigDecimal("100.00"),
+            stripeSessionId = "sess_already_${fx.rsvpId}",
+            status = PaymentStatus.COMPLETED
+        )
+        paid.lineItems.add(
+            PaymentLineItem(
+                payment = paid, familyMemberId = fx.adultId, familyMemberName = "GiveAgain Adult",
+                ageGroup = AgeGroup.ADULT, amount = BigDecimal("100.00"),
+                tshirtSize = TshirtSize.L, kind = LineItemKind.FEE
+            )
+        )
+        paymentRepository.save(paid)
+
+        postContribute(
+            contributeJson(fx.rsvpId, 1500, 0, attendeeJson(fx.adultId, "L")),
+            "10.1.0.8"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("already been paid for")))
+    }
+
+    @Test
+    fun `POST contribute rejects a shirt with no size`() {
+        val fx = createMemberRsvp("GiveNoSize")
+        postContribute(
+            contributeJson(fx.rsvpId, 1500, 0, """{"memberId":${fx.adultId},"wantsShirt":true}"""),
+            "10.1.0.9"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("size is required")))
+    }
+
+    @Test
+    fun `POST contribute rejects a shirt with an unknown size`() {
+        val fx = createMemberRsvp("GiveBadSize")
+        postContribute(
+            contributeJson(fx.rsvpId, 1500, 0, attendeeJson(fx.adultId, "HUGE")),
+            "10.1.0.10"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("Unknown T-shirt size 'HUGE'")))
+    }
+
+    @Test
+    fun `POST contribute rejects a gift above the cap`() {
+        val fx = createMemberRsvp("GiveTooMuch")
+        postContribute(
+            contributeJson(fx.rsvpId, 2_000_000, 2_000_000, attendeeJson(fx.adultId)),
+            "10.1.0.11"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("capped")))
+    }
+
+    @Test
+    fun `POST contribute rejects a total below the one dollar minimum`() {
+        val fx = createMemberRsvp("GiveTooLittle")
+        // amount is 100 so the DTO's @Min passes; the service floor is what has to reject this.
+        postContribute(
+            contributeJson(fx.rsvpId, 100, 50, attendeeJson(fx.adultId)),
+            "10.1.0.12"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("Minimum donation is $1")))
+    }
+
+    @Test
+    fun `POST contribute rejects a negative gift`() {
+        val fx = createMemberRsvp("GiveNegative")
+        postContribute(
+            contributeJson(fx.rsvpId, 1000, -500, attendeeJson(fx.adultId, "L")),
+            "10.1.0.13"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("cannot be negative")))
+    }
+
+    // --- What a completed donation checkout looks like afterwards ---
+
+    private data class ContributionFixture(
+        val payment: Payment,
+        val shirt: PaymentLineItem,
+        val noShirt: PaymentLineItem,
+        val donation: PaymentLineItem
+    )
+
+    /** A COMPLETED donation checkout: one member with a $15 shirt, one admitted for $0, plus a $40 gift. */
+    private fun createContributionPayment(fx: MemberRsvp): ContributionFixture {
+        val rsvp = rsvpRepository.findById(fx.rsvpId).get()
+        val payment = Payment(
+            rsvp = rsvp,
+            amount = BigDecimal("55.00"),
+            stripeSessionId = "sess_contrib_${fx.rsvpId}",
+            status = PaymentStatus.COMPLETED
+        )
+        val shirt = PaymentLineItem(
+            payment = payment, familyMemberId = fx.adultId, familyMemberName = "Shirt Adult",
+            ageGroup = AgeGroup.ADULT, amount = BigDecimal("15.00"),
+            tshirtSize = TshirtSize.L, kind = LineItemKind.SHIRT
+        )
+        val noShirt = PaymentLineItem(
+            payment = payment, familyMemberId = fx.childId, familyMemberName = "NoShirt Child",
+            ageGroup = AgeGroup.CHILD, amount = BigDecimal.ZERO, kind = LineItemKind.ATTENDEE
+        )
+        val donation = PaymentLineItem(
+            payment = payment, guestName = "Donation",
+            ageGroup = AgeGroup.ADULT, amount = BigDecimal("40.00"), kind = LineItemKind.DONATION
+        )
+        payment.lineItems.addAll(listOf(shirt, noShirt, donation))
+        paymentRepository.save(payment)
+        return ContributionFixture(payment, shirt, noShirt, donation)
+    }
+
+    @Test
+    fun `GET summary counts donation and shirt money toward the branch balance`() {
+        val fx = createMemberRsvp("GiveSummary")
+        createContributionPayment(fx)
+
+        mockMvc.perform(get("/api/payments/summary/${fx.rsvpId}"))
+            .andExpect(status().isOk)
+            // $100 adult + $50 child owed; the whole $55 counts, unlike an Angel gift.
+            .andExpect(jsonPath("$.totalOwed").value(150.00))
+            .andExpect(jsonPath("$.totalPaid").value(55.00))
+            .andExpect(jsonPath("$.balance").value(95.00))
+            .andExpect(jsonPath("$.status").value("PARTIAL"))
+    }
+
+    @Test
+    fun `GET summary lists both donated-for members as paid but never the donation row`() {
+        val fx = createMemberRsvp("GivePaidList")
+        val c = createContributionPayment(fx)
+
+        mockMvc.perform(get("/api/payments/summary/${fx.rsvpId}"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.paidMemberIds", hasSize<Any>(2)))
+            .andExpect(jsonPath("$.paidMemberIds", containsInAnyOrder(fx.adultId.toInt(), fx.childId.toInt())))
+            .andExpect(jsonPath("$.paidMembers[?(@.lineItemId == ${c.shirt.id})].tshirtSize").value("L"))
+            // The $40 gift row is money, not a guest — it must not surface as a person.
+            .andExpect(jsonPath("$.paidGuests", hasSize<Any>(0)))
+    }
+
+    @Test
+    fun `PUT line item size refuses an attendee who never bought a shirt`() {
+        val fx = createMemberRsvp("GiveFreeShirt")
+        val c = createContributionPayment(fx)
+
+        // Without this, selecting everyone with no shirts and giving $1 would be a route to free
+        // shirts: the ticket and pay pages both let a paid attendee set their own size.
+        mockMvc.perform(
+            put("/api/payments/line-items/${c.noShirt.id}/size")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"rsvpId":${fx.rsvpId},"tshirtSize":"M"}""")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("does not have a T-shirt")))
+
+        // The shirt buyer on the same payment can still change theirs.
+        mockMvc.perform(
+            put("/api/payments/line-items/${c.shirt.id}/size")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"rsvpId":${fx.rsvpId},"tshirtSize":"XL"}""")
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.tshirtSize").value("XL"))
+    }
+
+    @Test
+    fun `PUT line item size refuses the donation row itself`() {
+        val fx = createMemberRsvp("GiveDonationRow")
+        val c = createContributionPayment(fx)
+
+        mockMvc.perform(
+            put("/api/payments/line-items/${c.donation.id}/size")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"rsvpId":${fx.rsvpId},"tshirtSize":"M"}""")
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    // --- Revenue breakdown ---
+
+    @Test
+    fun `GET revenue splits completed income by what it paid for`() {
+        val feeRsvpId = createRsvp("RevenueFees", adults = 1, children = 1)
+        createSizedPayment(feeRsvpId)                  // $100 + $50 fees, $25 angel
+        val fx = createMemberRsvp("RevenueGifts")
+        createContributionPayment(fx)                  // $15 shirt, $0 attendee, $40 donation
+        createStandaloneGift("revenue", amount = "10.00")
+
+        mockMvc.perform(get("/api/payments/revenue"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.fees").value(150.00))
+            .andExpect(jsonPath("$.shirts").value(15.00))
+            .andExpect(jsonPath("$.donations").value(40.00))
+            .andExpect(jsonPath("$.angel").value(35.00))
+            .andExpect(jsonPath("$.total").value(240.00))
+    }
+
+    @Test
+    fun `GET revenue ignores payments that never completed`() {
+        val rsvpId = createRsvp("RevenuePending", adults = 1, children = 1)
+        createSizedPayment(rsvpId, status = PaymentStatus.PENDING)
+
+        mockMvc.perform(get("/api/payments/revenue"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.total").value(0))
+    }
+
+    // --- Guests on a donation checkout ---
+
+    @Test
+    fun `POST contribute accepts a guest with a shirt`() {
+        val fx = createMemberRsvp("GiveGuest")
+        postContribute(
+            contributeJson(fx.rsvpId, 3000, 1500, guestJson("Cousin Ray", "ADULT", "XL")),
+            "10.2.0.1"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("Stripe")))
+    }
+
+    @Test
+    fun `POST contribute accepts a guest with no shirt`() {
+        val fx = createMemberRsvp("GiveGuestBare")
+        postContribute(
+            contributeJson(fx.rsvpId, 2000, 2000, guestJson("Plus One")),
+            "10.2.0.2"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("Stripe")))
+    }
+
+    @Test
+    fun `POST contribute prices guests and members alike`() {
+        val fx = createMemberRsvp("GiveMixed")
+        // One member shirt + one guest shirt + $10 gift = $40. A guest shirt costs the same $15 as a
+        // member's — a guest is not charged their age-group fee on this page.
+        postContribute(
+            contributeJson(
+                fx.rsvpId, 4000, 1000,
+                attendeeJson(fx.adultId, "L"),
+                guestJson("Cousin Ray", "CHILD", "YM")
+            ),
+            "10.2.0.3"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("Stripe")))
+
+        // Same people, a total that assumes an age-group fee for the guest instead of $15.
+        postContribute(
+            contributeJson(
+                fx.rsvpId, 6500, 1000,
+                attendeeJson(fx.adultId, "L"),
+                guestJson("Cousin Ray", "CHILD", "YM")
+            ),
+            "10.2.0.4"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("Amount mismatch")))
+    }
+
+    @Test
+    fun `POST contribute rejects a guest with a blank name`() {
+        val fx = createMemberRsvp("GiveBlankGuest")
+        postContribute(
+            contributeJson(fx.rsvpId, 1500, 0, guestJson("   ", "ADULT", "L")),
+            "10.2.0.5"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("needs a name")))
+    }
+
+    @Test
+    fun `POST contribute rejects a guest named after the angel or donation sentinel`() {
+        val fx = createMemberRsvp("GiveReserved")
+        // isAngel still recognises a pre-V9 row by this name, so such a guest would be counted as a
+        // gift and dropped from the ticket they just paid for.
+        postContribute(
+            contributeJson(fx.rsvpId, 1500, 0, guestJson("Angel Contribution", "ADULT", "L")),
+            "10.2.0.6"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("reserved name")))
+
+        postContribute(
+            contributeJson(fx.rsvpId, 1500, 0, guestJson("donation", "ADULT", "L")),
+            "10.2.0.7"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("reserved name")))
+    }
+
+    @Test
+    fun `POST contribute rejects an attendee that is neither a member nor a guest`() {
+        val fx = createMemberRsvp("GiveNeither")
+        postContribute(
+            contributeJson(fx.rsvpId, 1500, 0, """{"wantsShirt":true,"tshirtSize":"L"}"""),
+            "10.2.0.8"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("either a family member or a named guest")))
+    }
+
+    @Test
+    fun `POST contribute rejects an attendee that is both a member and a guest`() {
+        val fx = createMemberRsvp("GiveBoth2")
+        postContribute(
+            contributeJson(
+                fx.rsvpId, 1500, 0,
+                """{"memberId":${fx.adultId},"guestName":"Ray","wantsShirt":true,"tshirtSize":"L"}"""
+            ),
+            "10.2.0.9"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("either a family member or a named guest")))
+    }
+
+    @Test
+    fun `POST contribute rejects a guest shirt with no size`() {
+        val fx = createMemberRsvp("GiveGuestNoSize")
+        postContribute(
+            contributeJson(fx.rsvpId, 1500, 0, """{"guestName":"Ray","ageGroup":"ADULT","wantsShirt":true}"""),
+            "10.2.0.10"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("size is required for Ray")))
+    }
+
+    @Test
+    fun `POST contribute allows a guest for a family that has already paid in full`() {
+        val fx = createMemberRsvp("GivePaidFamily")
+        // Both members covered by a completed payment: the branch owes nothing, but a guest they are
+        // bringing still needs a shirt. The already-covered guard must not block that.
+        val rsvp = rsvpRepository.findById(fx.rsvpId).get()
+        val paid = Payment(
+            rsvp = rsvp,
+            amount = BigDecimal("150.00"),
+            stripeSessionId = "sess_full_${fx.rsvpId}",
+            status = PaymentStatus.COMPLETED
+        )
+        paid.lineItems.add(
+            PaymentLineItem(
+                payment = paid, familyMemberId = fx.adultId, familyMemberName = "Paid Adult",
+                ageGroup = AgeGroup.ADULT, amount = BigDecimal("100.00"),
+                tshirtSize = TshirtSize.L, kind = LineItemKind.FEE
+            )
+        )
+        paid.lineItems.add(
+            PaymentLineItem(
+                payment = paid, familyMemberId = fx.childId, familyMemberName = "Paid Child",
+                ageGroup = AgeGroup.CHILD, amount = BigDecimal("50.00"),
+                tshirtSize = TshirtSize.YM, kind = LineItemKind.FEE
+            )
+        )
+        paymentRepository.save(paid)
+
+        postContribute(
+            contributeJson(fx.rsvpId, 1500, 0, guestJson("Cousin Ray", "ADULT", "XL")),
+            "10.2.0.11"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("Stripe")))
+    }
+
+    @Test
+    fun `GET summary reports a donated guest as a paid guest`() {
+        val fx = createMemberRsvp("GiveGuestSummary")
+        val rsvp = rsvpRepository.findById(fx.rsvpId).get()
+        val payment = Payment(
+            rsvp = rsvp,
+            amount = BigDecimal("15.00"),
+            stripeSessionId = "sess_guest_${fx.rsvpId}",
+            status = PaymentStatus.COMPLETED
+        )
+        payment.lineItems.add(
+            PaymentLineItem(
+                payment = payment, guestName = "Cousin Ray", ageGroup = AgeGroup.ADULT,
+                amount = BigDecimal("15.00"), tshirtSize = TshirtSize.XL, kind = LineItemKind.SHIRT
+            )
+        )
+        paymentRepository.save(payment)
+
+        mockMvc.perform(get("/api/payments/summary/${fx.rsvpId}"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.paidGuests", hasSize<Any>(1)))
+            .andExpect(jsonPath("$.paidGuests[0].name").value("Cousin Ray"))
+            .andExpect(jsonPath("$.paidGuests[0].tshirtSize").value("XL"))
+            // A guest is nobody's family member, so they must not appear as one.
+            .andExpect(jsonPath("$.paidMemberIds", hasSize<Any>(0)))
     }
 }

@@ -1,6 +1,7 @@
 package com.familyreunion.rsvp.controller
 
 import com.familyreunion.rsvp.model.AgeGroup
+import com.familyreunion.rsvp.model.LineItemKind
 import com.familyreunion.rsvp.model.Payment
 import com.familyreunion.rsvp.model.PaymentLineItem
 import com.familyreunion.rsvp.model.PaymentStatus
@@ -266,5 +267,91 @@ class CheckinControllerIntegrationTest @Autowired constructor(
             .andExpect(jsonPath("$.total").value(1))
             .andExpect(jsonPath("$.tickets", hasSize<Any>(1)))
             .andExpect(jsonPath("$.tickets[0].familyName").value("Real"))
+    }
+
+    // --- Donation checkouts on the ticket ---
+
+    private data class ContributionFixture(
+        val payment: Payment,
+        val shirt: PaymentLineItem,
+        val noShirt: PaymentLineItem,
+        val donation: PaymentLineItem
+    )
+
+    /** A COMPLETED donation checkout: one member with a $15 shirt, one admitted for $0, plus a $40 gift. */
+    private fun createContributionPayment(familyName: String = "Given"): ContributionFixture {
+        val rsvp = rsvpRepository.save(Rsvp(
+            familyName = familyName,
+            headOfHouseholdName = "$familyName Head",
+            email = "${familyName.lowercase()}@example.com"
+        ))
+        val payment = Payment(
+            rsvp = rsvp,
+            amount = BigDecimal("55.00"),
+            stripeSessionId = "sess_contrib_${familyName.lowercase()}",
+            status = PaymentStatus.COMPLETED
+        )
+        val shirt = PaymentLineItem(payment = payment, familyMemberId = 77, familyMemberName = "$familyName Shirt",
+            ageGroup = AgeGroup.ADULT, amount = BigDecimal("15.00"), tshirtSize = TshirtSize.L,
+            kind = LineItemKind.SHIRT)
+        val noShirt = PaymentLineItem(payment = payment, familyMemberId = 78, familyMemberName = "$familyName NoShirt",
+            ageGroup = AgeGroup.CHILD, amount = BigDecimal.ZERO, kind = LineItemKind.ATTENDEE)
+        val donation = PaymentLineItem(payment = payment, guestName = "Donation",
+            ageGroup = AgeGroup.ADULT, amount = BigDecimal("40.00"), kind = LineItemKind.DONATION)
+        payment.lineItems.addAll(listOf(shirt, noShirt, donation))
+        paymentRepository.save(payment)
+        return ContributionFixture(payment, shirt, noShirt, donation)
+    }
+
+    @Test
+    fun `GET ticket admits everyone donated for but never the donation row`() {
+        val fx = createContributionPayment()
+
+        mockMvc.perform(get("/api/checkin/ticket/${fx.payment.checkinToken}"))
+            .andExpect(status().isOk)
+            // Both people are attending — paying less does not make someone less admitted.
+            .andExpect(jsonPath("$.attendees", hasSize<Any>(2)))
+            .andExpect(jsonPath("$.attendees[*].name", containsInAnyOrder("Given Shirt", "Given NoShirt")))
+            .andExpect(jsonPath("$.attendees[?(@.name == 'Given Shirt')].tshirtSize").value("L"))
+    }
+
+    @Test
+    fun `PUT ticket sizes refuses an attendee who never bought a shirt`() {
+        val fx = createContributionPayment()
+
+        // The other half of the free-shirt guard: the pay page refuses this too. Both surfaces let a
+        // paid attendee set their own size, so both have to check.
+        mockMvc.perform(
+            put("/api/checkin/ticket/${fx.payment.checkinToken}/sizes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"sizes":[{"lineItemId":${fx.noShirt.id},"tshirtSize":"YM"}]}""")
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("does not have a T-shirt")))
+
+        assertThat(paymentLineItemRepository.findById(fx.noShirt.id).get().tshirtSize).isNull()
+    }
+
+    @Test
+    fun `PUT ticket sizes still works for the shirt buyer on a donation payment`() {
+        val fx = createContributionPayment()
+
+        mockMvc.perform(
+            put("/api/checkin/ticket/${fx.payment.checkinToken}/sizes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"sizes":[{"lineItemId":${fx.shirt.id},"tshirtSize":"XL"}]}""")
+        )
+            .andExpect(status().isOk)
+
+        assertThat(paymentLineItemRepository.findById(fx.shirt.id).get().tshirtSize).isEqualTo(TshirtSize.XL)
+    }
+
+    @Test
+    fun `POST checkin admits a donation payment`() {
+        val fx = createContributionPayment()
+
+        mockMvc.perform(post("/api/checkin/${fx.payment.checkinToken}"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.success").value(true))
     }
 }

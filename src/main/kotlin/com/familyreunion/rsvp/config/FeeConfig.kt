@@ -12,6 +12,12 @@ class FeeConfig {
     var child: Long = 5000
     var infant: Long = 1500
 
+    /**
+     * Price of a T-shirt on its own, for donation checkouts where someone gives what they can and
+     * adds a shirt. Its own knob rather than a reuse of [infant], which it happens to equal today.
+     */
+    var shirt: Long = 1500
+
     fun feeForAgeGroup(ageGroup: AgeGroup): Long = when (ageGroup) {
         AgeGroup.ADULT -> adult
         AgeGroup.SPOUSE -> spouse

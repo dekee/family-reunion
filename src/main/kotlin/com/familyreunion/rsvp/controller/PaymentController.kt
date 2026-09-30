@@ -3,10 +3,12 @@ package com.familyreunion.rsvp.controller
 import com.familyreunion.rsvp.config.FeeConfig
 import com.familyreunion.rsvp.dto.AngelContributorResponse
 import com.familyreunion.rsvp.dto.CheckoutRequest
+import com.familyreunion.rsvp.dto.ContributionCheckoutRequest
 import com.familyreunion.rsvp.dto.DonationCheckoutRequest
 import com.familyreunion.rsvp.dto.LineItemSizeResponse
 import com.familyreunion.rsvp.dto.PaymentDetailResponse
 import com.familyreunion.rsvp.dto.PaymentSummaryResponse
+import com.familyreunion.rsvp.dto.RevenueBreakdownResponse
 import com.familyreunion.rsvp.dto.UpdateLineItemSizeRequest
 import com.familyreunion.rsvp.security.IpRateLimiter
 import com.familyreunion.rsvp.service.PaymentService
@@ -33,7 +35,10 @@ class PaymentController(
             "ADULT" to feeConfig.adult,
             "SPOUSE" to feeConfig.spouse,
             "CHILD" to feeConfig.child,
-            "INFANT" to feeConfig.infant
+            "INFANT" to feeConfig.infant,
+            // Not an age group: the standalone T-shirt price used by donation checkouts. Shipped in
+            // the same payload so the donations page has one fetch and one source of truth for money.
+            "SHIRT" to feeConfig.shirt
         ))
     }
 
@@ -60,6 +65,25 @@ class PaymentController(
                 .body(mapOf("error" to "Too many donation attempts. Please try again in a few minutes."))
         }
         val url = paymentService.createDonationCheckoutSession(request)
+        return ResponseEntity.ok(mapOf("url" to url))
+    }
+
+    /**
+     * Public: a pay-what-you-can donation for members who have not paid their fee. Rate-limited for
+     * the same reason /donate is — it is unauthenticated and creates Stripe objects — and returns 429
+     * as a plain body because the frontend only unwraps `error`.
+     */
+    @PostMapping("/contribute")
+    fun createContributionCheckout(
+        @Valid @RequestBody request: ContributionCheckoutRequest,
+        httpRequest: HttpServletRequest
+    ): ResponseEntity<Map<String, String>> {
+        val ip = IpRateLimiter.clientIp(httpRequest)
+        if (!rateLimiter.tryAcquire("contribute:$ip", maxRequests = 5, windowSeconds = 600)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(mapOf("error" to "Too many attempts. Please try again in a few minutes."))
+        }
+        val url = paymentService.createContributionCheckoutSession(request)
         return ResponseEntity.ok(mapOf("url" to url))
     }
 
@@ -106,6 +130,12 @@ class PaymentController(
         @Valid @RequestBody request: UpdateLineItemSizeRequest
     ): ResponseEntity<LineItemSizeResponse> {
         return ResponseEntity.ok(paymentService.updateLineItemSize(id, request))
+    }
+
+    /** Admin: completed income split into fees / shirts / donations / Angel Fund. */
+    @GetMapping("/revenue")
+    fun getRevenueBreakdown(): ResponseEntity<RevenueBreakdownResponse> {
+        return ResponseEntity.ok(paymentService.getRevenueBreakdown())
     }
 
     @GetMapping("/angels")

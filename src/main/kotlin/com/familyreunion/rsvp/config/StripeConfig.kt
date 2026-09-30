@@ -14,7 +14,12 @@ class StripeConfig(
     // Standalone Angel Fund gifts return to the Thank You page, not the pay page. Used verbatim —
     // unlike the fee-checkout URLs, nothing is appended, since a gift has no rsvpId or ticket.
     @Value("\${stripe.donation-success-url:http://localhost:5173/thank-you?payment=success}") val donationSuccessUrl: String,
-    @Value("\${stripe.donation-cancel-url:http://localhost:5173/thank-you?payment=cancelled}") val donationCancelUrl: String
+    @Value("\${stripe.donation-cancel-url:http://localhost:5173/thank-you?payment=cancelled}") val donationCancelUrl: String,
+    // Donation checkouts return to the donations page. Like the fee-checkout URLs (and unlike the
+    // Angel gift ones) rsvpId and the check-in token are appended, so the page can deep-link back to
+    // the branch that was just given to.
+    @Value("\${stripe.contribution-success-url:http://localhost:5173/donations?payment=success}") val contributionSuccessUrl: String,
+    @Value("\${stripe.contribution-cancel-url:http://localhost:5173/donations?payment=cancelled}") val contributionCancelUrl: String
 ) {
     @PostConstruct
     fun init() {
