@@ -7,24 +7,14 @@ import { ANGEL_LINE_ITEM_NAME } from '../constants/tshirtSizes';
 import { ANGEL_GOAL } from '../constants/angelFund';
 import AngelGiveForm from './AngelGiveForm';
 import { dollars } from '../utils/formatting';
-import type { FamilyTreeNode, PaymentSummaryResponse, PaidGuestInfo, PaidMemberInfo, AngelContributor, TshirtSize } from '../types';
+import { flattenBranch, markPaidMembers, branchSlug } from '../utils/branches';
+import type { FlatMember, BranchData } from '../utils/branches';
+import type { AngelContributor, TshirtSize } from '../types';
 import { SkeletonCard } from './Skeleton';
 import SizeSelect from './SizeSelect';
 import './PayAndRsvp.css';
 
 type GuestAgeGroup = 'ADULT' | 'CHILD' | 'INFANT';
-
-interface FlatMember {
-  id: number;
-  name: string;
-  ageGroup: string;
-  fee: number;
-  depth: number;
-  paid?: boolean;
-  /** Set when paid: the payment line item that holds this member's T-shirt size */
-  lineItemId?: number;
-  tshirtSize?: TshirtSize | null;
-}
 
 interface Guest {
   tempId: number;
@@ -32,48 +22,6 @@ interface Guest {
   ageGroup: GuestAgeGroup;
   fee: number;
   tshirtSize: TshirtSize;
-}
-
-function flattenBranch(node: FamilyTreeNode, depth: number): FlatMember[] {
-  const result: FlatMember[] = [];
-  if (!node.excludeFromRsvp) {
-    result.push({
-      id: node.id,
-      name: node.name,
-      ageGroup: node.ageGroup,
-      fee: feeForAge(node.ageGroup),
-      depth,
-    });
-  }
-  for (const child of node.children) {
-    result.push(...flattenBranch(child, depth + 1));
-  }
-  return result;
-}
-
-function markPaidMembers(members: FlatMember[], paidMemberIds: number[], paidMembers: PaidMemberInfo[]): FlatMember[] {
-  const paidSet = new Set(paidMemberIds);
-  const infoById = new Map(paidMembers.map(pm => [pm.memberId, pm]));
-  return members.map(m => {
-    const info = infoById.get(m.id);
-    return {
-      ...m,
-      paid: paidSet.has(m.id) || info !== undefined,
-      lineItemId: info?.lineItemId,
-      tshirtSize: info?.tshirtSize ?? null,
-    };
-  });
-}
-
-interface BranchData {
-  node: FamilyTreeNode;
-  members: FlatMember[];
-  payment?: PaymentSummaryResponse;
-  paidGuests: PaidGuestInfo[];
-}
-
-function branchSlug(name: string): string {
-  return name.replace(/ - Done$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
 }
 
 export default function PayAndRsvp() {
@@ -426,7 +374,10 @@ export default function PayAndRsvp() {
             );
           })()}
 
-          <p className="pay-section-subtitle">Select your family branch, choose attending members, and pay. Selecting a member confirms their attendance.</p>
+          <p className="pay-section-subtitle">
+            Select your family branch, choose attending members, and pay. Selecting a member confirms their attendance.
+            {' '}Can't cover the full amount? <Link to="/donations" className="pay-give-link">Give what you can &rarr;</Link>
+          </p>
           <div className="pay-branch-grid">
             {branches.map(b => {
               const branchName = b.node.name.replace(/ - Done$/, '');
@@ -766,6 +717,9 @@ export default function PayAndRsvp() {
                 </p>
               )}
               {error && <p className="pay-error">{error}</p>}
+              <p className="pay-give-note">
+                Can't cover this right now? <Link to="/donations" className="pay-give-link">Give what you can instead &rarr;</Link>
+              </p>
             </div>
           )}
         </div>

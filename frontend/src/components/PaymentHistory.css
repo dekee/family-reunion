@@ -547,3 +547,32 @@
   background: rgba(230, 126, 34, 0.25);
   color: #f0a050;
 }
+
+/* Revenue split cards sit under the transaction stats. */
+.ph-revenue-grid {
+  margin-top: -0.5rem;
+}
+
+/* The freeform half of a pay-what-you-can checkout. */
+.ph-donation-tag {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0.1rem 0.4rem;
+  margin-right: 0.4rem;
+  border-radius: 20px;
+  background: rgba(52, 152, 219, 0.15);
+  color: #2980b9;
+}
+
+/* Someone a donation admitted without buying them a shirt — not a missing size. */
+.ph-li-no-shirt {
+  color: var(--color-text-faint);
+  font-style: italic;
+}
+
+.ph-stat-gold {
+  color: var(--color-gold);
+}

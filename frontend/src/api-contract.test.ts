@@ -42,6 +42,8 @@ import type {
   PaymentLineItemResponse,
   TshirtSize,
   DonationCheckoutRequest,
+  ContributionCheckoutRequest,
+  RevenueBreakdown,
   AngelContributor,
 } from './types';
 
@@ -164,6 +166,8 @@ function assertPaymentLineItem(obj: unknown): asserts obj is PaymentLineItemResp
   expect(typeof o.isGuest).toBe('boolean');
   expect(typeof o.lineItemId).toBe('number');
   expect(o.tshirtSize === null || typeof o.tshirtSize === 'string').toBe(true);
+  // kind drives the shirt tally and the donation label; an unknown value would silently mis-tally.
+  expect(['FEE', 'SHIRT', 'ATTENDEE', 'DONATION', 'ANGEL']).toContain(o.kind);
 }
 
 function assertPaymentResponse(obj: unknown): asserts obj is PaymentResponse {
@@ -358,8 +362,29 @@ describe('API Response Type Contracts', () => {
   it('PaymentLineItemResponse shape matches backend', () => {
     const sample: PaymentLineItemResponse = {
       name: 'Derrick', ageGroup: 'ADULT', amount: 100, isGuest: false, lineItemId: 1, tshirtSize: 'M',
+      kind: 'FEE',
     };
     assertPaymentLineItem(sample);
+  });
+
+  it('PaymentLineItemResponse covers the rows a donation checkout creates', () => {
+    const shirt: PaymentLineItemResponse = {
+      name: 'Marcus', ageGroup: 'ADULT', amount: 15, isGuest: false, lineItemId: 2, tshirtSize: 'L',
+      kind: 'SHIRT',
+    };
+    // Admitted by a donation with no shirt: $0 and no size, and that is not a missing size.
+    const admitted: PaymentLineItemResponse = {
+      name: 'Dana', ageGroup: 'CHILD', amount: 0, isGuest: false, lineItemId: 3, tshirtSize: null,
+      kind: 'ATTENDEE',
+    };
+    // The freeform half: money, with no person behind it.
+    const gift: PaymentLineItemResponse = {
+      name: 'Donation', ageGroup: 'ADULT', amount: 40, isGuest: true, lineItemId: 4, tshirtSize: null,
+      kind: 'DONATION',
+    };
+    for (const row of [shirt, admitted, gift]) assertPaymentLineItem(row);
+    expect(admitted.amount).toBe(0);
+    expect(gift.tshirtSize).toBeNull();
   });
 
   it('TshirtSize union matches backend enum', () => {
@@ -508,6 +533,100 @@ describe('API Request Type Contracts', () => {
     };
     const round = JSON.parse(JSON.stringify(req)) as CheckoutRequest;
     expect(round.angelAmount).toBe(2500);
+  });
+
+  it('ContributionCheckoutRequest total equals the gift plus the server shirt price', async () => {
+    const { getFees } = await import('./constants/ageGroups');
+    const shirtCents = getFees().SHIRT;
+    const req: ContributionCheckoutRequest = {
+      rsvpId: 1,
+      amount: 4000 + 2 * shirtCents,
+      donationCents: 4000,
+      attendees: [
+        { memberId: 1, wantsShirt: true, tshirtSize: 'L' },
+        { memberId: 2, wantsShirt: true, tshirtSize: 'YM' },
+        { memberId: 3, wantsShirt: false },
+      ],
+    };
+    // The server recomputes exactly this and rejects a mismatch, so drift fails here first.
+    const shirts = req.attendees.filter(a => a.wantsShirt).length;
+    expect(req.amount).toBe(req.donationCents + shirts * shirtCents);
+    expect(req.rsvpId).toBeGreaterThan(0);
+    expect(req.amount).toBeGreaterThanOrEqual(100); // @Min(100) in backend
+    // Every shirt needs a size; nobody else may carry one.
+    for (const a of req.attendees) {
+      if (a.wantsShirt) expect(a.tshirtSize).toBeTruthy();
+      else expect(a.tshirtSize).toBeUndefined();
+    }
+  });
+
+  it('ContributionCheckoutRequest allows shirts with no gift at all', async () => {
+    const { getFees } = await import('./constants/ageGroups');
+    const shirtCents = getFees().SHIRT;
+    const req: ContributionCheckoutRequest = {
+      rsvpId: 1,
+      amount: shirtCents,
+      donationCents: 0,
+      attendees: [{ memberId: 1, wantsShirt: true, tshirtSize: 'M' }],
+    };
+    expect(req.donationCents).toBe(0);
+    expect(req.amount).toBe(shirtCents);
+  });
+
+  it('FeeSchedule carries the shirt price alongside the age-group fees', async () => {
+    const { getFees, shirtPrice } = await import('./constants/ageGroups');
+    const fees = getFees();
+    // Mirrors app.fees.shirt. A server default change without a client change fails here.
+    expect(fees.SHIRT).toBe(1500);
+    expect(shirtPrice()).toBe(15);
+  });
+
+  it('ContributionCheckoutRequest carries guests alongside members', async () => {
+    const { getFees } = await import('./constants/ageGroups');
+    const shirtCents = getFees().SHIRT;
+    const req: ContributionCheckoutRequest = {
+      rsvpId: 1,
+      amount: 1000 + 2 * shirtCents,
+      donationCents: 1000,
+      attendees: [
+        { memberId: 4, wantsShirt: true, tshirtSize: 'L' },
+        { guestName: 'Cousin Ray', ageGroup: 'CHILD', wantsShirt: true, tshirtSize: 'YM' },
+        { guestName: 'Plus One', ageGroup: 'ADULT', wantsShirt: false },
+      ],
+    };
+    // A guest shirt costs the same as a member's — this page never charges an age-group fee, so a
+    // guest's ageGroup must not enter the total.
+    const shirts = req.attendees.filter(a => a.wantsShirt).length;
+    expect(req.amount).toBe(req.donationCents + shirts * shirtCents);
+    // The server rejects an attendee that is both or neither.
+    for (const a of req.attendees) {
+      expect((a.memberId === undefined) !== (a.guestName === undefined)).toBe(true);
+    }
+  });
+
+  it('ContributionCheckoutRequest may be guests only, for a family that has already paid', async () => {
+    const { getFees } = await import('./constants/ageGroups');
+    const shirtCents = getFees().SHIRT;
+    const req: ContributionCheckoutRequest = {
+      rsvpId: 1,
+      amount: shirtCents,
+      donationCents: 0,
+      attendees: [{ guestName: 'Cousin Ray', ageGroup: 'ADULT', wantsShirt: true, tshirtSize: 'XL' }],
+    };
+    expect(req.attendees.every(a => a.memberId === undefined)).toBe(true);
+    expect(req.amount).toBe(shirtCents);
+  });
+
+  it('reserved line-item names mirror the server, which refuses them as guest names', async () => {
+    const { ANGEL_LINE_ITEM_NAME, DONATION_LINE_ITEM_NAME } = await import('./constants/tshirtSizes');
+    // A guest called either of these would be read as money and dropped from the ticket.
+    expect(ANGEL_LINE_ITEM_NAME).toBe('Angel Contribution');
+    expect(DONATION_LINE_ITEM_NAME).toBe('Donation');
+  });
+
+  it('RevenueBreakdown total is the sum of its buckets', () => {
+    const r: RevenueBreakdown = { fees: 150, shirts: 15, donations: 40, angel: 35, total: 240 };
+    expect(r.fees + r.shirts + r.donations + r.angel).toBe(r.total);
   });
 
   it('AngelContributor tolerates a blank familyName for a standalone gift', () => {
@@ -840,6 +959,60 @@ describe('API Client Endpoint Contracts', () => {
     expect(body.amountCents).toBe(2500);
     expect(body.anonymous).toBe(false);
     expect(result.url).toBe('https://checkout.stripe.com/gift');
+    localStorage.removeItem('auth_token');
+  });
+
+  it('createContributionCheckout calls POST /api/payments/contribute without auth', async () => {
+    localStorage.setItem('auth_token', 'should-not-be-sent');
+    mockFetch({ url: 'https://checkout.stripe.com/give' });
+    const { createContributionCheckout } = await import('./api');
+    const result = await createContributionCheckout({
+      rsvpId: 7,
+      amount: 5500,
+      donationCents: 4000,
+      attendees: [
+        { memberId: 1, wantsShirt: true, tshirtSize: 'L' },
+        { memberId: 2, wantsShirt: false },
+      ],
+    });
+    expect(fetchCalls[0].url).toBe('/api/payments/contribute');
+    expect(fetchCalls[0].method).toBe('POST');
+    // Public endpoint: a donor is never logged in, and sending the token would log an admin out on 403.
+    expect((fetchCalls[0].headers as Record<string, string>)?.Authorization).toBeUndefined();
+    const body = JSON.parse(fetchCalls[0].body as string);
+    expect(body.rsvpId).toBe(7);
+    expect(body.donationCents).toBe(4000);
+    expect(body.attendees).toHaveLength(2);
+    expect(body.attendees[0].tshirtSize).toBe('L');
+    expect(result.url).toBe('https://checkout.stripe.com/give');
+    localStorage.removeItem('auth_token');
+  });
+
+  it('createContributionCheckout serializes a guest without a memberId', async () => {
+    mockFetch({ url: 'https://checkout.stripe.com/give' });
+    const { createContributionCheckout } = await import('./api');
+    await createContributionCheckout({
+      rsvpId: 7,
+      amount: 1500,
+      donationCents: 0,
+      attendees: [{ guestName: 'Cousin Ray', ageGroup: 'ADULT', wantsShirt: true, tshirtSize: 'XL' }],
+    });
+    const body = JSON.parse(fetchCalls[0].body as string);
+    expect(body.attendees[0].guestName).toBe('Cousin Ray');
+    expect(body.attendees[0].ageGroup).toBe('ADULT');
+    // A fabricated memberId here would fail the server's ownership guard.
+    expect(body.attendees[0].memberId).toBeUndefined();
+  });
+
+  it('fetchRevenueBreakdown calls GET /api/payments/revenue with auth', async () => {
+    localStorage.setItem('auth_token', 'admin-token');
+    mockFetch({ fees: 150, shirts: 15, donations: 40, angel: 35, total: 240 });
+    const { fetchRevenueBreakdown } = await import('./api');
+    const result = await fetchRevenueBreakdown();
+    expect(fetchCalls[0].url).toBe('/api/payments/revenue');
+    // Admin-only, unlike the public per-branch summary — the token must be sent.
+    expect((fetchCalls[0].headers as Record<string, string>)?.Authorization).toBe('Bearer admin-token');
+    expect(result.total).toBe(240);
     localStorage.removeItem('auth_token');
   });
 

@@ -155,7 +155,11 @@ export interface PaymentLineItemResponse {
   isGuest: boolean;
   lineItemId: number;
   tshirtSize: TshirtSize | null;
+  /** LineItemKind: FEE | SHIRT | ATTENDEE | DONATION | ANGEL. */
+  kind: LineItemKind;
 }
+
+export type LineItemKind = 'FEE' | 'SHIRT' | 'ATTENDEE' | 'DONATION' | 'ANGEL';
 
 export interface PaymentDetailResponse {
   id: number;
@@ -271,6 +275,42 @@ export interface LineItemSizeResponse {
 }
 
 /** A standalone Angel Fund gift: no RSVP, no family member, no fees. */
+/**
+ * Pay-what-you-can checkout for members who have not paid their fee. Distinct from
+ * DonationCheckoutRequest (a standalone Angel gift, no RSVP) and from CheckoutRequest (exact fees):
+ * here the gift is whatever the donor chose, and the shirts are priced by the server.
+ */
+export interface ContributionCheckoutRequest {
+  rsvpId: number;
+  /** Total in cents. Must equal donationCents + (fees.SHIRT x people taking a shirt). */
+  amount: number;
+  /** The freeform gift portion, in cents. 0 when someone is only buying shirts. */
+  donationCents: number;
+  attendees: ContributionAttendee[];
+}
+
+/**
+ * One person the donation covers. They attend either way; wantsShirt only adds the $15 shirt.
+ * Exactly one of memberId (someone on the family tree) and guestName (anyone else) must be set —
+ * the server rejects both or neither. ageGroup applies to guests only.
+ */
+export interface ContributionAttendee {
+  memberId?: number;
+  guestName?: string;
+  ageGroup?: string;
+  wantsShirt: boolean;
+  tshirtSize?: TshirtSize;
+}
+
+/** Admin revenue split. Dollars, like every other payment response. */
+export interface RevenueBreakdown {
+  fees: number;
+  shirts: number;
+  donations: number;
+  angel: number;
+  total: number;
+}
+
 export interface DonationCheckoutRequest {
   amountCents: number;
   donorName?: string;

@@ -8,12 +8,13 @@ interface AgeGroupConfig {
   fee: number;
 }
 
-// Default fees (in dollars) — overridden by server via /api/payments/fees
+// Default fees in CENTS, mirroring the server's app.fees.* — overridden at load by /api/payments/fees.
 const DEFAULT_FEES: FeeSchedule = {
   ADULT: 10000,
   SPOUSE: 10000,
   CHILD: 5000,
   INFANT: 1500,
+  SHIRT: 1500,
 };
 
 let currentFees: FeeSchedule = DEFAULT_FEES;
@@ -24,6 +25,14 @@ export function setFees(fees: FeeSchedule) {
 
 export function getFees(): FeeSchedule {
   return currentFees;
+}
+
+/**
+ * Standalone T-shirt price in dollars, for the donations page. Not an age-group fee — it happens to
+ * equal the infant fee today, but the server keeps them as separate knobs.
+ */
+export function shirtPrice(): number {
+  return currentFees.SHIRT / 100;
 }
 
 function buildAgeGroups(): Record<AgeGroup, AgeGroupConfig> {

@@ -49,6 +49,12 @@ export const SIZE_CATEGORY_LABELS: Record<SizeCategory, string> = {
 /** Pseudo line item the backend creates for angel donations — never has a size. */
 export const ANGEL_LINE_ITEM_NAME = 'Angel Contribution';
 
+/**
+ * Mirrors the server's DONATION_LINE_ITEM_NAME. Both names are reserved: the server refuses a guest
+ * called either one, because a pre-V9 angel row is still recognised by its name alone.
+ */
+export const DONATION_LINE_ITEM_NAME = 'Donation';
+
 /** The size group most likely to fit; used only to order the dropdown. */
 export function suggestedCategoryFor(ageGroup: string): SizeCategory {
   switch (ageGroup as AgeGroup) {

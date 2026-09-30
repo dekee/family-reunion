@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchPaymentHistory } from '../api';
+import { fetchPaymentHistory, fetchRevenueBreakdown } from '../api';
 import { ageLabel } from '../constants/ageGroups';
 import { ANGEL_LINE_ITEM_NAME, SIZES_BY_CATEGORY, SIZE_CATEGORY_LABELS, SIZE_LABELS, sizeLabel } from '../constants/tshirtSizes';
 import type { SizeCategory } from '../constants/tshirtSizes';
 import { dollars } from '../utils/formatting';
-import type { PaymentDetailResponse, PaymentLineItemResponse } from '../types';
+import type { PaymentDetailResponse, PaymentLineItemResponse, RevenueBreakdown } from '../types';
 import { SkeletonCard } from './Skeleton';
 import './PaymentHistory.css';
 
@@ -24,6 +24,7 @@ type StatusFilter = 'ALL' | 'COMPLETED' | 'PENDING';
 
 export default function PaymentHistory() {
   const [payments, setPayments] = useState<PaymentDetailResponse[]>([]);
+  const [revenue, setRevenue] = useState<RevenueBreakdown | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<StatusFilter>('ALL');
@@ -36,6 +37,10 @@ export default function PaymentHistory() {
       .then(setPayments)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+    // Separate call so a failure here costs the breakdown cards, not the whole page.
+    fetchRevenueBreakdown()
+      .then(setRevenue)
+      .catch((err) => console.error('Could not load revenue breakdown', err));
   }, []);
 
   const filtered = payments.filter(p => {
@@ -56,10 +61,12 @@ export default function PaymentHistory() {
   const totalCollected = completedPayments.reduce((s, p) => s + p.amount, 0);
   const totalPending = payments.filter(p => p.status === 'PENDING').reduce((s, p) => s + p.amount, 0);
 
-  // T-shirt tally: one shirt per completed, non-angel line item
+  // T-shirt tally: one shirt per completed line item that actually bought one. Keyed on `kind`
+  // rather than the name sentinel, because a donation checkout can admit someone with no shirt —
+  // counting those rows would invent shirts and pad the missing-size chase list.
   const sizeRows: SizeRow[] = completedPayments.flatMap(p =>
     p.lineItems
-      .filter(li => !(li.isGuest && li.name === ANGEL_LINE_ITEM_NAME))
+      .filter(li => li.kind === 'FEE' || li.kind === 'SHIRT')
       .map(li => ({ ...li, familyName: p.familyName }))
   );
   const sizeCounts = new Map<string, number>();
@@ -110,6 +117,27 @@ export default function PaymentHistory() {
           <span className="ph-stat-label">Pending</span>
         </div>
       </div>
+
+      {revenue && (
+        <div className="ph-stats-grid ph-revenue-grid">
+          <div className="ph-stat-card">
+            <span className="ph-stat-number">{dollars(revenue.fees)}</span>
+            <span className="ph-stat-label">Full Fees</span>
+          </div>
+          <div className="ph-stat-card">
+            <span className="ph-stat-number">{dollars(revenue.shirts)}</span>
+            <span className="ph-stat-label">T-shirts</span>
+          </div>
+          <div className="ph-stat-card">
+            <span className="ph-stat-number">{dollars(revenue.donations)}</span>
+            <span className="ph-stat-label">Donations</span>
+          </div>
+          <div className="ph-stat-card">
+            <span className="ph-stat-number ph-stat-gold">{dollars(revenue.angel)}</span>
+            <span className="ph-stat-label">Angel Fund</span>
+          </div>
+        </div>
+      )}
 
       <section className="ph-sizes-section">
         <button
@@ -276,23 +304,30 @@ export default function PaymentHistory() {
                   <span className="ph-line-items-title">Paid for ({p.lineItems.length})</span>
                   <div className="ph-line-items-list">
                     {p.lineItems.map((li, i) => {
-                      const isAngel = li.isGuest && li.name === ANGEL_LINE_ITEM_NAME;
+                      // Three shapes here, told apart by kind: money with no person behind it
+                      // (Angel, Donation), a person who bought a shirt, and a person admitted by a
+                      // donation without one — who must not be nagged for a size they never paid for.
+                      const isMoney = li.kind === 'ANGEL' || li.kind === 'DONATION';
+                      const wantsSize = li.kind === 'FEE' || li.kind === 'SHIRT';
                       return (
                         <div key={li.lineItemId ?? i} className="ph-line-item">
                           <span className="ph-li-name">
-                            {isAngel ? (
+                            {li.kind === 'ANGEL' ? (
                               <span className="ph-angel-tag">Angel</span>
+                            ) : li.kind === 'DONATION' ? (
+                              <span className="ph-donation-tag">Donation</span>
                             ) : li.isGuest ? (
                               <span className="ph-guest-tag">Guest</span>
                             ) : null}
-                            {isAngel ? ANGEL_LINE_ITEM_NAME : li.name}
+                            {li.kind === 'ANGEL' ? ANGEL_LINE_ITEM_NAME : li.name}
                           </span>
-                          {!isAngel && <span className={`ph-li-age age-${li.ageGroup.toLowerCase()}`}>{ageLabel(li.ageGroup)}</span>}
-                          {!isAngel && (
+                          {!isMoney && <span className={`ph-li-age age-${li.ageGroup.toLowerCase()}`}>{ageLabel(li.ageGroup)}</span>}
+                          {wantsSize && (
                             li.tshirtSize
                               ? <span className="ph-li-size">{sizeLabel(li.tshirtSize)}</span>
                               : <span className="ph-li-size ph-li-size-missing">No size</span>
                           )}
+                          {li.kind === 'ATTENDEE' && <span className="ph-li-size ph-li-no-shirt">No shirt</span>}
                           <span className="ph-li-amount">{dollars(li.amount)}</span>
                         </div>
                       );

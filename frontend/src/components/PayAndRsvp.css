@@ -1185,3 +1185,21 @@
     width: 100%;
   }
 }
+
+/* Route to the pay-what-you-can page, for anyone the full fee would keep away. */
+.pay-give-note {
+  margin: 0.9rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.pay-give-link {
+  color: var(--color-navy-primary);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+[data-theme="dark"] .pay-give-link {
+  color: var(--color-gold);
+}

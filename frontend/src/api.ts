@@ -1,4 +1,4 @@
-import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, PaymentDetailResponse, CheckoutRequest, DonationCheckoutRequest, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse, GalleryUploadResponse, AngelContributor, SloganResponse, SloganVoteRequest, DesignResponse, DesignVoteRequest, TributeResponse, TributeRequest, VolunteerTaskRequest, VolunteerTaskResponse, VolunteerSignupRequest, UpdateLineItemSizeRequest, LineItemSizeResponse, UpdateTicketSizesRequest } from './types';
+import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, PaymentDetailResponse, CheckoutRequest, DonationCheckoutRequest, ContributionCheckoutRequest, RevenueBreakdown, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse, GalleryUploadResponse, AngelContributor, SloganResponse, SloganVoteRequest, DesignResponse, DesignVoteRequest, TributeResponse, TributeRequest, VolunteerTaskRequest, VolunteerTaskResponse, VolunteerSignupRequest, UpdateLineItemSizeRequest, LineItemSizeResponse, UpdateTicketSizesRequest } from './types';
 
 const BASE_URL = '/api/rsvp';
 
@@ -250,6 +250,8 @@ export interface FeeSchedule {
   SPOUSE: number;
   CHILD: number;
   INFANT: number;
+  /** Not an age group: the standalone T-shirt price used by the donations page. Cents, like the rest. */
+  SHIRT: number;
 }
 
 export async function fetchFees(): Promise<FeeSchedule> {
@@ -290,12 +292,31 @@ export async function updateLineItemSize(
 }
 
 /** Public: a standalone Angel Fund gift. No auth, like the fee checkout. */
+/**
+ * Public, like the other two checkout calls — deliberately no authHeaders(). A donor is never
+ * logged in.
+ */
+export async function createContributionCheckout(data: ContributionCheckoutRequest): Promise<{ url: string }> {
+  const res = await fetch(`${PAYMENTS_URL}/contribute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
 export async function createDonationCheckout(data: DonationCheckoutRequest): Promise<{ url: string }> {
   const res = await fetch(`${PAYMENTS_URL}/donate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
+  return handleResponse(res);
+}
+
+/** Admin: completed income split by what it paid for. */
+export async function fetchRevenueBreakdown(): Promise<RevenueBreakdown> {
+  const res = await fetch(`${PAYMENTS_URL}/revenue`, { headers: authHeaders() });
   return handleResponse(res);
 }
 
