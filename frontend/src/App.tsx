@@ -100,6 +100,73 @@ function NotFound() {
   );
 }
 
+const ADMIN_LINKS = [
+  { to: '/pay', label: 'Pay & RSVP' },
+  { to: '/rsvp', label: 'RSVP List' },
+  { to: '/checkin', label: 'Check-In' },
+  { to: '/payments', label: 'Payments' },
+  { to: '/budget', label: 'Budget' },
+  { to: '/admin', label: 'Admin Settings' },
+];
+
+/** Collapses the admin-only pages into a single "Admin" dropdown in the nav. */
+function AdminMenu({ onNavigate }: { onNavigate: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const active = ADMIN_LINKS.some(
+    (l) => location.pathname === l.to || location.pathname.startsWith(`${l.to}/`),
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div className={`admin-menu ${open ? 'open' : ''}`} ref={ref}>
+      <button
+        type="button"
+        className={`admin-menu-trigger ${active ? 'active' : ''}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        Admin
+        <span className="admin-menu-caret" aria-hidden="true">&#9662;</span>
+      </button>
+      {open && (
+        <div className="admin-menu-panel" role="menu">
+          {ADMIN_LINKS.map((l) => (
+            <NavLink
+              key={l.to}
+              to={l.to}
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onNavigate();
+              }}
+            >
+              {l.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function App() {
   const { user, isAdmin, loading: authLoading, login, logout } = useAuth();
   // Don't redirect /pay until the stored token has been verified; otherwise an
@@ -169,21 +236,16 @@ function App() {
             </div>
             <nav className={`app-nav ${menuOpen ? 'nav-open' : ''}`}>
               <NavLink to="/" end onClick={closeMenu}>Home</NavLink>
-              {isAdmin && <NavLink to="/pay" className="nav-admin" onClick={closeMenu}>Pay & RSVP</NavLink>}
               <NavLink to="/donations" onClick={closeMenu}>Give</NavLink>
               <NavLink to="/events" onClick={closeMenu}>Events</NavLink>
               <NavLink to="/volunteer" onClick={closeMenu}>Volunteer</NavLink>
               <NavLink to="/meetings" onClick={closeMenu}>Meetings</NavLink>
-              {isAdmin && <NavLink to="/budget" className="nav-admin" onClick={closeMenu}>Budget</NavLink>}
               <NavLink to="/members" onClick={closeMenu}>Members</NavLink>
               <NavLink to="/family-tree" onClick={closeMenu}>Family Tree</NavLink>
               <NavLink to="/gallery" onClick={closeMenu}>Gallery</NavLink>
               <NavLink to="/tributes" onClick={closeMenu}>Tributes</NavLink>
               <NavLink to="/thank-you" onClick={closeMenu}>Thank You</NavLink>
-              {isAdmin && <NavLink to="/rsvp" className="nav-admin" onClick={closeMenu}>RSVP</NavLink>}
-              {isAdmin && <NavLink to="/checkin" className="nav-admin" onClick={closeMenu}>Check-In</NavLink>}
-              {isAdmin && <NavLink to="/payments" className="nav-admin" onClick={closeMenu}>Payments</NavLink>}
-              {isAdmin && <NavLink to="/admin" className="nav-admin" onClick={closeMenu}>Admin</NavLink>}
+              {isAdmin && <AdminMenu onNavigate={closeMenu} />}
             </nav>
           </header>
 
