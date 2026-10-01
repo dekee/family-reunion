@@ -101,7 +101,10 @@ function NotFound() {
 }
 
 function App() {
-  const { user, isAdmin, login, logout } = useAuth();
+  const { user, isAdmin, loading: authLoading, login, logout } = useAuth();
+  // Don't redirect /pay until the stored token has been verified; otherwise an
+  // admin refreshing /pay is bounced to /donations before isAdmin resolves.
+  const payElement = authLoading ? null : isAdmin ? <PayAndRsvp /> : <Navigate to="/donations" replace />;
   const [menuOpen, setMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem('theme') === 'dark';
@@ -192,11 +195,8 @@ function App() {
               <Route path="/volunteer" element={<Volunteer />} />
               <Route path="/meetings" element={<Meetings />} />
               {isAdmin && <Route path="/budget" element={<Budget />} />}
-              <Route path="/pay" element={isAdmin ? <PayAndRsvp /> : <Navigate to="/donations" replace />} />
-              <Route
-                path="/pay/:branch"
-                element={isAdmin ? <PayAndRsvp /> : <Navigate to="/donations" replace />}
-              />
+              <Route path="/pay" element={payElement} />
+              <Route path="/pay/:branch" element={payElement} />
               <Route path="/donations" element={<Donations />} />
               <Route path="/donations/:branch" element={<Donations />} />
               <Route path="/ticket/:token" element={<TicketPage />} />
