@@ -107,6 +107,10 @@ spec:
                   key: STRIPE_WEBHOOK_SECRET
             - name: APP_BASE_URL
               value: "https://tumblinfamily.com"
+            # Feature switch: T-shirt add-on on the Give page. Set to "true" and restart the
+            # backend to bring it back; no image rebuild needed.
+            - name: FEATURE_DONATION_SHIRTS
+              value: "false"
             - name: GOOGLE_DRIVE_CREDENTIALS_FILE
               value: "/etc/gallery/credentials.json"
             - name: GOOGLE_DRIVE_FOLDER_ID

@@ -252,6 +252,8 @@ export interface FeeSchedule {
   INFANT: number;
   /** Not an age group: the standalone T-shirt price used by the donations page. Cents, like the rest. */
   SHIRT: number;
+  /** Server feature switch: whether the donations page may offer that shirt at all. */
+  DONATION_SHIRTS_ENABLED: boolean;
 }
 
 export async function fetchFees(): Promise<FeeSchedule> {

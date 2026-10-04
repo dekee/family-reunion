@@ -1,5 +1,6 @@
 package com.familyreunion.rsvp.controller
 
+import com.familyreunion.rsvp.config.FeatureConfig
 import com.familyreunion.rsvp.config.FeeConfig
 import com.familyreunion.rsvp.dto.AngelContributorResponse
 import com.familyreunion.rsvp.dto.CheckoutRequest
@@ -24,13 +25,14 @@ import org.springframework.web.bind.annotation.*
 class PaymentController(
     private val paymentService: PaymentService,
     private val feeConfig: FeeConfig,
+    private val featureConfig: FeatureConfig,
     private val rateLimiter: IpRateLimiter
 ) {
 
     private val log = LoggerFactory.getLogger(PaymentController::class.java)
 
     @GetMapping("/fees")
-    fun getFees(): ResponseEntity<Map<String, Long>> {
+    fun getFees(): ResponseEntity<Map<String, Any>> {
         return ResponseEntity.ok(mapOf(
             "ADULT" to feeConfig.adult,
             "SPOUSE" to feeConfig.spouse,
@@ -38,7 +40,10 @@ class PaymentController(
             "INFANT" to feeConfig.infant,
             // Not an age group: the standalone T-shirt price used by donation checkouts. Shipped in
             // the same payload so the donations page has one fetch and one source of truth for money.
-            "SHIRT" to feeConfig.shirt
+            "SHIRT" to feeConfig.shirt,
+            // Whether the Give page may offer that shirt at all. Rides along here so the page learns
+            // the price and the availability from the same fetch.
+            "DONATION_SHIRTS_ENABLED" to featureConfig.donationShirts
         ))
     }
 

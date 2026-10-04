@@ -1,8 +1,9 @@
 package com.familyreunion.rsvp.controller
 
 import com.familyreunion.rsvp.dto.RsvpRequest
-import com.familyreunion.rsvp.model.AgeGroup
+import com.familyreunion.rsvp.config.FeatureConfig
 import com.familyreunion.rsvp.dto.AttendeeDto
+import com.familyreunion.rsvp.model.AgeGroup
 import com.familyreunion.rsvp.model.Attendee
 import com.familyreunion.rsvp.model.FamilyMember
 import com.familyreunion.rsvp.model.Payment
@@ -39,7 +40,8 @@ class PaymentControllerIntegrationTest @Autowired constructor(
     private val objectMapper: ObjectMapper,
     private val rsvpRepository: RsvpRepository,
     private val paymentRepository: PaymentRepository,
-    private val familyMemberRepository: FamilyMemberRepository
+    private val familyMemberRepository: FamilyMemberRepository,
+    private val featureConfig: FeatureConfig
 ) {
 
     private fun createRsvp(familyName: String, adults: Int = 2, children: Int = 1): Long {
@@ -691,6 +693,42 @@ class PaymentControllerIntegrationTest @Autowired constructor(
         postContribute(
             contributeJson(fx.rsvpId, 5500, 4000, attendeeJson(fx.adultId, "L"), attendeeJson(fx.childId)),
             "10.1.0.1"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("Stripe")))
+    }
+
+    @Test
+    fun `GET fees reports whether donation shirts are on`() {
+        mockMvc.perform(get("/api/payments/fees"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.SHIRT").value(1500))
+            .andExpect(jsonPath("$.DONATION_SHIRTS_ENABLED").value(true))
+
+        featureConfig.donationShirts = false
+        mockMvc.perform(get("/api/payments/fees"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.DONATION_SHIRTS_ENABLED").value(false))
+    }
+
+    @Test
+    fun `POST contribute refuses a shirt while donation shirts are off`() {
+        val fx = createMemberRsvp("GiveShirtsOff")
+        // The context is rebuilt after every test (DirtiesContext), so flipping the bean here
+        // cannot leak into the shirt tests that expect the feature on.
+        featureConfig.donationShirts = false
+
+        postContribute(
+            contributeJson(fx.rsvpId, 5500, 4000, attendeeJson(fx.adultId, "L")),
+            "10.1.0.9"
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error", containsString("not available")))
+
+        // A plain gift for the same people still goes through to Stripe.
+        postContribute(
+            contributeJson(fx.rsvpId, 4000, 4000, attendeeJson(fx.adultId)),
+            "10.1.0.9"
         )
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.error", containsString("Stripe")))

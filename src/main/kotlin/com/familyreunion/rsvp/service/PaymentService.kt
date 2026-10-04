@@ -1,5 +1,6 @@
 package com.familyreunion.rsvp.service
 
+import com.familyreunion.rsvp.config.FeatureConfig
 import com.familyreunion.rsvp.config.FeeConfig
 import com.familyreunion.rsvp.config.StripeConfig
 import com.familyreunion.rsvp.dto.AngelContributorResponse
@@ -48,6 +49,7 @@ class PaymentService(
     private val rsvpRepository: RsvpRepository,
     private val stripeConfig: StripeConfig,
     private val feeConfig: FeeConfig,
+    private val featureConfig: FeatureConfig,
     private val notificationService: NotificationService
 ) {
 
@@ -266,6 +268,14 @@ class PaymentService(
 
         if (attendees.isEmpty()) {
             throw IllegalArgumentException("Select at least one person to give for.")
+        }
+
+        // The UI hides the shirt option when the feature is off, but hiding is not a control: a tab
+        // opened before the switch flipped, or a crafted request, would still reach here.
+        if (!featureConfig.donationShirts && attendees.any { it.wantsShirt }) {
+            throw IllegalArgumentException(
+                "T-shirts are not available on the Give page right now. Please refresh and try again."
+            )
         }
 
         // An attendee is a family member or a guest, never both and never neither.

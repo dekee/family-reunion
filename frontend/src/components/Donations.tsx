@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useParams, useNavigate, Link } from 'react-router-dom';
 import { fetchFamilyTree, fetchPaymentSummaries, fetchFees, createContributionCheckout } from '../api';
 import { getBranchColor } from '../branchColors';
-import { ageLabel, setFees, shirtPrice } from '../constants/ageGroups';
+import { ageLabel, setFees, shirtPrice, donationShirtsEnabled } from '../constants/ageGroups';
 import { ANGEL_MAX_DOLLARS } from '../constants/angelFund';
 import { ANGEL_LINE_ITEM_NAME, DONATION_LINE_ITEM_NAME, sizeLabel } from '../constants/tshirtSizes';
 import { dollars } from '../utils/formatting';
@@ -148,7 +148,12 @@ export default function Donations() {
     setSizes(prev => { const { [id]: _removed, ...rest } = prev; return rest; });
   };
 
-  const guestFormValid = guestName.trim().length > 0 && (!guestWantsShirt || guestSize !== '');
+  // Read after fees load (loadData calls setFees before the page renders its form), so it is
+  // current by the time anyone can interact with it. When off, every shirt path below is skipped.
+  const shirtsEnabled = donationShirtsEnabled();
+
+  const guestFormValid =
+    guestName.trim().length > 0 && (!shirtsEnabled || !guestWantsShirt || guestSize !== '');
 
   const handleAddGuest = () => {
     if (!guestFormValid) return;
@@ -156,8 +161,8 @@ export default function Donations() {
       tempId: nextGuestId,
       name: guestName.trim(),
       ageGroup: guestAgeGroup,
-      wantsShirt: guestWantsShirt,
-      tshirtSize: guestWantsShirt ? (guestSize as TshirtSize) : undefined,
+      wantsShirt: shirtsEnabled && guestWantsShirt,
+      tshirtSize: shirtsEnabled && guestWantsShirt ? (guestSize as TshirtSize) : undefined,
     }]);
     setNextGuestId(id => id + 1);
     setGuestName('');
@@ -217,7 +222,7 @@ export default function Donations() {
       return;
     }
     if (total < 1) {
-      setError('Enter an amount of at least $1, or add a T-shirt.');
+      setError(shirtsEnabled ? 'Enter an amount of at least $1, or add a T-shirt.' : 'Enter an amount of at least $1.');
       return;
     }
     if (donationTooBig) {
@@ -290,7 +295,7 @@ export default function Donations() {
           <p className="don-subtitle">
             Every family should be at this reunion, whatever their year has looked like. Pick the
             people you want to cover, add any guests you are bringing, and give whatever you are
-            able. T-shirts are {dollars(shirtCost)} each. Anyone you choose is counted as attending.
+            able.{shirtsEnabled && <> T-shirts are {dollars(shirtCost)} each.</>} Anyone you choose is counted as attending.
           </p>
 
           {branches.length === 0 ? (
@@ -367,7 +372,7 @@ export default function Donations() {
               />
             </div>
             <p className="don-amount-hint">
-              Give whatever you are able — there is no minimum beyond $1. T-shirts are {dollars(shirtCost)} each on top.
+              Give whatever you are able — there is no minimum beyond $1.{shirtsEnabled && <> T-shirts are {dollars(shirtCost)} each on top.</>}
             </p>
           </div>
 
@@ -406,7 +411,7 @@ export default function Donations() {
                     <span className={`don-member-age age-${m.ageGroup.toLowerCase()}`}>{ageLabel(m.ageGroup)}</span>
                   </label>
 
-                  {isSelected && (
+                  {isSelected && shirtsEnabled && (
                     <div className="don-member-shirt">
                       <label className="don-shirt-toggle">
                         <input type="checkbox" checked={wantsShirt} onChange={() => toggleShirt(m.id)} />
@@ -453,9 +458,11 @@ export default function Donations() {
                       <span className={`don-member-age age-${g.ageGroup.toLowerCase()}`}>{ageLabel(g.ageGroup)}</span>
                     </span>
                     <span className="don-member-shirt">
-                      <span className="don-guest-shirt-note">
-                        {g.wantsShirt ? `T-shirt ${g.tshirtSize ? sizeLabel(g.tshirtSize) : ''} +${dollars(shirtCost)}` : 'No T-shirt'}
-                      </span>
+                      {shirtsEnabled && (
+                        <span className="don-guest-shirt-note">
+                          {g.wantsShirt ? `T-shirt ${g.tshirtSize ? sizeLabel(g.tshirtSize) : ''} +${dollars(shirtCost)}` : 'No T-shirt'}
+                        </span>
+                      )}
                       <button
                         className="don-guest-remove"
                         onClick={() => removeGuest(g.tempId)}
@@ -496,21 +503,25 @@ export default function Donations() {
                   <option value="CHILD">{ageLabel('CHILD')}</option>
                   <option value="INFANT">{ageLabel('INFANT')}</option>
                 </select>
-                <label className="don-shirt-toggle">
-                  <input
-                    type="checkbox"
-                    checked={guestWantsShirt}
-                    onChange={() => { setGuestWantsShirt(v => !v); setGuestSize(''); }}
-                  />
-                  <span>T-shirt +{dollars(shirtCost)}</span>
-                </label>
-                {guestWantsShirt && (
-                  <SizeSelect
-                    ageGroup={guestAgeGroup}
-                    value={guestSize}
-                    onChange={setGuestSize}
-                    ariaLabel="Guest T-shirt size"
-                  />
+                {shirtsEnabled && (
+                  <>
+                    <label className="don-shirt-toggle">
+                      <input
+                        type="checkbox"
+                        checked={guestWantsShirt}
+                        onChange={() => { setGuestWantsShirt(v => !v); setGuestSize(''); }}
+                      />
+                      <span>T-shirt +{dollars(shirtCost)}</span>
+                    </label>
+                    {guestWantsShirt && (
+                      <SizeSelect
+                        ageGroup={guestAgeGroup}
+                        value={guestSize}
+                        onChange={setGuestSize}
+                        ariaLabel="Guest T-shirt size"
+                      />
+                    )}
+                  </>
                 )}
                 <button className="don-guest-add-btn" onClick={handleAddGuest} disabled={!guestFormValid}>
                   Add
@@ -534,12 +545,14 @@ export default function Donations() {
               <span>Gift</span>
               <span>{dollars(donationDollars)}</span>
             </div>
-            <div className="don-summary-row">
-              <span>
-                {shirtCount} {shirtCount === 1 ? 'T-shirt' : 'T-shirts'}
-              </span>
-              <span>{dollars(shirtTotal)}</span>
-            </div>
+            {shirtsEnabled && (
+              <div className="don-summary-row">
+                <span>
+                  {shirtCount} {shirtCount === 1 ? 'T-shirt' : 'T-shirts'}
+                </span>
+                <span>{dollars(shirtTotal)}</span>
+              </div>
+            )}
             <div className="don-summary-row don-summary-total">
               <span>Total</span>
               <span>{dollars(total)}</span>

@@ -573,6 +573,17 @@ describe('API Request Type Contracts', () => {
     expect(req.amount).toBe(shirtCents);
   });
 
+  it('FeeSchedule carries the donation-shirts switch, off by default', async () => {
+    const { getFees, donationShirtsEnabled, setFees } = await import('./constants/ageGroups');
+    // Mirrors app.features.donation-shirts. Off until the server says otherwise, so a page that
+    // renders before /fees answers never shows a shirt it may not sell.
+    expect(getFees().DONATION_SHIRTS_ENABLED).toBe(false);
+    expect(donationShirtsEnabled()).toBe(false);
+    setFees({ ...getFees(), DONATION_SHIRTS_ENABLED: true });
+    expect(donationShirtsEnabled()).toBe(true);
+    setFees({ ...getFees(), DONATION_SHIRTS_ENABLED: false });
+  });
+
   it('FeeSchedule carries the shirt price alongside the age-group fees', async () => {
     const { getFees, shirtPrice } = await import('./constants/ageGroups');
     const fees = getFees();

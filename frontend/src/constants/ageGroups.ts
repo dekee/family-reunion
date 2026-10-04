@@ -15,6 +15,7 @@ const DEFAULT_FEES: FeeSchedule = {
   CHILD: 5000,
   INFANT: 1500,
   SHIRT: 1500,
+  DONATION_SHIRTS_ENABLED: false,
 };
 
 let currentFees: FeeSchedule = DEFAULT_FEES;
@@ -33,6 +34,11 @@ export function getFees(): FeeSchedule {
  */
 export function shirtPrice(): number {
   return currentFees.SHIRT / 100;
+}
+
+/** Whether the donations page offers T-shirts. A server switch, so a toggle needs no frontend rebuild. */
+export function donationShirtsEnabled(): boolean {
+  return currentFees.DONATION_SHIRTS_ENABLED;
 }
 
 function buildAgeGroups(): Record<AgeGroup, AgeGroupConfig> {
