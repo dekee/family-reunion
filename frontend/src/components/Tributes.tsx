@@ -41,7 +41,7 @@ const PILLARS: Pillar[] = [
   { firstName: 'Gail', displayName: 'Gail', colorName: 'Mint Green', hex: '#A9CBB7', ink: '#5F8A72' },
   { firstName: 'Chantell', displayName: 'Chantel', colorName: 'Purple', hex: '#5C2D91', ink: '#4C2478' },
   { firstName: 'Wesley', displayName: 'Wesley', colorName: 'Tennessee Orange', hex: '#F77F00', ink: '#C56500' },
-  { firstName: 'Donald', displayName: 'Donald', colorName: 'Orange', hex: '#F4633A', ink: '#CE4519' },
+  { firstName: 'Donald', displayName: 'Donald', colorName: 'Sky', hex: '#71C5E8', ink: '#2B7FAF' },
   { firstName: 'Michael', displayName: 'Michael', colorName: 'Turf Green', hex: '#4A7729', ink: '#3B6021' },
   { firstName: 'Norris', displayName: 'Norris', colorName: 'Sand', hex: '#CABF9F', ink: '#8B7E58' },
 ];
