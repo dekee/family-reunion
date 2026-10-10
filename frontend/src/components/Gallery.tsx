@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { fetchGalleryPhotos, uploadGalleryPhotos } from '../api';
+import { fetchGalleryPhotos, uploadGalleryPhotos, GALLERY_URL, MEMORIAL_GALLERY_URL } from '../api';
 import type { GalleryPhoto } from '../types';
 import { SkeletonCard } from './Skeleton';
 import './Gallery.css';
@@ -12,7 +12,30 @@ interface GallerySection {
   items: { photo: GalleryPhoto; flatIndex: number }[];
 }
 
-export default function Gallery() {
+// Each album is the same page pointed at a different Drive folder.
+const ALBUMS = {
+  gallery: {
+    apiUrl: GALLERY_URL,
+    title: 'Photo Gallery',
+    tagline: 'Family memories shared together',
+    shareLabel: '📷 Share Your Photos',
+    uploadHint: "Enter the family password and pick your photos — they'll be added to the shared album.",
+    viewStorageKey: 'gallery-view',
+  },
+  memorial: {
+    apiUrl: MEMORIAL_GALLERY_URL,
+    title: 'In Loving Memory',
+    tagline: 'Honoring the family who have gone before us',
+    shareLabel: '🕊️ Share a Memorial Photo',
+    uploadHint: "Enter the family password and pick your photos — they'll be added to the memorial album.",
+    viewStorageKey: 'memorial-gallery-view',
+  },
+} as const;
+
+export type GalleryAlbum = keyof typeof ALBUMS;
+
+export default function Gallery({ album = 'gallery' }: { album?: GalleryAlbum }) {
+  const config = ALBUMS[album];
   const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -23,11 +46,11 @@ export default function Gallery() {
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const [view, setView] = useState<GalleryView>(() =>
-    localStorage.getItem('gallery-view') === 'byDate' ? 'byDate' : 'masonry'
+    localStorage.getItem(config.viewStorageKey) === 'byDate' ? 'byDate' : 'masonry'
   );
   const changeView = (v: GalleryView) => {
     setView(v);
-    localStorage.setItem('gallery-view', v);
+    localStorage.setItem(config.viewStorageKey, v);
   };
 
   // Group photos by month of date-taken (EXIF), falling back to upload time.
@@ -76,7 +99,7 @@ export default function Gallery() {
       } else {
         setLoading(true);
       }
-      const data = await fetchGalleryPhotos(pageToken);
+      const data = await fetchGalleryPhotos(pageToken, config.apiUrl);
       setPhotos(prev => pageToken ? [...prev, ...data.photos] : data.photos);
       setNextPageToken(data.nextPageToken);
       setTotalCount(data.totalCount);
@@ -89,7 +112,7 @@ export default function Gallery() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, []);
+  }, [config.apiUrl]);
 
   useEffect(() => {
     loadPhotos();
@@ -135,7 +158,7 @@ export default function Gallery() {
         files = await Promise.all(selectedFiles.map(convertIfHeic));
       }
       setUploadStatus('Uploading…');
-      const result = await uploadGalleryPhotos(uploadPassword, files);
+      const result = await uploadGalleryPhotos(uploadPassword, files, config.apiUrl);
       setUploadSuccess(`${result.uploaded} photo${result.uploaded === 1 ? '' : 's'} uploaded!`);
       setSelectedFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -166,10 +189,10 @@ export default function Gallery() {
 
   if (error) {
     return (
-      <div className="gallery-page">
+      <div className={`gallery-page gallery-page--${album}`}>
         <div className="page-header">
-          <h2>Photo Gallery</h2>
-          <p>Family memories shared together</p>
+          <h2>{config.title}</h2>
+          <p>{config.tagline}</p>
         </div>
         <div className="gallery-empty">
           <p>Gallery is not available right now.</p>
@@ -180,15 +203,15 @@ export default function Gallery() {
   }
 
   return (
-    <div className="gallery-page">
+    <div className={`gallery-page gallery-page--${album}`}>
       <div className="page-header">
-        <h2>Photo Gallery</h2>
-        <p>{totalCount > 0 ? `${totalCount} photos` : 'Family memories shared together'}</p>
+        <h2>{config.title}</h2>
+        <p>{totalCount > 0 ? `${totalCount} photos` : config.tagline}</p>
         <button
           className="gallery-upload-toggle"
           onClick={() => { setShowUpload(!showUpload); setUploadError(null); setUploadSuccess(null); }}
         >
-          {showUpload ? 'Close' : '📷 Share Your Photos'}
+          {showUpload ? 'Close' : config.shareLabel}
         </button>
         <div className="gallery-view-toggle" role="group" aria-label="Gallery layout">
           <button
@@ -209,9 +232,7 @@ export default function Gallery() {
       {showUpload && (
         <div className="gallery-upload-panel">
           <h3>Upload Photos</h3>
-          <p className="gallery-upload-hint">
-            Enter the family password and pick your photos — they'll be added to the shared album.
-          </p>
+          <p className="gallery-upload-hint">{config.uploadHint}</p>
           <input
             type="password"
             className="gallery-upload-password"

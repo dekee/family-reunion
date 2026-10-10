@@ -5,17 +5,19 @@ import com.familyreunion.rsvp.dto.GalleryResponse
 import com.google.api.client.http.GenericUrl
 import com.google.api.services.drive.Drive
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.http.HttpStatus
-import org.springframework.stereotype.Service
 import org.springframework.web.server.ResponseStatusException
 
-@Service
-@ConditionalOnProperty("google.drive.credentials-file")
+/**
+ * One photo album backed by a single Google Drive folder. Each album (the main gallery, the
+ * memorial album) is its own instance with its own folder and caches — see [GalleryConfig].
+ *
+ * @param apiBase the controller path this album is served under, used to build photo URLs.
+ */
 class GalleryService(
     private val drive: Drive,
-    @Value("\${google.drive.folder-id}") private val folderId: String
+    private val folderId: String,
+    private val apiBase: String = "/api/gallery"
 ) {
     private val logger = LoggerFactory.getLogger(GalleryService::class.java)
 
@@ -82,8 +84,8 @@ class GalleryService(
                     GalleryPhoto(
                         id = file.id,
                         name = file.name,
-                        thumbnailUrl = "/api/gallery/photo/${file.id}?size=thumbnail",
-                        fullUrl = "/api/gallery/photo/${file.id}",
+                        thumbnailUrl = "$apiBase/photo/${file.id}?size=thumbnail",
+                        fullUrl = "$apiBase/photo/${file.id}",
                         width = file.imageMediaMetadata?.width,
                         height = file.imageMediaMetadata?.height,
                         createdTime = file.createdTime?.toStringRfc3339(),
@@ -174,9 +176,6 @@ class GalleryService(
         }
     }
 
-
-
-
     fun uploadPhoto(filename: String, contentType: String, bytes: ByteArray): GalleryPhoto {
         val metadata = com.google.api.services.drive.model.File().apply {
             name = filename
@@ -195,8 +194,8 @@ class GalleryService(
         return GalleryPhoto(
             id = uploaded.id,
             name = uploaded.name,
-            thumbnailUrl = "/api/gallery/photo/${uploaded.id}?size=thumbnail",
-            fullUrl = "/api/gallery/photo/${uploaded.id}",
+            thumbnailUrl = "$apiBase/photo/${uploaded.id}?size=thumbnail",
+            fullUrl = "$apiBase/photo/${uploaded.id}",
             width = uploaded.imageMediaMetadata?.width,
             height = uploaded.imageMediaMetadata?.height,
             createdTime = uploaded.createdTime?.toStringRfc3339(),

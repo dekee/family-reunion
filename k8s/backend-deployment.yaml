@@ -118,6 +118,10 @@ spec:
                 secretKeyRef:
                   name: gallery-secret
                   key: GOOGLE_DRIVE_FOLDER_ID
+            # Memorial album's Drive folder ("Tumblin Family Memorial Photos"). Not a secret:
+            # the id grants nothing without the Drive credentials above.
+            - name: GOOGLE_DRIVE_MEMORIAL_FOLDER_ID
+              value: "1_QmOi8rP5Wg4AoCDEMfWKiFlOTehPd2P"
             # Drive OAuth (folder owner) — needed for photo uploads; optional so the
             # pod still starts on clusters where the secret lacks these keys.
             - name: GOOGLE_DRIVE_OAUTH_CLIENT_ID

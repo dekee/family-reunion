@@ -1,8 +1,11 @@
 package com.familyreunion.rsvp.controller
 
+import com.familyreunion.rsvp.config.GalleryConfig
 import com.familyreunion.rsvp.dto.GalleryResponse
 import com.familyreunion.rsvp.service.GalleryService
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.http.CacheControl
 import org.springframework.http.HttpStatus
@@ -18,8 +21,24 @@ import java.util.concurrent.TimeUnit
 @RequestMapping("/api/gallery")
 @ConditionalOnProperty("google.drive.credentials-file")
 class GalleryController(
+    @Qualifier("galleryService") galleryService: GalleryService,
+    @Value("\${app.gallery.upload-password}") uploadPassword: String
+) : AlbumController(galleryService, uploadPassword)
+
+/** The memorial album: same endpoints as the main gallery, backed by its own Drive folder. */
+@RestController
+@RequestMapping(GalleryConfig.MEMORIAL_API_BASE)
+@ConditionalOnProperty("google.drive.credentials-file")
+@ConditionalOnExpression("!'\${google.drive.memorial-folder-id:}'.isBlank()")
+class MemorialGalleryController(
+    @Qualifier("memorialGalleryService") galleryService: GalleryService,
+    @Value("\${app.gallery.upload-password}") uploadPassword: String
+) : AlbumController(galleryService, uploadPassword)
+
+/** Endpoints shared by every photo album; subclasses supply the path and the album's service. */
+abstract class AlbumController(
     private val galleryService: GalleryService,
-    @Value("\${app.gallery.upload-password}") private val uploadPassword: String
+    private val uploadPassword: String
 ) {
 
     @GetMapping

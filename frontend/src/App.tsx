@@ -243,6 +243,7 @@ function App() {
               <NavLink to="/members" onClick={closeMenu}>Members</NavLink>
               <NavLink to="/family-tree" onClick={closeMenu}>Family Tree</NavLink>
               <NavLink to="/gallery" onClick={closeMenu}>Gallery</NavLink>
+              <NavLink to="/memorial" onClick={closeMenu}>Memorial</NavLink>
               <NavLink to="/tributes" onClick={closeMenu}>Tributes</NavLink>
               <NavLink to="/thank-you" onClick={closeMenu}>Thank You</NavLink>
               {isAdmin && <AdminMenu onNavigate={closeMenu} />}
@@ -265,6 +266,8 @@ function App() {
               <Route path="/members" element={<FamilyMembers />} />
               <Route path="/family-tree" element={<FamilyTree />} />
               <Route path="/gallery" element={<Gallery />} />
+              {/* key: a fresh instance so photos/state don't carry over between albums */}
+              <Route path="/memorial" element={<Gallery key="memorial" album="memorial" />} />
               <Route path="/tshirt-survey" element={<TshirtSurvey />} />
               <Route path="/tshirt-design" element={<TshirtDesignVote />} />
               <Route path="/tributes" element={<Tributes />} />

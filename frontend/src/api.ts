@@ -419,24 +419,26 @@ export async function fetchCheckinStatus(): Promise<{ total: number; checkedIn: 
 
 // --- Gallery ---
 
-const GALLERY_URL = '/api/gallery';
+export const GALLERY_URL = '/api/gallery';
+// Memorial album: same API as the gallery, backed by its own Drive folder.
+export const MEMORIAL_GALLERY_URL = '/api/gallery/memorial';
 
-export async function fetchGalleryPhotos(pageToken?: string): Promise<GalleryResponse> {
+export async function fetchGalleryPhotos(pageToken?: string, baseUrl = GALLERY_URL): Promise<GalleryResponse> {
   const params = new URLSearchParams();
   if (pageToken) params.set('pageToken', pageToken);
-  const url = params.toString() ? `${GALLERY_URL}?${params}` : GALLERY_URL;
+  const url = params.toString() ? `${baseUrl}?${params}` : baseUrl;
   const res = await fetch(url);
   return handleResponse(res);
 }
 
-export async function uploadGalleryPhotos(password: string, files: File[]): Promise<GalleryUploadResponse> {
+export async function uploadGalleryPhotos(password: string, files: File[], baseUrl = GALLERY_URL): Promise<GalleryUploadResponse> {
   const formData = new FormData();
   formData.append('password', password);
   files.forEach((file) => formData.append('files', file));
   // No Content-Type header — the browser sets the multipart boundary itself.
   // Not using handleResponse: a wrong upload password returns 403, which would
   // wrongly clear a logged-in admin's auth token there.
-  const res = await fetch(`${GALLERY_URL}/upload`, {
+  const res = await fetch(`${baseUrl}/upload`, {
     method: 'POST',
     body: formData,
   });

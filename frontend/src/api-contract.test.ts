@@ -917,6 +917,20 @@ describe('API Client Endpoint Contracts', () => {
     expect(result.uploaded).toBe(1);
   });
 
+  it('memorial album calls /api/gallery/memorial for listing and upload', async () => {
+    mockFetch({ photos: [], nextPageToken: null, totalCount: 0 });
+    const { fetchGalleryPhotos, uploadGalleryPhotos, MEMORIAL_GALLERY_URL } = await import('./api');
+    await fetchGalleryPhotos(undefined, MEMORIAL_GALLERY_URL);
+    expect(fetchCalls[0].url).toBe('/api/gallery/memorial');
+    await fetchGalleryPhotos('50', MEMORIAL_GALLERY_URL);
+    expect(fetchCalls[1].url).toBe('/api/gallery/memorial?pageToken=50');
+    mockFetch({ uploaded: 1, photos: [] });
+    const file = new File([new Uint8Array([1])], 'pic.jpg', { type: 'image/jpeg' });
+    await uploadGalleryPhotos('tumblin2026', [file], MEMORIAL_GALLERY_URL);
+    expect(fetchCalls[fetchCalls.length - 1].url).toBe('/api/gallery/memorial/upload');
+    expect(fetchCalls[fetchCalls.length - 1].method).toBe('POST');
+  });
+
   it('uploadGalleryPhotos throws on wrong password without clearing auth token', async () => {
     localStorage.setItem('auth_token', 'admin-token');
     mockFetch({ error: 'Forbidden' }, 403);

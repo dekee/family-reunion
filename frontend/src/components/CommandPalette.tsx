@@ -20,6 +20,7 @@ const ALL_ITEMS: NavItem[] = [
   { label: 'Members', path: '/members' },
   { label: 'Family Tree', path: '/family-tree' },
   { label: 'Gallery', path: '/gallery' },
+  { label: 'Memorial', path: '/memorial' },
   { label: 'Tributes', path: '/tributes' },
   { label: 'Thank You', path: '/thank-you' },
   { label: 'RSVP', path: '/rsvp', admin: true },
