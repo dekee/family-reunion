@@ -218,6 +218,29 @@ class SecurityIntegrationTest @Autowired constructor(
             .andExpect(status().isUnauthorized)
     }
 
+    @Test
+    fun `GET pillar photos should be public`() {
+        mockMvc.perform(get("/api/tributes/photos"))
+            .andExpect(status().isOk)
+    }
+
+    @Test
+    fun `POST pillar photo should be public`() {
+        // Wrong password → 403 from the controller (not 401), proving the endpoint is reachable without auth
+        mockMvc.perform(
+            multipart("/api/tributes/photos/1")
+                .file(org.springframework.mock.web.MockMultipartFile("file", "p.jpg", "image/jpeg", byteArrayOf(1)))
+                .param("password", "wrong")
+        )
+            .andExpect(status().isForbidden)
+    }
+
+    @Test
+    fun `DELETE pillar photo should return 401 without auth`() {
+        mockMvc.perform(delete("/api/tributes/photos/1"))
+            .andExpect(status().isUnauthorized)
+    }
+
     // --- Volunteer tasks ---
 
     @Test

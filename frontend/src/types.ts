@@ -411,6 +411,11 @@ export interface TributeResponse {
   updatedAt: string;
 }
 
+export interface PillarPhotoInfo {
+  siblingId: number;
+  version: number;
+}
+
 export interface TributeRequest {
   siblingId: number;
   authorId: number;

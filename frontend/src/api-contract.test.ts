@@ -1098,6 +1098,46 @@ describe('API Client Endpoint Contracts', () => {
 });
 
 describe('Tribute API Contracts', () => {
+  it('fetchPillarPhotos calls GET /api/tributes/photos', async () => {
+    mockFetch([{ siblingId: 2, version: 1760000000000 }]);
+    const { fetchPillarPhotos, pillarPhotoUrl } = await import('./api');
+    const result = await fetchPillarPhotos();
+    expect(fetchCalls[0].url).toBe('/api/tributes/photos');
+    expect(fetchCalls[0].method).toBe('GET');
+    expect(result[0].siblingId).toBe(2);
+    expect(pillarPhotoUrl(2, 1760000000000)).toBe('/api/tributes/photos/2?v=1760000000000');
+  });
+
+  it('uploadPillarPhoto calls POST /api/tributes/photos/{siblingId} with multipart form data', async () => {
+    mockFetch({ siblingId: 2, version: 1760000000000 });
+    const { uploadPillarPhoto } = await import('./api');
+    const file = new Blob([new Uint8Array([1, 2, 3])], { type: 'image/jpeg' });
+    const result = await uploadPillarPhoto(2, 'tumblin2026', file);
+    expect(fetchCalls[0].url).toBe('/api/tributes/photos/2');
+    expect(fetchCalls[0].method).toBe('POST');
+    const body = fetchCalls[0].body as unknown as FormData;
+    expect(body.get('password')).toBe('tumblin2026');
+    expect(body.get('file')).toBeTruthy();
+    expect(result.version).toBe(1760000000000);
+  });
+
+  it('uploadPillarPhoto throws on wrong password without clearing auth token', async () => {
+    localStorage.setItem('auth_token', 'admin-token');
+    mockFetch({ error: 'Forbidden' }, 403);
+    const { uploadPillarPhoto } = await import('./api');
+    await expect(uploadPillarPhoto(2, 'wrong', new Blob([new Uint8Array([1])]))).rejects.toThrow('Incorrect password');
+    expect(localStorage.getItem('auth_token')).toBe('admin-token');
+    localStorage.removeItem('auth_token');
+  });
+
+  it('deletePillarPhoto calls DELETE /api/tributes/photos/{siblingId} with auth', async () => {
+    mockFetch(undefined, 204);
+    const { deletePillarPhoto } = await import('./api');
+    await deletePillarPhoto(2);
+    expect(fetchCalls[0].url).toBe('/api/tributes/photos/2');
+    expect(fetchCalls[0].method).toBe('DELETE');
+  });
+
   it('fetchTributes calls GET /api/tributes', async () => {
     mockFetch([]);
     const { fetchTributes } = await import('./api');

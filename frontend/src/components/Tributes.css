@@ -134,6 +134,30 @@
   margin-bottom: 0.35rem;
 }
 
+/* Photo that replaces the leaf; the ring color is set inline from the pillar's hex. */
+.pillar-portrait {
+  display: block;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 5px solid var(--pillar-hex);
+  object-fit: cover;
+  background: var(--tribute-cream-card);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.22);
+  flex-shrink: 0;
+}
+
+.pillar-card .pillar-portrait {
+  margin: 0.25rem 0 0.7rem;
+}
+
+.tribute-detail-header .pillar-portrait {
+  border-width: 3px;
+}
+
+[data-theme='dark'] .pillar-portrait {
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+}
+
 .pillar-name {
   font-family: 'Snell Roundhand', 'Savoye LET', 'Brush Script MT', cursive;
   font-size: 1.7rem;
@@ -298,6 +322,65 @@
 .tribute-delete:hover {
   background: var(--color-error);
   color: #fff;
+}
+
+/* ── Pillar photo upload ── */
+.pillar-photo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: -0.5rem 0 1.25rem;
+}
+
+.btn-pillar-photo {
+  background: transparent;
+  border: 1px solid var(--pillar-ink);
+  color: var(--pillar-ink);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.4rem 1rem;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.btn-pillar-photo:hover {
+  background: var(--pillar-ink);
+  color: #fff;
+}
+
+[data-theme='dark'] .btn-pillar-photo {
+  border-color: var(--pillar-hex);
+  color: var(--pillar-hex);
+}
+
+[data-theme='dark'] .btn-pillar-photo:hover {
+  background: var(--pillar-hex);
+  color: #fff;
+}
+
+.btn-pillar-photo-remove {
+  border-color: var(--tribute-border);
+  color: var(--color-text-secondary);
+}
+
+.pillar-photo-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+  max-width: 420px;
+}
+
+.pillar-photo-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--tribute-brown);
+}
+
+.pillar-photo-file {
+  font-size: 0.9rem;
+  color: var(--tribute-brown);
+  max-width: 100%;
 }
 
 /* ── Share flow ── */

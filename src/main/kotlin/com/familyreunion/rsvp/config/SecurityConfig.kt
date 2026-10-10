@@ -80,6 +80,7 @@ class SecurityConfig(
                 auth.requestMatchers(HttpMethod.POST, "/api/slogans/vote").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/designs/vote").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/tributes").permitAll()
+                auth.requestMatchers(HttpMethod.POST, "/api/tributes/photos/*").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/volunteer-tasks/*/signup").permitAll()
                 auth.requestMatchers(HttpMethod.DELETE, "/api/volunteer-tasks/*/signup/**").permitAll()
 

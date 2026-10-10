@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import {
   fetchTributes, submitTribute, deleteTribute, fetchFamilyTree,
   fetchVolunteerTasks, signUpForTask, withdrawFromTask,
+  fetchPillarPhotos, pillarPhotoUrl, uploadPillarPhoto, deletePillarPhoto,
 } from '../api';
 import { useAuth } from '../AuthContext';
 import { useToast } from './Toast';
@@ -91,6 +92,50 @@ function Leaf({ fill, size = 84 }: { fill: string; size?: number }) {
   );
 }
 
+// Once a pillar has a photo it replaces the leaf: a round portrait ringed in
+// the pillar's chosen color. `size` is the diameter.
+function PillarPortrait({ src, name, hex, size }: { src: string; name: string; hex: string; size: number }) {
+  return (
+    <img
+      className="pillar-portrait"
+      src={src}
+      alt={name}
+      width={size}
+      height={size}
+      style={{ borderColor: hex }}
+    />
+  );
+}
+
+// Shrink to a ~600px JPEG in the browser so phone photos upload fast and stay small in the DB.
+const PORTRAIT_MAX_EDGE = 600;
+function downscaleImage(file: File): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, PORTRAIT_MAX_EDGE / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('Could not process image')); return; }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error('Could not process image'))),
+        'image/jpeg',
+        0.85,
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("That file couldn't be read as an image — try a JPEG or PNG"));
+    };
+    img.src = url;
+  });
+}
+
 interface FlatMember {
   id: number;
   name: string;
@@ -132,15 +177,22 @@ export default function Tributes() {
   const [story, setStory] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [writing, setWriting] = useState(false);
+  // sibling member id → photo version (for cache busting)
+  const [photoVersions, setPhotoVersions] = useState<Map<number, number>>(new Map());
+  const [photoFormOpen, setPhotoFormOpen] = useState(false);
+  const [photoPassword, setPhotoPassword] = useState('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const detailRef = useRef<HTMLDivElement>(null);
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
 
   const load = () => {
-    Promise.all([fetchTributes(), fetchFamilyTree(), fetchVolunteerTasks()])
-      .then(([t, tree, tasks]) => {
+    Promise.all([fetchTributes(), fetchFamilyTree(), fetchVolunteerTasks(), fetchPillarPhotos()])
+      .then(([t, tree, tasks, photos]) => {
         setTributes(t);
+        setPhotoVersions(new Map(photos.map((ph) => [ph.siblingId, ph.version])));
         setMembers(flattenTree(tree.roots));
         const tributeTasks = tasks.filter((task) => isTributeTask(task.title));
         // Show in pillar order; honorees that aren't pillars go last
@@ -186,6 +238,12 @@ export default function Tributes() {
     : [];
   const myExisting = pillarTributes.find((t) => t.authorId === selectedMemberId);
 
+  const photoSrc = (p: Pillar) => {
+    const id = siblingIds.get(p.firstName);
+    const version = id !== undefined ? photoVersions.get(id) : undefined;
+    return id !== undefined && version !== undefined ? pillarPhotoUrl(id, version) : null;
+  };
+
   const tributeCount = (p: Pillar) => {
     const id = siblingIds.get(p.firstName);
     return tributes.filter((t) => t.siblingId === id).length;
@@ -207,6 +265,8 @@ export default function Tributes() {
     setSelectedPillar(p);
     setWriting(false);
     setStory('');
+    setPhotoFormOpen(false);
+    setPhotoFile(null);
     setTimeout(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
@@ -258,6 +318,34 @@ export default function Tributes() {
       load();
     } catch (err: any) {
       showToast(err.message || 'Failed to delete tribute', 'error');
+    }
+  };
+
+  const handleUploadPhoto = async () => {
+    if (!selectedSiblingId || !photoFile || !photoPassword) return;
+    setUploadingPhoto(true);
+    try {
+      const resized = await downscaleImage(photoFile);
+      await uploadPillarPhoto(selectedSiblingId, photoPassword, resized);
+      showToast('Photo added. Thank you!');
+      setPhotoFormOpen(false);
+      setPhotoFile(null);
+      load();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to upload photo', 'error');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    if (!selectedSiblingId || !window.confirm('Remove this photo? The leaf will show again.')) return;
+    try {
+      await deletePillarPhoto(selectedSiblingId);
+      showToast('Photo removed');
+      load();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to remove photo', 'error');
     }
   };
 
@@ -323,6 +411,7 @@ export default function Tributes() {
           <div className="pillar-grid">
             {PILLARS.map((p, i) => {
               const count = tributeCount(p);
+              const photo = photoSrc(p);
               const selected = selectedPillar?.firstName === p.firstName;
               return (
                 <button
@@ -332,7 +421,7 @@ export default function Tributes() {
                   onClick={() => handleSelectPillar(p)}
                 >
                   <span className="pillar-number">{i + 1}.</span>
-                  <Leaf fill={p.hex} />
+                  {photo ? <PillarPortrait src={photo} name={p.displayName} hex={p.hex} size={100} /> : <Leaf fill={p.hex} />}
                   <span className="pillar-name">{p.displayName}</span>
                   <span className="pillar-color-name">{p.colorName}</span>
                   <span className="pillar-divider">
@@ -443,12 +532,74 @@ export default function Tributes() {
           style={{ '--pillar-hex': selectedPillar.hex, '--pillar-ink': selectedPillar.ink } as React.CSSProperties}
         >
           <div className="tribute-detail-header">
-            <Leaf fill={selectedPillar.hex} size={40} />
+            {photoSrc(selectedPillar) ? (
+              <PillarPortrait
+                src={photoSrc(selectedPillar)!}
+                name={selectedPillar.displayName}
+                hex={selectedPillar.hex}
+                size={56}
+              />
+            ) : (
+              <Leaf fill={selectedPillar.hex} size={40} />
+            )}
             <div>
               <h3>Tributes to {selectedPillar.displayName}</h3>
               <span className="tribute-detail-colorname">{selectedPillar.colorName}</span>
             </div>
           </div>
+
+          {selectedSiblingId !== undefined && (
+            <div className="pillar-photo-controls">
+              {!photoFormOpen ? (
+                <>
+                  <button className="btn-pillar-photo" onClick={() => setPhotoFormOpen(true)}>
+                    {photoSrc(selectedPillar) ? 'Replace photo' : `Add a photo of ${selectedPillar.displayName}`}
+                  </button>
+                  {isAdmin && photoSrc(selectedPillar) && (
+                    <button className="btn-pillar-photo btn-pillar-photo-remove" onClick={handleRemovePhoto}>
+                      Remove photo
+                    </button>
+                  )}
+                </>
+              ) : (
+                <div className="pillar-photo-form">
+                  <p className="pillar-photo-hint">
+                    Enter the family password and choose a photo of {selectedPillar.displayName}.
+                    It will appear in a circle outlined in {selectedPillar.colorName.toLowerCase()}.
+                  </p>
+                  <input
+                    type="password"
+                    className="tribute-member-search"
+                    placeholder="Family password"
+                    value={photoPassword}
+                    onChange={(e) => setPhotoPassword(e.target.value)}
+                    autoComplete="off"
+                  />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="pillar-photo-file"
+                    onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
+                  />
+                  <div className="tribute-form-actions">
+                    <button
+                      className="btn-cancel-tribute"
+                      onClick={() => { setPhotoFormOpen(false); setPhotoFile(null); }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="btn-share-tribute"
+                      onClick={handleUploadPhoto}
+                      disabled={uploadingPhoto || !photoPassword || !photoFile}
+                    >
+                      {uploadingPhoto ? 'Uploading...' : 'Upload Photo'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {pillarTributes.length === 0 ? (
             <p className="tribute-empty">

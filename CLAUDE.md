@@ -21,6 +21,8 @@
 - RSVP creation (POST) is public; RSVP editing (PUT) requires admin auth.
 - T-shirt sizes live on `payment_line_items.tshirt_size` (not on Attendee — those rows are wiped on RSVP edit). Two public PUT endpoints edit them: `/api/payments/line-items/{id}/size` (needs matching `rsvpId`) and `/api/checkin/ticket/{token}/sizes`. Both require a COMPLETED payment. Any known size is accepted for anyone (`TshirtSize.parse`); age group only orders the dropdown.
 
+- Pillar photos (Tributes page): `POST /api/tributes/photos/{siblingId}` is public but checks the shared family password (`app.gallery.upload-password`) and only accepts the founders' children. Stored as `bytea` in `pillar_photos`. DELETE is admin-only via the catch-all.
+
 ## Feature Switches
 - Backend `FeatureConfig` (`app.features.*`), each backed by an env var; reported to the frontend via `GET /api/payments/fees`.
 - `FEATURE_DONATION_SHIRTS` (default `false`): T-shirt add-on on the Give page. The UI hides it and `/api/payments/contribute` rejects `wantsShirt` while off. Toggle without a rebuild: edit `k8s/backend-deployment.yaml` (homelab via ArgoCD) and on OCI run `kubectl set env deployment/backend FEATURE_DONATION_SHIRTS=true -n family-reunion`.

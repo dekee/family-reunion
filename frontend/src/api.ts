@@ -1,4 +1,4 @@
-import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, PaymentDetailResponse, CheckoutRequest, DonationCheckoutRequest, ContributionCheckoutRequest, RevenueBreakdown, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse, GalleryUploadResponse, AngelContributor, SloganResponse, SloganVoteRequest, DesignResponse, DesignVoteRequest, TributeResponse, TributeRequest, VolunteerTaskRequest, VolunteerTaskResponse, VolunteerSignupRequest, UpdateLineItemSizeRequest, LineItemSizeResponse, UpdateTicketSizesRequest } from './types';
+import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, PaymentDetailResponse, CheckoutRequest, DonationCheckoutRequest, ContributionCheckoutRequest, RevenueBreakdown, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse, GalleryUploadResponse, AngelContributor, SloganResponse, SloganVoteRequest, DesignResponse, DesignVoteRequest, TributeResponse, TributeRequest, PillarPhotoInfo, VolunteerTaskRequest, VolunteerTaskResponse, VolunteerSignupRequest, UpdateLineItemSizeRequest, LineItemSizeResponse, UpdateTicketSizesRequest } from './types';
 
 const BASE_URL = '/api/rsvp';
 
@@ -518,6 +518,48 @@ export async function submitTribute(data: TributeRequest): Promise<TributeRespon
 
 export async function deleteTribute(id: number): Promise<void> {
   const res = await fetch(`${TRIBUTES_URL}/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+// --- Pillar Photos ---
+
+const PILLAR_PHOTOS_URL = `${TRIBUTES_URL}/photos`;
+
+export async function fetchPillarPhotos(): Promise<PillarPhotoInfo[]> {
+  const res = await fetch(PILLAR_PHOTOS_URL);
+  return handleResponse(res);
+}
+
+// `version` changes on every replace, so the URL doubles as a cache buster.
+export function pillarPhotoUrl(siblingId: number, version: number): string {
+  return `${PILLAR_PHOTOS_URL}/${siblingId}?v=${version}`;
+}
+
+export async function uploadPillarPhoto(siblingId: number, password: string, file: Blob): Promise<PillarPhotoInfo> {
+  const formData = new FormData();
+  formData.append('password', password);
+  formData.append('file', file, 'pillar.jpg');
+  // Same as uploadGalleryPhotos: no Content-Type header, and a 403 for a wrong
+  // password is handled here so it doesn't clear a logged-in admin's token.
+  const res = await fetch(`${PILLAR_PHOTOS_URL}/${siblingId}`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (res.status === 403) {
+    throw new Error('Incorrect password');
+  }
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ message: 'Upload failed' }));
+    throw new Error(error.error || error.message || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function deletePillarPhoto(siblingId: number): Promise<void> {
+  const res = await fetch(`${PILLAR_PHOTOS_URL}/${siblingId}`, {
     method: 'DELETE',
     headers: authHeaders(),
   });
