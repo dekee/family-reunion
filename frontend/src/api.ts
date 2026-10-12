@@ -534,14 +534,19 @@ export async function fetchPillarPhotos(): Promise<PillarPhotoInfo[]> {
 }
 
 // `version` changes on every replace, so the URL doubles as a cache buster.
-export function pillarPhotoUrl(siblingId: number, version: number): string {
-  return `${PILLAR_PHOTOS_URL}/${siblingId}?v=${version}`;
+// 'thumbnail' is the small copy used on the page; 'full' is the original as uploaded.
+export function pillarPhotoUrl(siblingId: number, version: number, size: 'thumbnail' | 'full' = 'thumbnail'): string {
+  const sizeParam = size === 'thumbnail' ? '&size=thumbnail' : '';
+  return `${PILLAR_PHOTOS_URL}/${siblingId}?v=${version}${sizeParam}`;
 }
 
-export async function uploadPillarPhoto(siblingId: number, password: string, file: Blob): Promise<PillarPhotoInfo> {
+export async function uploadPillarPhoto(
+  siblingId: number, password: string, file: File, thumbnail: Blob,
+): Promise<PillarPhotoInfo> {
   const formData = new FormData();
   formData.append('password', password);
-  formData.append('file', file, 'pillar.jpg');
+  formData.append('file', file, file.name || 'pillar.jpg');
+  formData.append('thumbnail', thumbnail, 'thumbnail.jpg');
   // Same as uploadGalleryPhotos: no Content-Type header, and a 403 for a wrong
   // password is handled here so it doesn't clear a logged-in admin's token.
   const res = await fetch(`${PILLAR_PHOTOS_URL}/${siblingId}`, {

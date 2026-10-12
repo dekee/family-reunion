@@ -73,6 +73,34 @@ class PillarPhotoControllerIntegrationTest @Autowired constructor(
     }
 
     @Test
+    fun `keeps the full-size original and serves the thumbnail separately`() {
+        val (_, pillar) = seedFamily()
+        val original = ByteArray(8 * 1024 * 1024) { (it % 251).toByte() }
+        val thumb = byteArrayOf(4, 5, 6)
+        mockMvc.perform(
+            multipart("/api/tributes/photos/${pillar.id}")
+                .file(MockMultipartFile("file", "full.png", "image/png", original))
+                .file(MockMultipartFile("thumbnail", "thumb.jpg", "image/jpeg", thumb))
+                .param("password", "tumblin2026")
+        ).andExpect(status().isOk)
+
+        mockMvc.perform(get("/api/tributes/photos/${pillar.id}"))
+            .andExpect(header().string("Content-Type", "image/png"))
+            .andExpect(content().bytes(original))
+        mockMvc.perform(get("/api/tributes/photos/${pillar.id}").param("size", "thumbnail"))
+            .andExpect(header().string("Content-Type", "image/jpeg"))
+            .andExpect(content().bytes(thumb))
+    }
+
+    @Test
+    fun `thumbnail request falls back to the original when there is no thumbnail`() {
+        val (_, pillar) = seedFamily()
+        upload(pillar.id).andExpect(status().isOk)
+        mockMvc.perform(get("/api/tributes/photos/${pillar.id}").param("size", "thumbnail"))
+            .andExpect(content().bytes(jpeg))
+    }
+
+    @Test
     fun `wrong password is rejected`() {
         val (_, pillar) = seedFamily()
         upload(pillar.id, password = "nope").andExpect(status().isForbidden)
@@ -88,7 +116,7 @@ class PillarPhotoControllerIntegrationTest @Autowired constructor(
     @Test
     fun `oversized files are rejected`() {
         val (_, pillar) = seedFamily()
-        upload(pillar.id, file = MockMultipartFile("file", "big.jpg", "image/jpeg", ByteArray(5 * 1024 * 1024 + 1)))
+        upload(pillar.id, file = MockMultipartFile("file", "big.jpg", "image/jpeg", ByteArray(20 * 1024 * 1024 + 1)))
             .andExpect(status().isBadRequest)
     }
 

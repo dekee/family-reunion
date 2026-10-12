@@ -31,7 +31,7 @@ class PillarPhotoService(
             ResponseStatusException(HttpStatus.NOT_FOUND, "No photo for this pillar")
         }
 
-    fun save(siblingId: Long, contentType: String, bytes: ByteArray): PillarPhotoInfo {
+    fun save(siblingId: Long, contentType: String, bytes: ByteArray, thumbnail: ByteArray?): PillarPhotoInfo {
         val member = familyMemberRepository.findById(siblingId)
             .orElseThrow { FamilyMemberNotFoundException(siblingId) }
         // Pillars are the founders' children — don't let the public endpoint attach photos to anyone else.
@@ -42,6 +42,7 @@ class PillarPhotoService(
         val photo = photoRepository.findById(siblingId).orElse(null) ?: PillarPhoto(siblingId = siblingId)
         photo.contentType = contentType
         photo.data = bytes
+        photo.thumbnail = thumbnail
         photo.updatedAt = LocalDateTime.now()
         val saved = photoRepository.save(photo)
         return PillarPhotoInfo(saved.siblingId, saved.updatedAt.toInstant(ZoneOffset.UTC).toEpochMilli())

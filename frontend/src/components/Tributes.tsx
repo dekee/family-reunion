@@ -107,9 +107,11 @@ function PillarPortrait({ src, name, hex, size }: { src: string; name: string; h
   );
 }
 
-// Shrink to a ~600px JPEG in the browser so phone photos upload fast and stay small in the DB.
+// The original is uploaded untouched (for showing full size at the banquet); this ~600px JPEG copy
+// is uploaded alongside it so the page's small portrait circles load quickly.
 const PORTRAIT_MAX_EDGE = 600;
-function downscaleImage(file: File): Promise<Blob> {
+const MAX_PHOTO_MB = 20;
+function makeThumbnail(file: File): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -238,10 +240,10 @@ export default function Tributes() {
     : [];
   const myExisting = pillarTributes.find((t) => t.authorId === selectedMemberId);
 
-  const photoSrc = (p: Pillar) => {
+  const photoSrc = (p: Pillar, size: 'thumbnail' | 'full' = 'thumbnail') => {
     const id = siblingIds.get(p.firstName);
     const version = id !== undefined ? photoVersions.get(id) : undefined;
-    return id !== undefined && version !== undefined ? pillarPhotoUrl(id, version) : null;
+    return id !== undefined && version !== undefined ? pillarPhotoUrl(id, version, size) : null;
   };
 
   const tributeCount = (p: Pillar) => {
@@ -323,10 +325,14 @@ export default function Tributes() {
 
   const handleUploadPhoto = async () => {
     if (!selectedSiblingId || !photoFile || !photoPassword) return;
+    if (photoFile.size > MAX_PHOTO_MB * 1024 * 1024) {
+      showToast(`Photo must be ${MAX_PHOTO_MB} MB or smaller`, 'error');
+      return;
+    }
     setUploadingPhoto(true);
     try {
-      const resized = await downscaleImage(photoFile);
-      await uploadPillarPhoto(selectedSiblingId, photoPassword, resized);
+      const thumbnail = await makeThumbnail(photoFile);
+      await uploadPillarPhoto(selectedSiblingId, photoPassword, photoFile, thumbnail);
       showToast('Photo added. Thank you!');
       setPhotoFormOpen(false);
       setPhotoFile(null);
@@ -555,6 +561,16 @@ export default function Tributes() {
                   <button className="btn-pillar-photo" onClick={() => setPhotoFormOpen(true)}>
                     {photoSrc(selectedPillar) ? 'Replace photo' : `Add a photo of ${selectedPillar.displayName}`}
                   </button>
+                  {photoSrc(selectedPillar) && (
+                    <a
+                      className="btn-pillar-photo"
+                      href={photoSrc(selectedPillar, 'full')!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      View full size
+                    </a>
+                  )}
                   {isAdmin && photoSrc(selectedPillar) && (
                     <button className="btn-pillar-photo btn-pillar-photo-remove" onClick={handleRemovePhoto}>
                       Remove photo

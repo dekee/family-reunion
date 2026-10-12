@@ -29,13 +29,23 @@ class PillarPhotoController(
         ResponseEntity.ok(photoService.listVersions())
 
     // The frontend requests `?v=<version>`, so each URL's bytes never change and can be cached forever.
+    // `size=thumbnail` serves the small display copy; without it, the full-size original.
     @GetMapping("/{siblingId}")
-    fun getPhoto(@PathVariable siblingId: Long): ResponseEntity<ByteArray> {
+    fun getPhoto(
+        @PathVariable siblingId: Long,
+        @RequestParam(required = false) size: String?
+    ): ResponseEntity<ByteArray> {
         val photo = photoService.get(siblingId)
+        val thumbnail = photo.thumbnail
+        val (bytes, contentType) = if (size == "thumbnail" && thumbnail != null) {
+            thumbnail to MediaType.IMAGE_JPEG
+        } else {
+            photo.data to MediaType.parseMediaType(photo.contentType)
+        }
         return ResponseEntity.ok()
-            .contentType(MediaType.parseMediaType(photo.contentType))
+            .contentType(contentType)
             .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic().immutable())
-            .body(photo.data)
+            .body(bytes)
     }
 
     @PostMapping("/{siblingId}")
@@ -43,6 +53,7 @@ class PillarPhotoController(
         @PathVariable siblingId: Long,
         @RequestParam password: String,
         @RequestParam("file") file: MultipartFile,
+        @RequestParam("thumbnail", required = false) thumbnail: MultipartFile?,
         httpRequest: HttpServletRequest
     ): ResponseEntity<PillarPhotoInfo> {
         val ip = IpRateLimiter.clientIp(httpRequest)
@@ -58,9 +69,14 @@ class PillarPhotoController(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Only image files can be uploaded")
         }
         if (file.size > MAX_BYTES) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Photo must be 5 MB or smaller")
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Photo must be 20 MB or smaller")
         }
-        return ResponseEntity.ok(photoService.save(siblingId, contentType, file.bytes))
+        if (thumbnail != null && (thumbnail.size > MAX_THUMBNAIL_BYTES ||
+                thumbnail.contentType?.startsWith("image/") != true)) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid thumbnail")
+        }
+        val thumbnailBytes = thumbnail?.takeUnless { it.isEmpty }?.bytes
+        return ResponseEntity.ok(photoService.save(siblingId, contentType, file.bytes, thumbnailBytes))
     }
 
     @DeleteMapping("/{siblingId}")
@@ -70,6 +86,8 @@ class PillarPhotoController(
     }
 
     companion object {
-        private const val MAX_BYTES = 5L * 1024 * 1024
+        // Originals are kept full size for showing at the banquet; Spring's multipart cap is 25 MB.
+        private const val MAX_BYTES = 20L * 1024 * 1024
+        private const val MAX_THUMBNAIL_BYTES = 1L * 1024 * 1024
     }
 }

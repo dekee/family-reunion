@@ -333,6 +333,8 @@
 }
 
 .btn-pillar-photo {
+  display: inline-block;
+  text-decoration: none;
   background: transparent;
   border: 1px solid var(--pillar-ink);
   color: var(--pillar-ink);
