@@ -6,6 +6,7 @@ import com.familyreunion.rsvp.config.StripeConfig
 import com.familyreunion.rsvp.dto.AngelContributorResponse
 import com.familyreunion.rsvp.dto.ContributionCheckoutRequest
 import com.familyreunion.rsvp.dto.CheckoutRequest
+import com.familyreunion.rsvp.dto.DanceOffShirtCheckoutRequest
 import com.familyreunion.rsvp.dto.DonationCheckoutRequest
 import com.familyreunion.rsvp.dto.LineItemResponse
 import com.familyreunion.rsvp.dto.LineItemSizeResponse
@@ -444,6 +445,104 @@ class PaymentService(
         return session.url
     }
 
+    /**
+     * Creates a checkout for Sister Dance Off shirts: no RSVP, anyone may order, picked up at the
+     * fish fry. Priced entirely server-side and equality-checked, like the fee path — there is no
+     * pay-what-you-can part. Each shirt becomes its own [LineItemKind.DANCE_OFF_SHIRT] row so the
+     * admin tally can list sizes and who each one is for.
+     */
+    fun createDanceOffShirtCheckoutSession(request: DanceOffShirtCheckoutRequest): String {
+        // The page shows itself as closed when the switch is off, but hiding is not a control.
+        if (!featureConfig.danceOffShirts) {
+            throw IllegalArgumentException(
+                "Sister Dance Off shirt orders are closed right now. Please refresh the page."
+            )
+        }
+
+        val buyerName = sanitizeDonorText(request.buyerName)
+            ?: throw IllegalArgumentException("Please enter your name so we know whose shirts these are.")
+        rejectReservedName(buyerName)
+
+        if (request.items.isEmpty()) {
+            throw IllegalArgumentException("Add at least one shirt.")
+        }
+        val shirts = request.items.flatMap { item ->
+            if (item.quantity < 1 || item.quantity > MAX_DANCE_OFF_PER_LINE) {
+                throw IllegalArgumentException("Each size can be ordered 1 to $MAX_DANCE_OFF_PER_LINE at a time.")
+            }
+            val wearer = sanitizeDonorText(item.wearerName)?.also { rejectReservedName(it) } ?: buyerName
+            val size = TshirtSize.parse(item.tshirtSize, wearer)
+            List(item.quantity) { wearer to size }
+        }
+        if (shirts.size > MAX_DANCE_OFF_SHIRTS) {
+            throw IllegalArgumentException(
+                "Online orders are capped at $MAX_DANCE_OFF_SHIRTS shirts — please contact an admin for more."
+            )
+        }
+
+        val priceCents = feeConfig.danceOffShirt
+        val calculatedCents = shirts.size * priceCents
+        if (request.totalCents != calculatedCents) {
+            log.warn("Dance-off order amount mismatch: client sent ${request.totalCents}, server calculated $calculatedCents")
+            throw IllegalArgumentException(
+                "Amount mismatch. Expected $calculatedCents cents, got ${request.totalCents}. Please refresh and try again."
+            )
+        }
+
+        // Last, so every rule above is testable without a Stripe key.
+        if (!stripeConfig.isConfigured()) {
+            throw IllegalStateException("Stripe is not configured. Please set STRIPE_SECRET_KEY.")
+        }
+
+        // Buyer text stays out of Stripe product data and metadata, as with donor text.
+        val session = createStripeSession(
+            amountCents = calculatedCents,
+            productName = "Sister Dance Off T-shirt",
+            description = if (shirts.size == 1) "1 shirt, pick up at the fish fry"
+                else "${shirts.size} shirts, pick up at the fish fry",
+            successUrl = stripeConfig.danceOffSuccessUrl,
+            cancelUrl = stripeConfig.danceOffCancelUrl,
+            metadata = mapOf("kind" to "dance_off", "shirts" to shirts.size.toString())
+        )
+
+        val payment = Payment(
+            rsvp = null,
+            amount = BigDecimal.valueOf(calculatedCents).divide(BigDecimal(100)),
+            stripeSessionId = session.id,
+            status = PaymentStatus.PENDING,
+            createdAt = LocalDateTime.now(),
+            checkinToken = java.util.UUID.randomUUID().toString(),
+            donorName = buyerName
+        )
+        paymentRepository.save(payment)
+
+        val priceDollars = BigDecimal.valueOf(priceCents).divide(BigDecimal(100))
+        for ((wearer, size) in shirts) {
+            payment.lineItems.add(
+                PaymentLineItem(
+                    payment = payment,
+                    guestName = wearer,
+                    ageGroup = AgeGroup.ADULT,
+                    amount = priceDollars,
+                    tshirtSize = size,
+                    kind = LineItemKind.DANCE_OFF_SHIRT
+                )
+            )
+        }
+        paymentRepository.save(payment)
+
+        return session.url
+    }
+
+    /** A name a line item could be mistaken for: see [sanitizeGuestName]. */
+    private fun rejectReservedName(name: String) {
+        if (name.equals(ANGEL_CONTRIBUTION_NAME, ignoreCase = true) ||
+            name.equals(DONATION_LINE_ITEM_NAME, ignoreCase = true)
+        ) {
+            throw IllegalArgumentException("\"$name\" is a reserved name — please use a real name.")
+        }
+    }
+
     private fun angelLineItem(payment: Payment, amountCents: Long) = PaymentLineItem(
         payment = payment,
         guestName = ANGEL_CONTRIBUTION_NAME,
@@ -586,9 +685,12 @@ class PaymentService(
 
             try {
                 val lineItems = paymentLineItemRepository.findByPaymentId(existing.id)
+                val danceOff = lineItems.any { it.isDanceOffShirt }
                 notificationService.sendPaymentNotificationToAdmins(
-                    familyName = existing.rsvp?.familyName ?: "Angel Fund",
-                    isDonation = existing.rsvp == null,
+                    familyName = existing.rsvp?.familyName
+                        ?: if (danceOff) existing.donorName ?: "Unknown buyer" else "Angel Fund",
+                    isDonation = existing.rsvp == null && !danceOff,
+                    isDanceOffOrder = danceOff,
                     donorName = existing.donorName,
                     donorFamilyLabel = existing.donorFamilyLabel,
                     donorAnonymous = existing.donorAnonymous,
@@ -716,10 +818,11 @@ class PaymentService(
         return allPayments.map { payment ->
             val rsvp = payment.rsvp
             val lineItems = paymentLineItemRepository.findByPaymentId(payment.id)
+            val danceOff = lineItems.any { it.isDanceOffShirt }
             PaymentDetailResponse(
                 id = payment.id,
                 rsvpId = rsvp?.id ?: 0,
-                familyName = rsvp?.familyName ?: "Angel Fund",
+                familyName = rsvp?.familyName ?: if (danceOff) "Sister Dance Off shirt order" else "Angel Fund",
                 amount = payment.amount,
                 status = payment.status.name,
                 createdAt = payment.createdAt.toString(),
@@ -728,7 +831,8 @@ class PaymentService(
                 checkinToken = if (payment.status == PaymentStatus.COMPLETED) payment.checkinToken else null,
                 checkedIn = payment.checkedIn,
                 checkedInAt = payment.checkedInAt?.toString(),
-                donationOnly = rsvp == null,
+                donationOnly = rsvp == null && !danceOff,
+                danceOffOrder = danceOff,
                 donorName = payment.donorName,
                 donorFamilyLabel = payment.donorFamilyLabel,
                 donorAnonymous = payment.donorAnonymous,
@@ -795,13 +899,15 @@ class PaymentService(
         val shirts = total { !it.isAngel && it.kind == LineItemKind.SHIRT }
         val donations = total { !it.isAngel && it.kind == LineItemKind.DONATION }
         val angel = total { it.isAngel }
+        val danceOffShirts = total { it.isDanceOffShirt }
 
         return RevenueBreakdownResponse(
             fees = fees,
             shirts = shirts,
             donations = donations,
             angel = angel,
-            total = fees.add(shirts).add(donations).add(angel)
+            danceOffShirts = danceOffShirts,
+            total = fees.add(shirts).add(donations).add(angel).add(danceOffShirts)
         )
     }
 
@@ -845,6 +951,8 @@ class PaymentService(
     companion object {
         const val MIN_DONATION_CENTS = 100L         // $1
         const val MAX_DONATION_CENTS = 1_000_000L   // $10,000
+        const val MAX_DANCE_OFF_SHIRTS = 20
+        const val MAX_DANCE_OFF_PER_LINE = 10
         private const val MAX_DONOR_TEXT_LENGTH = 80
     }
 

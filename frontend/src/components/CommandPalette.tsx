@@ -22,6 +22,7 @@ const ALL_ITEMS: NavItem[] = [
   { label: 'Gallery', path: '/gallery' },
   { label: 'Memorial', path: '/memorial' },
   { label: 'Tributes', path: '/tributes' },
+  { label: 'Sister Dance Off Shirt', path: '/dance-off' },
   { label: 'Thank You', path: '/thank-you' },
   { label: 'RSVP', path: '/rsvp', admin: true },
   { label: 'Check-In', path: '/checkin', admin: true },

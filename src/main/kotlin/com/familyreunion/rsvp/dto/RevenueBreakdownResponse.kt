@@ -14,5 +14,7 @@ data class RevenueBreakdownResponse(
     val shirts: BigDecimal,
     val donations: BigDecimal,
     val angel: BigDecimal,
+    /** Sister Dance Off shirt sales: merchandise, reported apart from reunion shirts. */
+    val danceOffShirts: BigDecimal = BigDecimal.ZERO,
     val total: BigDecimal
 )

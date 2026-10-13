@@ -400,6 +400,20 @@ class SecurityIntegrationTest @Autowired constructor(
     }
 
     @Test
+    fun `POST payments dance-off-shirts should be public`() {
+        val result = mockMvc.perform(
+            post("/api/payments/dance-off-shirts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"buyerName":"Kendra","totalCents":1,"items":[{"tshirtSize":"L","quantity":1}]}""")
+        ).andReturn()
+
+        assert(result.response.status != 401) { "dance-off orders must not require auth" }
+        assert(result.response.status != 403) { "dance-off orders must not 403 — the frontend logs out on 403" }
+        // The total is wrong, so a reachable endpoint answers 400 rather than an auth error.
+        assert(result.response.status == 400) { "expected 400, got ${result.response.status}" }
+    }
+
+    @Test
     fun `GET payments revenue should still return 401 without auth`() {
         // Falls through to the /api/** admin catch-all on purpose — it is aggregate financial
         // reporting, unlike the public per-branch summary.

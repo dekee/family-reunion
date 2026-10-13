@@ -113,7 +113,9 @@ class NotificationService(
         isDonation: Boolean = false,
         donorName: String? = null,
         donorFamilyLabel: String? = null,
-        donorAnonymous: Boolean = false
+        donorAnonymous: Boolean = false,
+        /** True for a Sister Dance Off shirt order; [familyName] is then the buyer's name. */
+        isDanceOffOrder: Boolean = false
     ) {
         if (!isEmailConfigured()) {
             log.info("Email not configured, skipping admin payment notification")
@@ -148,13 +150,26 @@ class NotificationService(
             </tr>"""
         }
 
-        val heading = if (isDonation) "Angel Fund Gift" else "Payment Received"
+        val heading = when {
+            isDonation -> "Angel Fund Gift"
+            isDanceOffOrder -> "Sister Dance Off Shirt Order"
+            else -> "Payment Received"
+        }
 
         val detailRows = if (isDonation) {
             """
                     <p style="margin: 4px 0;"><strong>Donor (public name):</strong> ${safeDonorName ?: "Anonymous"}</p>
                     <p style="margin: 4px 0;"><strong>Anonymous:</strong> ${if (donorAnonymous) "Yes" else "No"}</p>
                     <p style="margin: 4px 0;"><strong>Family label:</strong> ${safeDonorFamilyLabel ?: "—"}</p>
+                    <p style="margin: 4px 0;"><strong>Stripe name:</strong> ${safePayerName ?: "N/A"}</p>
+                    <p style="margin: 4px 0;"><strong>Email:</strong> ${safePayerEmail ?: "N/A"}</p>
+                    <p style="margin: 4px 0;"><strong>Total:</strong> ${formattedAmount}</p>
+                    <p style="margin: 4px 0;"><strong>Date:</strong> ${formattedTime}</p>
+            """.trimIndent()
+        } else if (isDanceOffOrder) {
+            """
+                    <p style="margin: 4px 0;"><strong>Ordered by:</strong> ${safeFamilyName}</p>
+                    <p style="margin: 4px 0;"><strong>Shirts:</strong> ${lineItems.size} (pick up at the fish fry)</p>
                     <p style="margin: 4px 0;"><strong>Stripe name:</strong> ${safePayerName ?: "N/A"}</p>
                     <p style="margin: 4px 0;"><strong>Email:</strong> ${safePayerEmail ?: "N/A"}</p>
                     <p style="margin: 4px 0;"><strong>Total:</strong> ${formattedAmount}</p>
@@ -200,6 +215,8 @@ class NotificationService(
 
         val subject = if (isDonation) {
             "Angel Fund Gift - $formattedAmount"
+        } else if (isDanceOffOrder) {
+            "Sister Dance Off Shirt Order - $safeFamilyName - $formattedAmount"
         } else {
             "Payment Received - $safeFamilyName Family - $formattedAmount"
         }

@@ -16,6 +16,8 @@ const DEFAULT_FEES: FeeSchedule = {
   INFANT: 1500,
   SHIRT: 1500,
   DONATION_SHIRTS_ENABLED: false,
+  DANCE_OFF_SHIRT: 2650,
+  DANCE_OFF_SHIRTS_ENABLED: false,
 };
 
 let currentFees: FeeSchedule = DEFAULT_FEES;
@@ -39,6 +41,16 @@ export function shirtPrice(): number {
 /** Whether the donations page offers T-shirts. A server switch, so a toggle needs no frontend rebuild. */
 export function donationShirtsEnabled(): boolean {
   return currentFees.DONATION_SHIRTS_ENABLED;
+}
+
+/** Price of one Sister Dance Off shirt, in cents (integer, so totals never drift by a cent). */
+export function danceOffShirtCents(): number {
+  return currentFees.DANCE_OFF_SHIRT;
+}
+
+/** Whether the Sister Dance Off page is taking orders. A server switch, no rebuild needed. */
+export function danceOffShirtsEnabled(): boolean {
+  return currentFees.DANCE_OFF_SHIRTS_ENABLED;
 }
 
 function buildAgeGroups(): Record<AgeGroup, AgeGroupConfig> {

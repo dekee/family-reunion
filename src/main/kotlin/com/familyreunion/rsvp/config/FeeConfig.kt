@@ -18,6 +18,9 @@ class FeeConfig {
      */
     var shirt: Long = 1500
 
+    /** Price of one Sister Dance Off shirt, sold on its own page. Full-colour print, so its own price. */
+    var danceOffShirt: Long = 2650
+
     fun feeForAgeGroup(ageGroup: AgeGroup): Long = when (ageGroup) {
         AgeGroup.ADULT -> adult
         AgeGroup.SPOUSE -> spouse

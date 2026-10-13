@@ -43,6 +43,7 @@ import type {
   TshirtSize,
   DonationCheckoutRequest,
   ContributionCheckoutRequest,
+  DanceOffShirtCheckoutRequest,
   RevenueBreakdown,
   AngelContributor,
 } from './types';
@@ -636,8 +637,32 @@ describe('API Request Type Contracts', () => {
   });
 
   it('RevenueBreakdown total is the sum of its buckets', () => {
-    const r: RevenueBreakdown = { fees: 150, shirts: 15, donations: 40, angel: 35, total: 240 };
-    expect(r.fees + r.shirts + r.donations + r.angel).toBe(r.total);
+    const r: RevenueBreakdown = { fees: 150, shirts: 15, donations: 40, angel: 35, danceOffShirts: 53, total: 293 };
+    expect(r.fees + r.shirts + r.donations + r.angel + r.danceOffShirts).toBe(r.total);
+  });
+
+  it('FeeSchedule carries the Sister Dance Off price and switch, closed by default', async () => {
+    const { getFees, setFees, danceOffShirtCents, danceOffShirtsEnabled } = await import('./constants/ageGroups');
+    // Mirrors app.fees.dance-off-shirt and app.features.dance-off-shirts. Closed until the server
+    // says otherwise, so the page never offers an order it would refuse.
+    expect(getFees().DANCE_OFF_SHIRT).toBe(2650);
+    expect(danceOffShirtCents()).toBe(2650);
+    expect(danceOffShirtsEnabled()).toBe(false);
+    setFees({ ...getFees(), DANCE_OFF_SHIRTS_ENABLED: true });
+    expect(danceOffShirtsEnabled()).toBe(true);
+    setFees({ ...getFees(), DANCE_OFF_SHIRTS_ENABLED: false });
+  });
+
+  it('DanceOffShirtCheckoutRequest total is shirt count x the server price, in cents', async () => {
+    const { danceOffShirtCents } = await import('./constants/ageGroups');
+    const items: DanceOffShirtCheckoutRequest['items'] = [
+      { tshirtSize: 'L', quantity: 2 },
+      { tshirtSize: 'YM', quantity: 1, wearerName: 'Little Myra' },
+    ];
+    const count = items.reduce((n, i) => n + i.quantity, 0);
+    const req: DanceOffShirtCheckoutRequest = { buyerName: 'Kendra', totalCents: count * danceOffShirtCents(), items };
+    // Integer cents: 3 x $26.50 must be exactly 7950, never 7949.999.
+    expect(req.totalCents).toBe(7950);
   });
 
   it('AngelContributor tolerates a blank familyName for a standalone gift', () => {
@@ -1027,6 +1052,32 @@ describe('API Client Endpoint Contracts', () => {
     expect(body.attendees[0].ageGroup).toBe('ADULT');
     // A fabricated memberId here would fail the server's ownership guard.
     expect(body.attendees[0].memberId).toBeUndefined();
+  });
+
+  it('createDanceOffShirtCheckout calls POST /api/payments/dance-off-shirts without auth', async () => {
+    localStorage.setItem('auth_token', 'should-not-be-sent');
+    mockFetch({ url: 'https://checkout.stripe.com/dance' });
+    const { createDanceOffShirtCheckout } = await import('./api');
+    const result = await createDanceOffShirtCheckout({
+      buyerName: 'Kendra Tumblin',
+      totalCents: 7950,
+      items: [
+        { tshirtSize: 'L', quantity: 2 },
+        { tshirtSize: 'YM', quantity: 1, wearerName: 'Little Myra' },
+      ],
+    });
+    expect(fetchCalls[0].url).toBe('/api/payments/dance-off-shirts');
+    expect(fetchCalls[0].method).toBe('POST');
+    // Public endpoint: anyone with the link may order, and sending a token would log an admin out on 403.
+    expect((fetchCalls[0].headers as Record<string, string>)?.Authorization).toBeUndefined();
+    const body = JSON.parse(fetchCalls[0].body as string);
+    expect(body.buyerName).toBe('Kendra Tumblin');
+    expect(body.totalCents).toBe(7950);
+    expect(body.items).toHaveLength(2);
+    expect(body.items[0]).toEqual({ tshirtSize: 'L', quantity: 2 });
+    expect(body.items[1].wearerName).toBe('Little Myra');
+    expect(result.url).toBe('https://checkout.stripe.com/dance');
+    localStorage.removeItem('auth_token');
   });
 
   it('fetchRevenueBreakdown calls GET /api/payments/revenue with auth', async () => {

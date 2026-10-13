@@ -65,6 +65,9 @@ class SecurityConfig(
                 // returns 403, and the frontend clears auth_token on 403, logging admins out.
                 auth.requestMatchers(HttpMethod.POST, "/api/payments/donate").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/payments/contribute").permitAll()
+                // Sister Dance Off shirt orders: public (anyone with the link), rate-limited in the
+                // controller, price recomputed server-side, refused while the feature switch is off.
+                auth.requestMatchers(HttpMethod.POST, "/api/payments/dance-off-shirts").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
                 auth.requestMatchers(HttpMethod.POST, "/api/events/*/register").permitAll()
                 auth.requestMatchers(HttpMethod.DELETE, "/api/events/*/register/**").permitAll()

@@ -23,9 +23,11 @@ import ThankYou from './components/ThankYou';
 import TshirtSurvey from './components/TshirtSurvey';
 import TshirtDesignVote from './components/TshirtDesignVote';
 import Tributes from './components/Tributes';
+import DanceOffShirt from './components/DanceOffShirt';
 import CommandPalette from './components/CommandPalette';
 import { ToastProvider } from './components/Toast';
 import type { RsvpResponse } from './types';
+import { fetchFees } from './api';
 import './App.css';
 
 function RsvpPage() {
@@ -182,6 +184,15 @@ function App() {
     localStorage.setItem('theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
+  // The Sister Dance Off link appears only while that page is taking orders. The page itself is
+  // always routable, so a shared link still lands somewhere sensible when orders are closed.
+  const [danceOffOpen, setDanceOffOpen] = useState(false);
+  useEffect(() => {
+    fetchFees()
+      .then(fees => setDanceOffOpen(fees.DANCE_OFF_SHIRTS_ENABLED))
+      .catch(() => {});
+  }, []);
+
   const closeMenu = () => setMenuOpen(false);
 
   return (
@@ -245,6 +256,7 @@ function App() {
               <NavLink to="/gallery" onClick={closeMenu}>Gallery</NavLink>
               <NavLink to="/memorial" onClick={closeMenu}>Memorial</NavLink>
               <NavLink to="/tributes" onClick={closeMenu}>Tributes</NavLink>
+              {danceOffOpen && <NavLink to="/dance-off" onClick={closeMenu}>Dance Off Shirt</NavLink>}
               <NavLink to="/thank-you" onClick={closeMenu}>Thank You</NavLink>
               {isAdmin && <AdminMenu onNavigate={closeMenu} />}
             </nav>
@@ -271,6 +283,7 @@ function App() {
               <Route path="/tshirt-survey" element={<TshirtSurvey />} />
               <Route path="/tshirt-design" element={<TshirtDesignVote />} />
               <Route path="/tributes" element={<Tributes />} />
+              <Route path="/dance-off" element={<DanceOffShirt />} />
               <Route path="/thank-you" element={<ThankYou />} />
               {isAdmin && <Route path="/checkin" element={<CheckinDashboard />} />}
               {isAdmin && <Route path="/payments" element={<PaymentHistory />} />}

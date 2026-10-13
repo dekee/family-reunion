@@ -19,7 +19,11 @@ class StripeConfig(
     // Angel gift ones) rsvpId and the check-in token are appended, so the page can deep-link back to
     // the branch that was just given to.
     @Value("\${stripe.contribution-success-url:http://localhost:5173/donations?payment=success}") val contributionSuccessUrl: String,
-    @Value("\${stripe.contribution-cancel-url:http://localhost:5173/donations?payment=cancelled}") val contributionCancelUrl: String
+    @Value("\${stripe.contribution-cancel-url:http://localhost:5173/donations?payment=cancelled}") val contributionCancelUrl: String,
+    // Sister Dance Off shirt orders return to their own page. Used verbatim, like the Angel gift URLs:
+    // an order has no rsvpId or ticket to append.
+    @Value("\${stripe.dance-off-success-url:http://localhost:5173/dance-off?payment=success}") val danceOffSuccessUrl: String,
+    @Value("\${stripe.dance-off-cancel-url:http://localhost:5173/dance-off?payment=cancelled}") val danceOffCancelUrl: String
 ) {
     @PostConstruct
     fun init() {

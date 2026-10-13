@@ -30,6 +30,7 @@ export default function PaymentHistory() {
   const [filter, setFilter] = useState<StatusFilter>('ALL');
   const [search, setSearch] = useState('');
   const [showSizes, setShowSizes] = useState(true);
+  const [showDanceSizes, setShowDanceSizes] = useState(true);
   const [showSizeList, setShowSizeList] = useState(false);
 
   useEffect(() => {
@@ -79,6 +80,21 @@ export default function PaymentHistory() {
     if (!a.tshirtSize !== !b.tshirtSize) return a.tshirtSize ? 1 : -1;
     return a.familyName.localeCompare(b.familyName) || a.name.localeCompare(b.name);
   });
+
+  // Sister Dance Off shirts: a separate print run from the reunion shirt, so a separate tally. Every
+  // row has a size (the order form requires one), so there is no missing-size chase list here.
+  const danceRows = completedPayments.flatMap(p =>
+    p.lineItems
+      .filter(li => li.kind === 'DANCE_OFF_SHIRT')
+      .map(li => ({ ...li, buyer: p.donorName ?? p.payerName ?? 'Unknown' }))
+  );
+  const danceCounts = new Map<string, number>();
+  for (const row of danceRows) {
+    if (row.tshirtSize) danceCounts.set(row.tshirtSize, (danceCounts.get(row.tshirtSize) ?? 0) + 1);
+  }
+  const sortedDanceRows = [...danceRows].sort(
+    (a, b) => a.buyer.localeCompare(b.buyer) || a.name.localeCompare(b.name)
+  );
 
   if (loading) return (
     <div className="ph-page">
@@ -136,6 +152,12 @@ export default function PaymentHistory() {
             <span className="ph-stat-number ph-stat-gold">{dollars(revenue.angel)}</span>
             <span className="ph-stat-label">Angel Fund</span>
           </div>
+          {revenue.danceOffShirts > 0 && (
+            <div className="ph-stat-card">
+              <span className="ph-stat-number">{dollars(revenue.danceOffShirts)}</span>
+              <span className="ph-stat-label">Dance Off Shirts</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -227,6 +249,67 @@ export default function PaymentHistory() {
         )}
       </section>
 
+      {danceRows.length > 0 && (
+        <section className="ph-sizes-section">
+          <button
+            type="button"
+            className="ph-sizes-toggle"
+            onClick={() => setShowDanceSizes(s => !s)}
+            aria-expanded={showDanceSizes}
+          >
+            <span className="ph-sizes-title">Sister Dance Off Shirts</span>
+            <span className="ph-sizes-summary">
+              {danceRows.length} shirt{danceRows.length === 1 ? '' : 's'} · pick up at the fish fry
+            </span>
+            <span className="ph-sizes-chevron" aria-hidden="true">{showDanceSizes ? '▾' : '▸'}</span>
+          </button>
+
+          {showDanceSizes && (
+            <div className="ph-sizes-body">
+              <div className="ph-sizes-groups">
+                {SIZE_CATEGORIES.map(cat => (
+                  <div key={cat} className="ph-sizes-group">
+                    <span className="ph-sizes-group-label">{SIZE_CATEGORY_LABELS[cat]}</span>
+                    <div className="ph-size-chips">
+                      {SIZES_BY_CATEGORY[cat].map(size => {
+                        const count = danceCounts.get(size) ?? 0;
+                        return (
+                          <span key={size} className={`ph-size-chip ${count === 0 ? 'ph-size-chip-zero' : ''}`}>
+                            <span className="ph-size-chip-label">{SIZE_LABELS[size]}</span>
+                            <span className="ph-size-chip-count">{count}</span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="ph-sizes-table-wrap">
+                <table className="ph-sizes-table">
+                  <thead>
+                    <tr>
+                      <th>For</th>
+                      <th>Ordered by</th>
+                      <th>Size</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedDanceRows.map(row => (
+                      <tr key={row.lineItemId}>
+                        <td>{row.name}</td>
+                        <td>{row.buyer}</td>
+                        <td>{row.tshirtSize ? sizeLabel(row.tshirtSize) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
       <div className="ph-controls">
         <input
           type="text"
@@ -277,6 +360,12 @@ export default function PaymentHistory() {
                     <span className="ph-detail-value">{p.payerEmail}</span>
                   </div>
                 )}
+                {p.danceOffOrder && (
+                  <div className="ph-detail-row">
+                    <span className="ph-detail-label">Ordered by</span>
+                    <span className="ph-detail-value">{p.donorName || '—'}</span>
+                  </div>
+                )}
                 {p.donationOnly && (
                   /* Admin-only: the donor's chosen public name next to Stripe's cardholder name. */
                   <div className="ph-detail-row">
@@ -308,7 +397,8 @@ export default function PaymentHistory() {
                       // (Angel, Donation), a person who bought a shirt, and a person admitted by a
                       // donation without one — who must not be nagged for a size they never paid for.
                       const isMoney = li.kind === 'ANGEL' || li.kind === 'DONATION';
-                      const wantsSize = li.kind === 'FEE' || li.kind === 'SHIRT';
+                      const isDanceOff = li.kind === 'DANCE_OFF_SHIRT';
+                      const wantsSize = li.kind === 'FEE' || li.kind === 'SHIRT' || isDanceOff;
                       return (
                         <div key={li.lineItemId ?? i} className="ph-line-item">
                           <span className="ph-li-name">
@@ -316,12 +406,14 @@ export default function PaymentHistory() {
                               <span className="ph-angel-tag">Angel</span>
                             ) : li.kind === 'DONATION' ? (
                               <span className="ph-donation-tag">Donation</span>
+                            ) : isDanceOff ? (
+                              <span className="ph-donation-tag">Dance Off</span>
                             ) : li.isGuest ? (
                               <span className="ph-guest-tag">Guest</span>
                             ) : null}
                             {li.kind === 'ANGEL' ? ANGEL_LINE_ITEM_NAME : li.name}
                           </span>
-                          {!isMoney && <span className={`ph-li-age age-${li.ageGroup.toLowerCase()}`}>{ageLabel(li.ageGroup)}</span>}
+                          {!isMoney && !isDanceOff && <span className={`ph-li-age age-${li.ageGroup.toLowerCase()}`}>{ageLabel(li.ageGroup)}</span>}
                           {wantsSize && (
                             li.tshirtSize
                               ? <span className="ph-li-size">{sizeLabel(li.tshirtSize)}</span>

@@ -16,6 +16,8 @@ data class PaymentDetailResponse(
     val checkedInAt: String?,
     /** True for a standalone Angel Fund gift: no RSVP, no attendees. */
     val donationOnly: Boolean = false,
+    /** True for a Sister Dance Off shirt order: no RSVP, no attendees, just shirts. */
+    val danceOffOrder: Boolean = false,
     /** Admin-only view of the donor's chosen name, alongside Stripe's cardholder name. */
     val donorName: String? = null,
     val donorFamilyLabel: String? = null,

@@ -49,7 +49,7 @@ class CheckinService(
         }
 
         if (hasNoAttendees(paymentLineItemRepository.findByPaymentId(payment.id))) {
-            return CheckinResponse(false, "This payment is an Angel Fund gift — no attendees to check in")
+            return CheckinResponse(false, "This payment has no attendees to check in (an Angel Fund gift or a shirt order)")
         }
 
         if (payment.checkedIn) {

@@ -23,8 +23,10 @@ const val NO_SHIRT_MESSAGE = "This attendee does not have a T-shirt — add one 
  * - [ATTENDEE] a person covered by a donation with no shirt — a $0 row, the record that they are coming
  * - [DONATION] the freeform portion of a donation checkout; counts toward the branch balance
  * - [ANGEL]    an Angel Fund gift; deliberately excluded from branch balances
+ * - [DANCE_OFF_SHIRT] a Sister Dance Off novelty shirt bought on its own page. Not a person (nobody
+ *   is admitted by it) and not a reunion shirt (a separate print run, tallied separately).
  */
-enum class LineItemKind { FEE, SHIRT, ATTENDEE, DONATION, ANGEL }
+enum class LineItemKind { FEE, SHIRT, ATTENDEE, DONATION, ANGEL, DANCE_OFF_SHIRT }
 
 @Entity
 @Table(name = "payment_line_items")
@@ -69,7 +71,11 @@ class PaymentLineItem(
 
     /** A person to admit, as opposed to money with no body attached. */
     val isPerson: Boolean
-        get() = !isAngel && kind != LineItemKind.DONATION
+        get() = !isAngel && kind != LineItemKind.DONATION && kind != LineItemKind.DANCE_OFF_SHIRT
+
+    /** A Sister Dance Off shirt: merchandise, kept out of reunion shirt counts and attendee lists. */
+    val isDanceOffShirt: Boolean
+        get() = !isAngel && kind == LineItemKind.DANCE_OFF_SHIRT
 
     /**
      * Entitles someone to a shirt, and therefore to a size. [isAngel] is checked first for the same

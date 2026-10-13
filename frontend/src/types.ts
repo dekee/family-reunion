@@ -155,11 +155,12 @@ export interface PaymentLineItemResponse {
   isGuest: boolean;
   lineItemId: number;
   tshirtSize: TshirtSize | null;
-  /** LineItemKind: FEE | SHIRT | ATTENDEE | DONATION | ANGEL. */
+  /** LineItemKind: FEE | SHIRT | ATTENDEE | DONATION | ANGEL | DANCE_OFF_SHIRT. */
   kind: LineItemKind;
 }
 
-export type LineItemKind = 'FEE' | 'SHIRT' | 'ATTENDEE' | 'DONATION' | 'ANGEL';
+/** DANCE_OFF_SHIRT is merchandise from the Sister Dance Off page: not a person, not a reunion shirt. */
+export type LineItemKind = 'FEE' | 'SHIRT' | 'ATTENDEE' | 'DONATION' | 'ANGEL' | 'DANCE_OFF_SHIRT';
 
 export interface PaymentDetailResponse {
   id: number;
@@ -175,6 +176,8 @@ export interface PaymentDetailResponse {
   checkedInAt: string | null;
   /** True for a standalone Angel Fund gift: no RSVP, no attendees. */
   donationOnly: boolean;
+  /** True for a Sister Dance Off shirt order: no RSVP, just shirts. donorName is the buyer. */
+  danceOffOrder: boolean;
   donorName: string | null;
   donorFamilyLabel: string | null;
   donorAnonymous: boolean;
@@ -308,7 +311,26 @@ export interface RevenueBreakdown {
   shirts: number;
   donations: number;
   angel: number;
+  /** Sister Dance Off shirt sales, kept apart from reunion shirts. */
+  danceOffShirts: number;
   total: number;
+}
+
+/**
+ * An order from the Sister Dance Off shirt page. Anyone may order; there is no RSVP. totalCents must
+ * equal (total quantity x fees.DANCE_OFF_SHIRT) exactly, or the server refuses it.
+ */
+export interface DanceOffShirtCheckoutRequest {
+  buyerName: string;
+  totalCents: number;
+  items: DanceOffShirtItem[];
+}
+
+/** One size, how many (1-10), and optionally who it's for (defaults to the buyer). */
+export interface DanceOffShirtItem {
+  tshirtSize: TshirtSize;
+  quantity: number;
+  wearerName?: string;
 }
 
 export interface DonationCheckoutRequest {

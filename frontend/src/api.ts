@@ -1,4 +1,4 @@
-import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, PaymentDetailResponse, CheckoutRequest, DonationCheckoutRequest, ContributionCheckoutRequest, RevenueBreakdown, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse, GalleryUploadResponse, AngelContributor, SloganResponse, SloganVoteRequest, DesignResponse, DesignVoteRequest, TributeResponse, TributeRequest, PillarPhotoInfo, VolunteerTaskRequest, VolunteerTaskResponse, VolunteerSignupRequest, UpdateLineItemSizeRequest, LineItemSizeResponse, UpdateTicketSizesRequest } from './types';
+import type { RsvpRequest, RsvpResponse, RsvpSummaryResponse, FamilyTreeResponse, FamilyTreeNode, FamilyMemberRequest, MeetingRequest, MeetingResponse, EventRequest, EventResponse, EventRegisterRequest, PaymentSummaryResponse, PaymentDetailResponse, CheckoutRequest, DonationCheckoutRequest, ContributionCheckoutRequest, DanceOffShirtCheckoutRequest, RevenueBreakdown, AdminUserResponse, TicketResponse, CheckinResponse, SendTicketRequest, GalleryResponse, GalleryUploadResponse, AngelContributor, SloganResponse, SloganVoteRequest, DesignResponse, DesignVoteRequest, TributeResponse, TributeRequest, PillarPhotoInfo, VolunteerTaskRequest, VolunteerTaskResponse, VolunteerSignupRequest, UpdateLineItemSizeRequest, LineItemSizeResponse, UpdateTicketSizesRequest } from './types';
 
 const BASE_URL = '/api/rsvp';
 
@@ -254,6 +254,10 @@ export interface FeeSchedule {
   SHIRT: number;
   /** Server feature switch: whether the donations page may offer that shirt at all. */
   DONATION_SHIRTS_ENABLED: boolean;
+  /** Price of one Sister Dance Off shirt, in cents. */
+  DANCE_OFF_SHIRT: number;
+  /** Server feature switch: whether the Sister Dance Off page is taking orders. */
+  DANCE_OFF_SHIRTS_ENABLED: boolean;
 }
 
 export async function fetchFees(): Promise<FeeSchedule> {
@@ -309,6 +313,16 @@ export async function createContributionCheckout(data: ContributionCheckoutReque
 
 export async function createDonationCheckout(data: DonationCheckoutRequest): Promise<{ url: string }> {
   const res = await fetch(`${PAYMENTS_URL}/donate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
+/** Public, like the other checkout calls: anyone with the link can order, nobody is logged in. */
+export async function createDanceOffShirtCheckout(data: DanceOffShirtCheckoutRequest): Promise<{ url: string }> {
+  const res = await fetch(`${PAYMENTS_URL}/dance-off-shirts`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),

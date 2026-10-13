@@ -15,4 +15,10 @@ class FeatureConfig {
      * the server refuse a contribution that asks for one, so a stale tab cannot buy a shirt either.
      */
     var donationShirts: Boolean = false
+
+    /**
+     * Whether the Sister Dance Off shirt page takes orders. Off shows the page as closed and makes the
+     * server refuse an order, so closing it when the print run goes out also stops stale tabs.
+     */
+    var danceOffShirts: Boolean = false
 }

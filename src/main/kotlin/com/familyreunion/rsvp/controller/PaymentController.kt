@@ -5,6 +5,7 @@ import com.familyreunion.rsvp.config.FeeConfig
 import com.familyreunion.rsvp.dto.AngelContributorResponse
 import com.familyreunion.rsvp.dto.CheckoutRequest
 import com.familyreunion.rsvp.dto.ContributionCheckoutRequest
+import com.familyreunion.rsvp.dto.DanceOffShirtCheckoutRequest
 import com.familyreunion.rsvp.dto.DonationCheckoutRequest
 import com.familyreunion.rsvp.dto.LineItemSizeResponse
 import com.familyreunion.rsvp.dto.PaymentDetailResponse
@@ -43,7 +44,10 @@ class PaymentController(
             "SHIRT" to feeConfig.shirt,
             // Whether the Give page may offer that shirt at all. Rides along here so the page learns
             // the price and the availability from the same fetch.
-            "DONATION_SHIRTS_ENABLED" to featureConfig.donationShirts
+            "DONATION_SHIRTS_ENABLED" to featureConfig.donationShirts,
+            // The Sister Dance Off shirt page: its price and whether it is taking orders.
+            "DANCE_OFF_SHIRT" to feeConfig.danceOffShirt,
+            "DANCE_OFF_SHIRTS_ENABLED" to featureConfig.danceOffShirts
         ))
     }
 
@@ -89,6 +93,24 @@ class PaymentController(
                 .body(mapOf("error" to "Too many attempts. Please try again in a few minutes."))
         }
         val url = paymentService.createContributionCheckoutSession(request)
+        return ResponseEntity.ok(mapOf("url" to url))
+    }
+
+    /**
+     * Public: an order for Sister Dance Off shirts. Rate-limited like /contribute — unauthenticated
+     * and creates Stripe objects — with the 429 as a plain body the frontend can unwrap.
+     */
+    @PostMapping("/dance-off-shirts")
+    fun createDanceOffShirtCheckout(
+        @RequestBody request: DanceOffShirtCheckoutRequest,
+        httpRequest: HttpServletRequest
+    ): ResponseEntity<Map<String, String>> {
+        val ip = IpRateLimiter.clientIp(httpRequest)
+        if (!rateLimiter.tryAcquire("dance-off:$ip", maxRequests = 5, windowSeconds = 600)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(mapOf("error" to "Too many attempts. Please try again in a few minutes."))
+        }
+        val url = paymentService.createDanceOffShirtCheckoutSession(request)
         return ResponseEntity.ok(mapOf("url" to url))
     }
 
