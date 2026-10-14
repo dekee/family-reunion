@@ -105,6 +105,7 @@ function NotFound() {
 const ADMIN_LINKS = [
   { to: '/pay', label: 'Pay & RSVP' },
   { to: '/rsvp', label: 'RSVP List' },
+  { to: '/members', label: 'Members' },
   { to: '/checkin', label: 'Check-In' },
   { to: '/payments', label: 'Payments' },
   { to: '/budget', label: 'Budget' },
@@ -251,7 +252,6 @@ function App() {
               <NavLink to="/events" onClick={closeMenu}>Events</NavLink>
               <NavLink to="/volunteer" onClick={closeMenu}>Volunteer</NavLink>
               <NavLink to="/meetings" onClick={closeMenu}>Meetings</NavLink>
-              <NavLink to="/members" onClick={closeMenu}>Members</NavLink>
               <NavLink to="/family-tree" onClick={closeMenu}>Family Tree</NavLink>
               <NavLink to="/gallery" onClick={closeMenu}>Gallery</NavLink>
               <NavLink to="/memorial" onClick={closeMenu}>Memorial</NavLink>
@@ -275,7 +275,8 @@ function App() {
               <Route path="/donations" element={<Donations />} />
               <Route path="/donations/:branch" element={<Donations />} />
               <Route path="/ticket/:token" element={<TicketPage />} />
-              <Route path="/members" element={<FamilyMembers />} />
+              {/* Hidden from the public for now; admins reach it from the Admin menu. */}
+              {isAdmin && <Route path="/members" element={<FamilyMembers />} />}
               <Route path="/family-tree" element={<FamilyTree />} />
               <Route path="/gallery" element={<Gallery />} />
               {/* key: a fresh instance so photos/state don't carry over between albums */}

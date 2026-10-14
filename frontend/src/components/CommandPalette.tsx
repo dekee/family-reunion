@@ -17,7 +17,7 @@ const ALL_ITEMS: NavItem[] = [
   { label: 'Volunteer', path: '/volunteer' },
   { label: 'Meetings', path: '/meetings' },
   { label: 'Budget', path: '/budget' },
-  { label: 'Members', path: '/members' },
+  { label: 'Members', path: '/members', admin: true },
   { label: 'Family Tree', path: '/family-tree' },
   { label: 'Gallery', path: '/gallery' },
   { label: 'Memorial', path: '/memorial' },
