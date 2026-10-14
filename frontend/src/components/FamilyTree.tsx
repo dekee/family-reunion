@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Tree from 'react-d3-tree';
 import type { RawNodeDatum, CustomNodeElementProps } from 'react-d3-tree';
 import { fetchFamilyTree } from '../api';
+import { useAuth } from '../AuthContext';
 import type { FamilyTreeNode } from '../types';
 import { getBranchColor } from '../branchColors';
 import { Skeleton } from './Skeleton';
@@ -47,6 +48,7 @@ function countNodes(node: FamilyTreeNode): number {
 
 export default function FamilyTree() {
   const [rawData, setRawData] = useState<{ roots: FamilyTreeNode[]; totalMembers: number } | null>(null);
+  const { isAdmin } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
@@ -228,7 +230,7 @@ export default function FamilyTree() {
         <h2>Tumblin Family Tree</h2>
         <p>Wesley & Esther Tumblin, est. 1948</p>
         <p className="member-count">{rawData.totalMembers} family members</p>
-        <p className="edit-hint"><Link to="/members">Manage members</Link></p>
+        {isAdmin && <p className="edit-hint"><Link to="/members">Manage members</Link></p>}
         <div className="legend">
           <span className="legend-item"><span className="dot dot-gold" /> Founders</span>
           <span className="legend-item"><span className="dot dot-blue" /> Gen 1</span>
