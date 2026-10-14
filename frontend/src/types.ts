@@ -94,6 +94,7 @@ export interface EventRequest {
   address: string;
   hostName?: string;
   notes?: string;
+  presentationUrl?: string;
 }
 
 export interface EventResponse {
@@ -104,6 +105,7 @@ export interface EventResponse {
   address: string;
   hostName?: string;
   notes?: string;
+  presentationUrl?: string;
   registrations: EventRegistrationDto[];
   registrationCount: number;
 }

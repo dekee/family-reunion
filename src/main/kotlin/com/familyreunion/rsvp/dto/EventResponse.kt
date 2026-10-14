@@ -11,6 +11,7 @@ data class EventResponse(
     val address: String,
     val hostName: String?,
     val notes: String?,
+    val presentationUrl: String?,
     val registrations: List<EventRegistrationDto>,
     val registrationCount: Int
 )

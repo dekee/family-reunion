@@ -101,7 +101,22 @@
   font-size: 0.9rem;
 }
 
-/* Registration section */
+.event-presentation-link {
+  display: inline-block;
+  margin-top: 0.75rem;
+  padding: 0.45rem 1.1rem;
+  border: 1px solid var(--color-gold);
+  border-radius: var(--radius-pill);
+  color: var(--color-gold);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.event-presentation-link:hover {
+  background: var(--color-gold-light);
+}
+
 .btn-add-event {
   background: linear-gradient(135deg, var(--color-navy-primary), var(--color-navy-secondary));
   color: var(--color-text-on-dark);

@@ -13,6 +13,7 @@ const emptyForm: EventRequest = {
   address: '',
   hostName: '',
   notes: '',
+  presentationUrl: '',
 };
 
 function formatDateTime(iso: string): string {
@@ -87,6 +88,7 @@ export default function Events() {
       address: ev.address,
       hostName: ev.hostName || '',
       notes: ev.notes || '',
+      presentationUrl: ev.presentationUrl || '',
     });
     setError('');
     setShowFormModal(true);
@@ -165,6 +167,16 @@ export default function Events() {
                   )}
                   {ev.description && <p className="event-description">{ev.description}</p>}
                   {ev.notes && <p className="event-notes">{ev.notes}</p>}
+                  {ev.presentationUrl && /^https?:\/\//.test(ev.presentationUrl) && (
+                    <a
+                      className="event-presentation-link"
+                      href={ev.presentationUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      View Presentation
+                    </a>
+                  )}
                 </div>
 
               </div>
@@ -212,6 +224,16 @@ export default function Events() {
                   <label>
                     Notes
                     <textarea name="notes" value={form.notes} onChange={handleChange} placeholder="Optional" />
+                  </label>
+                  <label>
+                    Presentation Link
+                    <input
+                      name="presentationUrl"
+                      type="url"
+                      value={form.presentationUrl}
+                      onChange={handleChange}
+                      placeholder="Optional, e.g. a Google Slides link"
+                    />
                   </label>
                 </div>
                 {error && <p className="event-form-error">{error}</p>}

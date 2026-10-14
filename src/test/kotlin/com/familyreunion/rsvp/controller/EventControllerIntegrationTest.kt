@@ -38,7 +38,8 @@ class EventControllerIntegrationTest @Autowired constructor(
         eventDateTime = dateTime,
         address = "123 Park Ave",
         hostName = "Uncle Steve",
-        notes = "Bring a dish"
+        notes = "Bring a dish",
+        presentationUrl = "https://docs.google.com/presentation/d/abc123/edit"
     )
 
     private fun postEvent(request: EventRequest): String {
@@ -104,6 +105,7 @@ class EventControllerIntegrationTest @Autowired constructor(
             .andExpect(jsonPath("$.address").value("123 Park Ave"))
             .andExpect(jsonPath("$.hostName").value("Uncle Steve"))
             .andExpect(jsonPath("$.notes").value("Bring a dish"))
+            .andExpect(jsonPath("$.presentationUrl").value("https://docs.google.com/presentation/d/abc123/edit"))
             .andExpect(jsonPath("$.registrations", hasSize<Any>(0)))
             .andExpect(jsonPath("$.registrationCount").value(0))
     }
@@ -267,5 +269,25 @@ class EventControllerIntegrationTest @Autowired constructor(
                 .content(objectMapper.writeValueAsString(EventRegisterRequest(emptyList())))
         )
             .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `presentation link must be a web address`() {
+        mockMvc.perform(
+            post("/api/events")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(sampleEvent().copy(presentationUrl = "javascript:alert(1)")))
+        ).andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `blank presentation link is stored as none`() {
+        mockMvc.perform(
+            post("/api/events")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(sampleEvent().copy(presentationUrl = "  ")))
+        )
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.presentationUrl").doesNotExist())
     }
 }

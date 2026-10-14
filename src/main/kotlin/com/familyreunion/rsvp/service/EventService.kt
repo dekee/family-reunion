@@ -26,7 +26,8 @@ class EventService(
             eventDateTime = request.eventDateTime,
             address = request.address,
             hostName = request.hostName,
-            notes = request.notes
+            notes = request.notes,
+            presentationUrl = request.presentationUrl?.trim()?.ifEmpty { null }
         )
         val saved = eventRepository.save(event)
         return toResponse(saved)
@@ -47,6 +48,7 @@ class EventService(
         existing.address = request.address
         existing.hostName = request.hostName
         existing.notes = request.notes
+        existing.presentationUrl = request.presentationUrl?.trim()?.ifEmpty { null }
 
         val saved = eventRepository.save(existing)
         return toResponse(saved)
@@ -95,6 +97,7 @@ class EventService(
         address = event.address,
         hostName = event.hostName,
         notes = event.notes,
+        presentationUrl = event.presentationUrl,
         registrations = event.registrations.map {
             EventRegistrationDto(
                 id = it.id,

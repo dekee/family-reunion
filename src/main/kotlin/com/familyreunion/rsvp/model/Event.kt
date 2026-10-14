@@ -25,6 +25,9 @@ class Event(
 
     var notes: String? = null,
 
+    @Column(name = "presentation_url", length = 500)
+    var presentationUrl: String? = null,
+
     @OneToMany(mappedBy = "event", cascade = [CascadeType.ALL], orphanRemoval = true)
     val registrations: MutableList<EventRegistration> = mutableListOf(),
 
